@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 // import { useAuth } from '@/lib/auth'; // Assuming we have an auth hook
 import axios from 'axios';
 
@@ -10,7 +11,11 @@ export function SmartyBubble() {
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState<string | null>(null);
     const [showTooltip, setShowTooltip] = useState(false);
+    const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const bubbleRef = useRef<HTMLDivElement>(null);
+    const dragOffset = useRef({ x: 0, y: 0 });
+    const dragMovedRef = useRef(false);
     // const { user } = useAuth(); // Commented out until we confirm auth hook usage
     const user = { uid: 'test-user' }; // Mock user for now
 
@@ -30,6 +35,70 @@ export function SmartyBubble() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [bubbleRef]);
+
+    useEffect(() => {
+        if (!isDragging) return;
+
+        function handlePointerMove(event: MouseEvent | TouchEvent) {
+            if (!bubbleRef.current) return;
+            const point = 'touches' in event ? event.touches[0] : event;
+            const bubble = bubbleRef.current;
+            const bubbleWidth = bubble.offsetWidth;
+            const bubbleHeight = bubble.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const minOffset = 16;
+            const maxX = Math.max(minOffset, viewportWidth - bubbleWidth - minOffset);
+            const maxY = Math.max(minOffset, viewportHeight - bubbleHeight - minOffset);
+            const nextX = Math.min(
+                Math.max(point.clientX - dragOffset.current.x, minOffset),
+                maxX
+            );
+            const nextY = Math.min(
+                Math.max(point.clientY - dragOffset.current.y, minOffset),
+                maxY
+            );
+            event.preventDefault();
+            dragMovedRef.current = true;
+            setPosition({ x: nextX, y: nextY });
+        }
+
+        function handlePointerUp() {
+            setIsDragging(false);
+        }
+
+        window.addEventListener('mousemove', handlePointerMove);
+        const touchMoveOptions: AddEventListenerOptions = { passive: false };
+        window.addEventListener('touchmove', handlePointerMove, touchMoveOptions);
+        window.addEventListener('mouseup', handlePointerUp);
+        window.addEventListener('touchend', handlePointerUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handlePointerMove);
+            window.removeEventListener('touchmove', handlePointerMove, touchMoveOptions);
+            window.removeEventListener('mouseup', handlePointerUp);
+            window.removeEventListener('touchend', handlePointerUp);
+        };
+    }, [isDragging]);
+
+    const startDrag = (event: ReactMouseEvent<HTMLButtonElement> | ReactTouchEvent<HTMLButtonElement>) => {
+        if (!bubbleRef.current) return;
+        const point = 'touches' in event ? event.touches[0] : event;
+        const rect = bubbleRef.current.getBoundingClientRect();
+        dragOffset.current = { x: point.clientX - rect.left, y: point.clientY - rect.top };
+        setPosition({ x: rect.left, y: rect.top });
+        dragMovedRef.current = false;
+        setIsDragging(true);
+        event.preventDefault();
+    };
+
+    const handleToggle = () => {
+        if (dragMovedRef.current) {
+            dragMovedRef.current = false;
+            return;
+        }
+        setIsOpen((prev) => !prev);
+    };
 
     const handleAutomate = async () => {
         if (!input.trim()) return;
@@ -51,11 +120,12 @@ export function SmartyBubble() {
         if (!input.trim()) return;
         setLoading(true);
         try {
-            const res = await axios.post(`${API_URL}/smarty/ask`, {
-                userId: user.uid,
-                question: input
+            const res = await axios.post('https://n8n.trisilco.com/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', {
+                action: 'sendMessage',
+                chatInput: input,
+                sessionId: user.uid
             });
-            setResponse(res.data.answer);
+            setResponse(res.data.output || res.data.response || res.data.answer || JSON.stringify(res.data));
         } catch (error) {
             setResponse('Error: Failed to get answer.');
         } finally {
@@ -63,18 +133,23 @@ export function SmartyBubble() {
         }
     };
 
-    return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end" ref={bubbleRef}>
-            {/* Tooltip */}
-            <div
-                className={`mb-2 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg transition-opacity duration-200 ${showTooltip && !isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-            >
-                Hi, I'm Smarty, your AI assistant.
-            </div>
+    const bubbleStyle = position
+        ? { left: position.x, top: position.y }
+        : { right: '1.5rem', bottom: '1.5rem' };
 
-            {/* Popover Window */}
-            {isOpen && (
-                <div className="mb-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 fade-in duration-200">
+    return (
+        <div className="fixed z-50" ref={bubbleRef} style={bubbleStyle}>
+            <div className="relative flex items-end justify-end">
+                {/* Tooltip */}
+                <div
+                    className={`absolute right-0 bottom-[calc(100%+0.5rem)] bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg transition-opacity duration-200 ${showTooltip && !isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                    Hi, I'm Smarty, your AI assistant.
+                </div>
+
+                {/* Popover Window */}
+                {isOpen && (
+                    <div className="absolute right-0 bottom-[calc(100%+1rem)] w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 fade-in duration-200">
                     <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white flex justify-between items-center">
                         <h3 className="font-semibold">Smarty AI</h3>
                         <button onClick={() => { setIsOpen(false); setMode('menu'); }} className="hover:bg-white/20 rounded-full p-1">
@@ -156,7 +231,7 @@ export function SmartyBubble() {
                                 </div>
                                 <textarea
                                     className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none text-black"
-                                    rows={2}
+                                    rows={4}
                                     placeholder="Type your question..."
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
@@ -178,22 +253,25 @@ export function SmartyBubble() {
                             </div>
                         )}
                     </div>
-                </div>
-            )}
+                    </div>
+                )}
 
-            {/* Main Button */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-                className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${isOpen ? 'bg-red-500 rotate-45' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:rotate-12'}`}
-            >
+                {/* Main Button */}
+                <button
+                    onMouseDown={startDrag}
+                    onTouchStart={startDrag}
+                    onClick={handleToggle}
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${isOpen ? 'bg-red-500 rotate-45' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:rotate-12'}`}
+                >
                 {isOpen ? (
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 ) : (
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" /><path d="m4.93 10.93 1.41 1.41" /><path d="M2 18h2" /><path d="M20 18h2" /><path d="m19.07 10.93-1.41 1.41" /><path d="M22 22H2" /><path d="m8 22 4-10 4 10" /></svg>
                 )}
-            </button>
+                </button>
+            </div>
         </div>
     );
 }
