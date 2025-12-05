@@ -15,57 +15,80 @@ export default function AddFriendModal({ userId, onClose }: AddFriendModalProps)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!identifier.trim()) return;
+
         setStatus('loading');
+        setErrorMsg('');
+
         try {
             await api.post('/friends', {
                 userId,
-                friendIdentifier: identifier
+                friendIdentifier: identifier.trim()
             });
             setStatus('success');
             setTimeout(onClose, 1500);
-        } catch (error) {
+        } catch (error: any) {
             setStatus('error');
-            setErrorMsg('Failed to add friend. User might not exist.');
+            setErrorMsg(error.response?.data?.error || 'Failed to add friend. User might not exist.');
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">Add Friend</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-100">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-slate-800">Add Friend</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        ✕
+                    </button>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Friend's Email or User ID</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Friend's Email or User ID
+                        </label>
                         <input
                             type="text"
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
-                            className="w-full px-3 py-2 border rounded"
+                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-slate-800 placeholder-slate-400"
+                            placeholder="e.g. john@example.com or USER123"
                             required
+                            autoFocus
                         />
                     </div>
 
                     {status === 'success' && (
-                        <p className="text-green-600 text-sm">Friend request sent!</p>
+                        <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm font-medium flex items-center gap-2">
+                            ✅ Friend request sent successfully!
+                        </div>
                     )}
                     {status === 'error' && (
-                        <p className="text-red-600 text-sm">{errorMsg}</p>
+                        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium flex items-center gap-2">
+                            ⚠️ {errorMsg}
+                        </div>
                     )}
 
-                    <div className="flex justify-end gap-2 mt-6">
+                    <div className="flex justify-end gap-3 mt-8">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                            className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            disabled={status === 'loading'}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                            disabled={status === 'loading' || status === 'success'}
+                            className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20"
                         >
-                            {status === 'loading' ? 'Adding...' : 'Add Friend'}
+                            {status === 'loading' ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                    Adding...
+                                </span>
+                            ) : 'Send Request'}
                         </button>
                     </div>
                 </form>

@@ -14,5 +14,15 @@ export const api = {
             body: JSON.stringify(body),
         });
         return res.json();
+    },
+    put: async (endpoint: string, body: any) => {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        return res.json();
     }
 };

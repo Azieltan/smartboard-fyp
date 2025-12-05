@@ -26,7 +26,9 @@ export default function LoginPage() {
 
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
-            router.push('/dashboard');
+
+            // Force redirect to ensure state is picked up
+            window.location.href = '/dashboard';
         } catch (error: any) {
             alert(error.message);
         }

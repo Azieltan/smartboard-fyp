@@ -5,6 +5,7 @@ import { User } from '@smartboard/home';
 import { N8NService } from './services/n8n';
 import { AuthService } from './services/auth';
 import { authMiddleware } from './middleware/auth';
+import { supabase } from './lib/supabase';
 
 dotenv.config();
 
@@ -90,6 +91,39 @@ app.get('/users', async (req, res) => {
     }
 });
 
+app.put('/users/:userId', async (req, res) => {
+    try {
+        const { user_name } = req.body;
+        const user = await AuthService.updateUser(req.params.userId, { username: user_name } as any); // Mapping username to user_name if needed, or just passing body
+        res.json(user);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/auth/change-password', async (req, res) => {
+    try {
+        const { userId, currentPassword, newPassword } = req.body;
+        await AuthService.changePassword(userId, currentPassword, newPassword);
+        res.json({ success: true, message: 'Password changed successfully' });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+
+
+import { seedDatabase } from './seed';
+
+app.post('/seed', async (req, res) => {
+    try {
+        const result = await seedDatabase();
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Apply Auth Middleware to all subsequent routes
 app.use(authMiddleware);
 
@@ -97,7 +131,8 @@ import { TaskService } from './services/task';
 
 app.get('/tasks', async (req, res) => {
     try {
-        const tasks = await TaskService.getAllTasks();
+        const userId = req.query.userId as string;
+        const tasks = await TaskService.getAllTasks(userId);
         res.json(tasks);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch tasks' });
@@ -145,6 +180,42 @@ app.post('/groups/:groupId/members', async (req, res) => {
         res.json(member);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add member' });
+    }
+});
+
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const file = req.file;
+        const fileExt = file.originalname.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { data, error } = await supabase.storage
+            .from('chat-attachments')
+            .upload(filePath, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('chat-attachments')
+            .getPublicUrl(filePath);
+
+        res.json({ url: publicUrl, type: file.mimetype });
+    } catch (error: any) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: 'Failed to upload file' });
     }
 });
 
@@ -219,6 +290,10 @@ app.get('/calendar/:userId', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch events' });
     }
 });
+
+
+
+
 
 
 

@@ -20,7 +20,16 @@ export class AuthService {
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        const userId = uuidv4();
+        // Generate a custom 10-character alphanumeric ID
+        const generateCustomId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 10; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        };
+        const userId = generateCustomId();
 
         const { data: newUser, error } = await supabase
             .from('users')
@@ -81,5 +90,51 @@ export class AuthService {
         }
 
         return data as any as User[];
+    }
+
+    static async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+        const { data, error } = await supabase
+            .from('users')
+            .update(updates)
+            .eq('user_id', userId)
+            .select('user_id, user_name, email, role, created_at')
+            .single();
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data as any as User;
+    }
+
+    static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+        // 1. Verify current password
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('password_hash')
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !user) {
+            throw new Error('User not found');
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isMatch) {
+            throw new Error('Invalid current password');
+        }
+
+        // 2. Hash new password
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+        // 3. Update password
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ password_hash: newPasswordHash })
+            .eq('user_id', userId);
+
+        if (updateError) {
+            throw new Error('Failed to update password');
+        }
     }
 }

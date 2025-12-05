@@ -8,8 +8,7 @@ const navigation = [
     { name: 'Tasks', href: '/dashboard/tasks', icon: '✅' },
     { name: 'Chat', href: '/dashboard/chat', icon: '💬' },
     { name: 'Groups', href: '/dashboard/groups', icon: '👥' },
-    { name: 'Files', href: '/dashboard/files', icon: '📂' },
-    { name: 'Admin Panel', href: '/dashboard/admin', icon: '🛠️' },
+    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️' },
 ];
 
 export function Sidebar() {

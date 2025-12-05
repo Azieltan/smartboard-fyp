@@ -36,25 +36,27 @@ export default function TaskAssignment({ userId, onAssign }: TaskAssignmentProps
     };
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="font-bold mb-3">Assign Task</h3>
-            <div className="space-y-3">
-                <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
+        <div className="glass-panel p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Assign Task</h3>
+            <div className="space-y-4">
+                <div className="flex gap-4 p-1 bg-black/20 rounded-lg">
+                    <label className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md cursor-pointer transition-all ${assignType === 'user' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                         <input
                             type="radio"
                             checked={assignType === 'user'}
                             onChange={() => setAssignType('user')}
+                            className="hidden"
                         />
-                        User
+                        <span className="text-sm font-medium">User</span>
                     </label>
-                    <label className="flex items-center gap-2">
+                    <label className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md cursor-pointer transition-all ${assignType === 'group' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                         <input
                             type="radio"
                             checked={assignType === 'group'}
                             onChange={() => setAssignType('group')}
+                            className="hidden"
                         />
-                        Group
+                        <span className="text-sm font-medium">Group</span>
                     </label>
                 </div>
 
@@ -64,17 +66,17 @@ export default function TaskAssignment({ userId, onAssign }: TaskAssignmentProps
                         placeholder="Enter User ID"
                         value={selectedId}
                         onChange={(e) => setSelectedId(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
+                        className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                     />
                 ) : (
                     <select
                         value={selectedId}
                         onChange={(e) => setSelectedId(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
+                        className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
                     >
-                        <option value="">Select a Group</option>
+                        <option value="" className="bg-slate-800">Select a Group</option>
                         {groups.map((g) => (
-                            <option key={g.group_id} value={g.group_id}>
+                            <option key={g.group_id} value={g.group_id} className="bg-slate-800">
                                 {g.name}
                             </option>
                         ))}
@@ -83,9 +85,9 @@ export default function TaskAssignment({ userId, onAssign }: TaskAssignmentProps
 
                 <button
                     onClick={handleAssign}
-                    className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all"
                 >
-                    Assign
+                    Assign Task
                 </button>
             </div>
         </div>
