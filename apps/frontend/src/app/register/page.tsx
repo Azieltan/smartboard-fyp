@@ -13,22 +13,28 @@ export default function RegisterPage() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('Register form submitted');
         try {
+            console.log('Sending registration request...');
+            // Use the api helper or direct fetch with better error handling
             const res = await fetch('http://localhost:3001/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: name, email, password }),
             });
 
+            console.log('Response received:', res.status);
             const data = await res.json();
 
             if (!res.ok) {
                 throw new Error(data.error || 'Registration failed');
             }
 
+            console.log('Registration successful');
             alert('Registration successful! Please login.');
             router.push('/login');
         } catch (error: any) {
+            console.error('Registration error:', error);
             alert(error.message);
         }
     };

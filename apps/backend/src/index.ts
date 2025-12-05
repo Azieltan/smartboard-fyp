@@ -15,6 +15,11 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 app.get('/', (req, res) => {
     res.send('SmartBoard API is running');
 });
@@ -222,13 +227,18 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 // Chat Routes
 app.get('/chats/:groupId/messages', async (req, res) => {
     try {
+        console.log(`Fetching messages for group: ${req.params.groupId}`);
         const chat = await ChatService.getChatByGroupId(req.params.groupId);
         if (!chat) {
+            console.log('No chat found for group');
             return res.json([]);
         }
+        console.log(`Found chat: ${chat.chat_id}`);
         const messages = await ChatService.getMessages(chat.chat_id);
+        console.log(`Found ${messages.length} messages`);
         res.json(messages);
     } catch (error) {
+        console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
@@ -288,6 +298,15 @@ app.get('/calendar/:userId', async (req, res) => {
         res.json(events);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch events' });
+    }
+});
+
+app.get('/calendar/all/:userId', async (req, res) => {
+    try {
+        const items = await CalendarService.getAllCalendarItems(req.params.userId);
+        res.json(items);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch calendar items' });
     }
 });
 

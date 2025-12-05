@@ -29,6 +29,22 @@ export class TaskService {
             throw new Error(error.message);
         }
 
+        // Notification Logic
+        if (task.group_id) {
+            try {
+                // Import dynamically to avoid circular dependency issues if any
+                const { ChatService } = require('./chat');
+                const chat = await ChatService.getChatByGroupId(task.group_id);
+                if (chat) {
+                    const messageContent = `📋 New Task Assigned: **${task.title}**\nDue: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No Date'}`;
+                    await ChatService.sendMessage(chat.chat_id, task.created_by || 'system', messageContent);
+                }
+            } catch (notifyError) {
+                console.error('Failed to send task notification:', notifyError);
+                // Don't fail the task creation just because notification failed
+            }
+        }
+
         return data as Task;
     }
     static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {

@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 
 interface Message {
     message_id: string;
+    chat_id: string;
     content: string;
     user_id: string;
     send_time: string;
@@ -43,20 +44,43 @@ export default function Chat({ groupId, userId }: ChatProps) {
 
     const sendMessage = async (e?: React.FormEvent, contentOverride?: string) => {
         if (e) e.preventDefault();
+        console.log('sendMessage called');
         const content = contentOverride || newMessage;
-        if (!content.trim() || isLoading) return;
+        if (!content.trim() || isLoading) {
+            console.log('Message empty or loading, aborting');
+            return;
+        }
 
+        const tempMessage: Message = {
+            message_id: `temp-${Date.now()}`,
+            chat_id: groupId,
+            user_id: userId,
+            content,
+            send_time: new Date().toISOString()
+        };
+
+        // Optimistic update
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage('');
         setIsLoading(true);
+
         try {
-            await api.post(`/chats/${groupId}/messages`, {
+            console.log('Sending message to group:', groupId);
+            const savedMessage = await api.post(`/chats/${groupId}/messages`, {
                 userId,
                 content
             });
-            setNewMessage('');
-            fetchMessages();
+            console.log('Message sent successfully');
+
+            // Replace temp message with real one
+            setMessages(prev => prev.map(msg =>
+                msg.message_id === tempMessage.message_id ? savedMessage : msg
+            ));
         } catch (error) {
             console.error('Failed to send message:', error);
             alert('Failed to send message');
+            // Revert optimistic update on failure
+            setMessages(prev => prev.filter(msg => msg.message_id !== tempMessage.message_id));
         } finally {
             setIsLoading(false);
         }
