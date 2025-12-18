@@ -35,9 +35,13 @@ export function SmartyBubble() {
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
-        if (userStr) {
-            const u = JSON.parse(userStr);
-            setUser({ uid: u.user_id });
+        if (userStr && userStr !== 'undefined') {
+            try {
+                const u = JSON.parse(userStr);
+                setUser({ uid: u.user_id });
+            } catch (e) {
+                console.error("Failed to parse user from localStorage", e);
+            }
         }
     }, []);
 

@@ -109,3 +109,13 @@ create table subtasks (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text;
+
+-- Friends Table (Combines requests and friendships)
+create table friends (
+  id uuid primary key default uuid_generate_v4(),
+  user_id text references users(user_id) on delete cascade,
+  friend_id text references users(user_id) on delete cascade,
+  status text check (status in ('pending', 'accepted')) default 'pending',
+  created_at timestamp with time zone default now(),
+  unique(user_id, friend_id)
+);

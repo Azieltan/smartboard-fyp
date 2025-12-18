@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
+import { socket } from '../lib/socket';
 
 interface Message {
     message_id: string;
@@ -21,15 +22,58 @@ export default function Chat({ groupId, userId }: ChatProps) {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [chatId, setChatId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // 1. Get Chat Details (ID) for Socket Room
     useEffect(() => {
         if (groupId) {
-            fetchMessages();
-            const interval = setInterval(fetchMessages, 3000); // Poll every 3s
-            return () => clearInterval(interval);
+            fetchChatDetails();
+            fetchMessages(); // Initial fetch
         }
     }, [groupId]);
+
+    const fetchChatDetails = async () => {
+        try {
+            const chat = await api.get(`/chats/group/${groupId}`);
+            if (chat && chat.chat_id) {
+                setChatId(chat.chat_id);
+            }
+        } catch (error) {
+            console.error('Failed to get chat details', error);
+        }
+    };
+
+    // 2. Socket Connection Logic
+    useEffect(() => {
+        if (!chatId) return;
+
+        console.log('Connecting socket for chat:', chatId);
+        socket.connect();
+        socket.emit('join_room', chatId);
+
+        const handleNewMessage = (msg: Message) => {
+            console.log('Received socket message:', msg);
+            setMessages(prev => {
+                // Deduplicate based on ID
+                if (prev.some(m => m.message_id === msg.message_id)) {
+                    return prev;
+                }
+                return [...prev, msg];
+            });
+        };
+
+        socket.on('new_message', handleNewMessage);
+
+        return () => {
+            console.log('Leaving chat:', chatId);
+            socket.emit('leave_room', chatId);
+            socket.off('new_message', handleNewMessage);
+            // We don't necessarily disconnect socket if we might use it elsewhere, 
+            // but for now let's keep it simple.
+            // socket.disconnect(); 
+        };
+    }, [chatId]);
 
     const fetchMessages = async () => {
         try {
@@ -44,16 +88,12 @@ export default function Chat({ groupId, userId }: ChatProps) {
 
     const sendMessage = async (e?: React.FormEvent, contentOverride?: string) => {
         if (e) e.preventDefault();
-        console.log('sendMessage called');
         const content = contentOverride || newMessage;
-        if (!content.trim() || isLoading) {
-            console.log('Message empty or loading, aborting');
-            return;
-        }
+        if (!content.trim() || isLoading) return;
 
         const tempMessage: Message = {
             message_id: `temp-${Date.now()}`,
-            chat_id: groupId,
+            chat_id: chatId || groupId, // Fallback
             user_id: userId,
             content,
             send_time: new Date().toISOString()
@@ -65,12 +105,10 @@ export default function Chat({ groupId, userId }: ChatProps) {
         setIsLoading(true);
 
         try {
-            console.log('Sending message to group:', groupId);
             const savedMessage = await api.post(`/chats/${groupId}/messages`, {
                 userId,
                 content
             });
-            console.log('Message sent successfully');
 
             // Replace temp message with real one
             setMessages(prev => prev.map(msg =>
@@ -79,7 +117,6 @@ export default function Chat({ groupId, userId }: ChatProps) {
         } catch (error) {
             console.error('Failed to send message:', error);
             alert('Failed to send message');
-            // Revert optimistic update on failure
             setMessages(prev => prev.filter(msg => msg.message_id !== tempMessage.message_id));
         } finally {
             setIsLoading(false);
@@ -99,7 +136,6 @@ export default function Chat({ groupId, userId }: ChatProps) {
         formData.append('file', file);
 
         try {
-            // Use fetch directly for FormData as our api wrapper assumes JSON
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/upload`, {
                 method: 'POST',
                 body: formData,
@@ -108,7 +144,6 @@ export default function Chat({ groupId, userId }: ChatProps) {
             if (!response.ok) throw new Error('Upload failed');
 
             const data = await response.json();
-            // Send message with image markdown
             await sendMessage(undefined, `![Image](${data.url})`);
         } catch (error) {
             console.error('Upload error:', error);

@@ -15,10 +15,13 @@ export interface GroupMember {
 }
 
 export class GroupService {
-    static async createGroup(name: string, ownerId: string): Promise<Group> {
+    static async createGroup(name: string, ownerId: string, requiresApproval: boolean = false, friendIds: string[] = []): Promise<Group> {
+        // Generate a random 6-character code
+        const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
         const { data: groupData, error: groupError } = await supabase
             .from('groups')
-            .insert([{ name, user_id: ownerId }])
+            .insert([{ name, user_id: ownerId, join_code: joinCode, requires_approval: requiresApproval }])
             .select()
             .single();
 
@@ -26,8 +29,26 @@ export class GroupService {
             throw new Error(groupError.message);
         }
 
-        // Add owner as a member
-        await this.addMember(groupData.group_id, ownerId, 'owner');
+        // Add owner as a member (always active)
+        await this.addMember(groupData.group_id, ownerId, 'owner', 'active');
+
+        // Add friends if provided
+        if (friendIds.length > 0) {
+            const members = friendIds.map(friendId => ({
+                group_id: groupData.group_id,
+                user_id: friendId,
+                role: 'member',
+                status: 'active' // Direct add assumes active, or could be pending if preferred
+            }));
+
+            // Need to handle one by one or bulk? addMember is single.
+            // Let's use bulk insert for friends
+            const { error: friendsError } = await supabase
+                .from('group_members')
+                .insert(members);
+
+            if (friendsError) console.error("Error adding friends:", friendsError);
+        }
 
         return groupData as Group;
     }
@@ -46,10 +67,10 @@ export class GroupService {
         return data as Group;
     }
 
-    static async addMember(groupId: string, userId: string, role: 'owner' | 'admin' | 'member' = 'member'): Promise<GroupMember> {
+    static async addMember(groupId: string, userId: string, role: 'owner' | 'admin' | 'member' = 'member', status: 'active' | 'pending' = 'active'): Promise<GroupMember> {
         const { data, error } = await supabase
             .from('group_members')
-            .insert([{ group_id: groupId, user_id: userId, role }])
+            .insert([{ group_id: groupId, user_id: userId, role, status }])
             .select()
             .single();
 
@@ -60,11 +81,41 @@ export class GroupService {
         return data as GroupMember;
     }
 
+    static async joinGroupRaw(code: string, userId: string): Promise<any> {
+        // Find group by code
+        const { data: group, error: groupError } = await supabase
+            .from('groups')
+            .select('*')
+            .eq('join_code', code)
+            .single();
+
+        if (groupError || !group) {
+            throw new Error('Invalid Group Code');
+        }
+
+        // Check if already a member
+        const { data: existing } = await supabase
+            .from('group_members')
+            .select('*')
+            .eq('group_id', group.group_id)
+            .eq('user_id', userId)
+            .single();
+
+        if (existing) {
+            throw new Error('Already a member of this group');
+        }
+
+        const status = group.requires_approval ? 'pending' : 'active';
+
+        return await this.addMember(group.group_id, userId, 'member', status);
+    }
+
     static async getUserGroups(userId: string): Promise<Group[]> {
         const { data, error } = await supabase
             .from('group_members')
-            .select('group_id, groups(*)')
-            .eq('user_id', userId);
+            .select('group_id, status, groups(*)')
+            .eq('user_id', userId)
+            .eq('status', 'active'); // Only show active groups? Or show pending too? 
 
         if (error) {
             throw new Error(error.message);

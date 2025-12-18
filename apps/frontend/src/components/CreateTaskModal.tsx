@@ -173,7 +173,9 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
                             >
                                 <option value="" className="bg-[#1e293b]">Select a friend...</option>
                                 {friends.map(f => (
-                                    <option key={f.friend_id} value={f.friend_id} className="bg-[#1e293b]">{f.friend_username || f.friend_email}</option>
+                                    <option key={f.friend_id} value={f.friend_id} className="bg-[#1e293b]">
+                                        {f.friend_details?.user_name || f.friend_details?.email || 'Unknown User'}
+                                    </option>
                                 ))}
                             </select>
                         )}
