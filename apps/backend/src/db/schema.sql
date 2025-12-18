@@ -27,6 +27,8 @@ create table users (
 create table groups (
   group_id uuid primary key default uuid_generate_v4(),
   name text not null,
+  join_code text unique, -- Code to join
+  requires_approval boolean default false, -- If true, owner must approve join requests
   user_id text references users(user_id), -- Owner
   created_at timestamp with time zone default now()
 );
@@ -36,6 +38,7 @@ create table group_members (
   group_id uuid references groups(group_id) on delete cascade,
   user_id text references users(user_id) on delete cascade,
   role text check (role in ('owner', 'admin', 'member')) default 'member',
+  status text check (status in ('active', 'pending')) default 'active', -- Membership status
   joined_at timestamp with time zone default now(),
   primary key (group_id, user_id)
 );

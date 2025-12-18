@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { User } from '@smartboard/home';
@@ -10,6 +12,13 @@ import { supabase } from './lib/supabase';
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: '*', // Allow all origins for now
+        methods: ['GET', 'POST']
+    }
+});
 const port = process.env.PORT || 3001;
 
 app.use(cors());
@@ -18,6 +27,24 @@ app.use(express.json());
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
+});
+
+// Socket.IO Connection Handler
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    socket.on('join_room', (roomId) => {
+        socket.join(roomId);
+        console.log(`User ${socket.id} joined room ${roomId}`);
+    });
+
+    socket.on('leave_room', (roomId) => {
+        socket.leave(roomId);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
 });
 
 app.get('/', (req, res) => {
@@ -159,13 +186,23 @@ import { ChatService } from './services/chat';
 // Group Routes
 app.post('/groups', async (req, res) => {
     try {
-        const { name, ownerId } = req.body;
-        const group = await GroupService.createGroup(name, ownerId);
+        const { name, ownerId, requiresApproval, friendIds } = req.body;
+        const group = await GroupService.createGroup(name, ownerId, requiresApproval, friendIds);
         // Automatically create a chat for the group
         await ChatService.createChat(group.group_id);
         res.json(group);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create group' });
+    }
+});
+
+app.post('/groups/join', async (req, res) => {
+    try {
+        const { code, userId } = req.body;
+        const result = await GroupService.joinGroupRaw(code, userId);
+        res.json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
     }
 });
 
@@ -225,6 +262,23 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 // Chat Routes
+app.get('/chats/group/:groupId', async (req, res) => {
+    try {
+        const chat = await ChatService.getChatByGroupId(req.params.groupId);
+        if (!chat) {
+            // Create if not exists? Or just 404. 
+            // Logic in messages route creates it. Let's create it here too or just return 404.
+            // Better to just return 404 and let the UI handle or auto-create.
+            // Actually, for robust chat, we should ensure it exists.
+            // But let's stick to simple retrieval.
+            return res.status(404).json({ error: 'Chat not found' });
+        }
+        res.json(chat);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch chat info' });
+    }
+});
+
 app.get('/chats/:groupId/messages', async (req, res) => {
     try {
         console.log(`Fetching messages for group: ${req.params.groupId}`);
@@ -253,6 +307,10 @@ app.post('/chats/:groupId/messages', async (req, res) => {
         }
 
         const message = await ChatService.sendMessage(chat.chat_id, userId, content);
+
+        // Emit real-time event
+        io.to(chat.chat_id).emit('new_message', message);
+
         res.json(message);
     } catch (error) {
         res.status(500).json({ error: 'Failed to send message' });
@@ -316,6 +374,6 @@ app.get('/calendar/all/:userId', async (req, res) => {
 
 
 
-app.listen(port, () => {
+httpServer.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
