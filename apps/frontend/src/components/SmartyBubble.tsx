@@ -240,7 +240,7 @@ export function SmartyBubble() {
             // You can add other fields if needed, e.g., sessionId
             // formData.append('sessionId', user.uid);
 
-            const res = await axios.post('https://n8n.trisilco.com/webhook/400bc043-ef5b-46a6-9edb-330d34df9502', formData, {
+            const res = await axios.post('https://n8n.h5preact.app/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
