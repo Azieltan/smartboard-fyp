@@ -1,32 +1,46 @@
 import { N8NService } from './n8n';
 
 export class SmartyService {
+    /**
+     * Process automation commands like "Add John to the Marketing group"
+     * This sends the command to n8n which connects to Supabase to perform actions
+     */
     static async automate(userId: string, prompt: string) {
-        // In a real scenario, we might parse the prompt to decide which workflow to trigger.
-        // For now, we'll trigger a generic 'smarty-automation' workflow.
+        console.log(`[Smarty] Processing automation: "${prompt}" for user ${userId}`);
+        
         try {
-            return await N8NService.triggerWebhook('smarty-automation', {
+            // Send to n8n webhook for processing
+            const result = await N8NService.triggerWebhook('smarty-automate', {
                 userId,
                 prompt,
                 timestamp: new Date().toISOString()
             });
-        } catch (error) {
-            console.warn('N8N webhook failed (expected if n8n is not running). Returning mock success.');
-            return { message: "Automation started! (Mocked: n8n not reachable)" };
+            
+            return result;
+        } catch (error: any) {
+            console.error('[Smarty] Automation error:', error);
+            return {
+                success: false,
+                message: `Failed to process automation: ${error.message}`
+            };
         }
     }
 
+    /**
+     * Answer questions about using SmartBoard
+     */
     static async ask(userId: string, question: string) {
-        // Mock RAG response
-        // In the future, this would connect to a vector DB and LLM.
-
+        // Enhanced FAQ responses
         const mockFAQs: Record<string, string> = {
-            "how to add member": "To add a member, go to the Group page, click 'Add Member', and select the user you want to add.",
-            "how to create task": "Click the '+' button in the task list or drag on the calendar to create a new task.",
-            "what is smarty": "I am Smarty, your AI assistant here to help you automate tasks and answer questions!"
+            "how to add member": "To add a member, go to the Group page, click 'Add Member', and select the user you want to add. Or use 'Let Smarty Do' and say 'Add [name] to [group]'!",
+            "how to create task": "Click the '+' button in the task list or drag on the calendar to create a new task. Or use 'Let Smarty Do' and say 'Create a task called [title]'!",
+            "what is smarty": "I am Smarty, your AI assistant! I can automate tasks like adding members to groups, creating tasks, and more. Try 'Let Smarty Do' for automations!",
+            "what can you do": "I can help you:\n• Add/remove members from groups\n• Create and update tasks\n• Create new groups\n• List group members\n\nJust tell me what you need!",
+            "how to remove member": "Use 'Let Smarty Do' and say 'Remove [name] from [group]' to remove a member.",
+            "how to create group": "Go to the Groups page and click 'Create Group'. Or use 'Let Smarty Do' and say 'Create group called [name]'!"
         };
 
-        // Simple keyword matching for mock responses
+        // Simple keyword matching for responses
         const lowerQuestion = question.toLowerCase();
         for (const [key, answer] of Object.entries(mockFAQs)) {
             if (lowerQuestion.includes(key)) {
@@ -35,7 +49,7 @@ export class SmartyService {
         }
 
         return {
-            answer: "I'm not sure about that yet, but I'm learning! Try asking about adding members or creating tasks."
+            answer: "I'm not sure about that yet, but I'm learning! Try asking about:\n• How to add/remove members\n• How to create tasks or groups\n• What I can do"
         };
     }
 }
