@@ -1,6 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { User } from '@smartboard/home';
@@ -30,15 +30,15 @@ app.use((req, res, next) => {
 });
 
 // Socket.IO Connection Handler
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('join_room', (roomId) => {
+    socket.on('join_room', (roomId: string) => {
         socket.join(roomId);
         console.log(`User ${socket.id} joined room ${roomId}`);
     });
 
-    socket.on('leave_room', (roomId) => {
+    socket.on('leave_room', (roomId: string) => {
         socket.leave(roomId);
     });
 

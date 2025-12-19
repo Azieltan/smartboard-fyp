@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bellGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="100%" style="stop-color:#EC4899"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Bell Circle Background -->
+  <circle cx="60" cy="60" r="45" fill="url(#bellGrad)" opacity="0.15"/>
+  
+  <!-- Bell -->
+  <path d="M60 25c-15 0-27 12-27 27v18l-6 6v3h66v-3l-6-6V52c0-15-12-27-27-27z" 
+        fill="url(#bellGrad)"/>
+  
+  <!-- Bell Clapper -->
+  <circle cx="60" cy="88" r="8" fill="url(#bellGrad)"/>
+  
+  <!-- Bell Top -->
+  <circle cx="60" cy="25" r="4" fill="url(#bellGrad)"/>
+  
+  <!-- Notification Badge -->
+  <circle cx="78" cy="35" r="12" fill="#EF4444"/>
+  <text x="78" y="40" text-anchor="middle" fill="white" font-size="14" font-weight="bold">!</text>
+  
+  <!-- Sound Waves -->
+  <path d="M32 50c-3 5-3 15 0 20" stroke="url(#bellGrad)" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <path d="M25 45c-5 8-5 22 0 30" stroke="url(#bellGrad)" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.3"/>
+  
+  <path d="M88 50c3 5 3 15 0 20" stroke="url(#bellGrad)" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <path d="M95 45c5 8 5 22 0 30" stroke="url(#bellGrad)" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.3"/>
+  
+  <!-- Sparkle -->
+  <path d="M95 20l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#FBBF24"/>
+</svg>

@@ -10,6 +10,13 @@ interface Message {
 
 export function SmartyBubble() {
     const [isOpen, setIsOpen] = useState(false);
+
+    // Listen for custom event to open SmartyBubble
+    useEffect(() => {
+        const handler = () => setIsOpen(true);
+        window.addEventListener('open-smarty-bubble', handler);
+        return () => window.removeEventListener('open-smarty-bubble', handler);
+    }, []);
     const [mode, setMode] = useState<'menu' | 'automate' | 'ask'>('menu');
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -154,7 +161,7 @@ export function SmartyBubble() {
         setChatLoading(true);
 
         try {
-            const res = await axios.post('https://n8n.trisilco.com/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', {
+            const res = await axios.post('https://n8n.h5preact.app/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', {
                 action: 'sendMessage',
                 sessionId: user.uid,
                 chatInput: userMessage

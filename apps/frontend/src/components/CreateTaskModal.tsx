@@ -73,102 +73,160 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
         }
     };
 
+    const priorityConfig = {
+        low: { color: 'from-blue-500 to-cyan-500', bg: 'bg-blue-500/20', text: 'text-blue-400' },
+        medium: { color: 'from-amber-500 to-orange-500', bg: 'bg-amber-500/20', text: 'text-amber-400' },
+        high: { color: 'from-red-500 to-pink-500', bg: 'bg-red-500/20', text: 'text-red-400' }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#1e293b] rounded-2xl shadow-2xl p-6 w-full max-w-md border border-white/10 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-white">New Task</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-                        ✕
+            <div className="glass-panel-glow bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/10 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white">New Task</h2>
+                            <p className="text-sm text-slate-400">Create something awesome ✨</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Title */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Title</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all placeholder-slate-500"
-                            placeholder="What needs to be done?"
-                            required
-                            autoFocus
-                        />
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">Task Title</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-500"
+                                placeholder="What needs to be done?"
+                                required
+                                autoFocus
+                            />
+                        </div>
                     </div>
 
+                    {/* Description */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all resize-none h-24 placeholder-slate-500"
-                            placeholder="Add details..."
+                            className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all resize-none h-24 placeholder-slate-500"
+                            placeholder="Add details about your task..."
                         />
                     </div>
 
+                    {/* Date and Priority Grid */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">Due Date</label>
+                            <label className="block text-sm font-semibold text-slate-300 mb-2">
+                                <span className="flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    Due Date
+                                </span>
+                            </label>
                             <input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all [color-scheme:dark]"
+                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 outline-none transition-all [color-scheme:dark]"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">Priority</label>
-                            <select
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value)}
-                                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all"
-                            >
-                                <option value="low" className="bg-[#1e293b]">Low</option>
-                                <option value="medium" className="bg-[#1e293b]">Medium</option>
-                                <option value="high" className="bg-[#1e293b]">High</option>
-                            </select>
+                            <label className="block text-sm font-semibold text-slate-300 mb-2">
+                                <span className="flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Due Time
+                                </span>
+                            </label>
+                            <TimeSelector value={time} onChange={setTime} />
                         </div>
                     </div>
 
+                    {/* Priority Selection */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Due Time</label>
-                        <TimeSelector value={time} onChange={setTime} />
+                        <label className="block text-sm font-semibold text-slate-300 mb-3">Priority Level</label>
+                        <div className="grid grid-cols-3 gap-3">
+                            {(['low', 'medium', 'high'] as const).map((p) => (
+                                <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() => setPriority(p)}
+                                    className={`py-3 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${priority === p
+                                            ? `bg-gradient-to-r ${priorityConfig[p].color} text-white shadow-lg`
+                                            : `${priorityConfig[p].bg} ${priorityConfig[p].text} hover:opacity-80`
+                                        }`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${priority === p ? 'bg-white' : ''}`}
+                                        style={{ background: priority !== p ? `linear-gradient(to right, var(--tw-gradient-from), var(--tw-gradient-to))` : '' }} />
+                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Assignment Section */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Assign To</label>
+                        <label className="block text-sm font-semibold text-slate-300 mb-3">
+                            <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                Assign To
+                            </span>
+                        </label>
                         <div className="flex gap-2 mb-3">
-                            <button
-                                type="button"
-                                onClick={() => setAssignType('me')}
-                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${assignType === 'me' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
-                            >
-                                Me
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setAssignType('friend')}
-                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${assignType === 'friend' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
-                            >
-                                Friend
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setAssignType('group')}
-                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
-                            >
-                                Group
-                            </button>
+                            {[
+                                { type: 'me' as const, label: '👤 Me', gradient: 'from-violet-500 to-purple-500' },
+                                { type: 'friend' as const, label: '👥 Friend', gradient: 'from-pink-500 to-rose-500' },
+                                { type: 'group' as const, label: '🏢 Group', gradient: 'from-amber-500 to-orange-500' }
+                            ].map((item) => (
+                                <button
+                                    key={item.type}
+                                    type="button"
+                                    onClick={() => setAssignType(item.type)}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${assignType === item.type
+                                            ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                                            : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
                         </div>
 
                         {assignType === 'friend' && (
                             <select
                                 value={assigneeId}
                                 onChange={(e) => setAssigneeId(e.target.value)}
-                                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all"
+                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-pink-500 outline-none transition-all"
                                 required
                             >
                                 <option value="" className="bg-[#1e293b]">Select a friend...</option>
@@ -184,7 +242,7 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
                             <select
                                 value={assigneeId}
                                 onChange={(e) => setAssigneeId(e.target.value)}
-                                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none transition-all"
+                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-amber-500 outline-none transition-all"
                                 required
                             >
                                 <option value="" className="bg-[#1e293b]">Select a group...</option>
@@ -195,20 +253,36 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
                         )}
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4">
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            className="px-6 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-medium"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-blue-500/20"
+                            className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center gap-2"
                         >
-                            {isLoading ? 'Creating...' : 'Create Task'}
+                            {isLoading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    <span>Creating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    <span>Create Task</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

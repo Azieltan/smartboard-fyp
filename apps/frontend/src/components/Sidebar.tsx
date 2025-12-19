@@ -1,56 +1,198 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 const navigation = [
-    { name: 'Calendar', href: '/dashboard/calendar', icon: '📅' },
-    { name: 'Tasks', href: '/dashboard/tasks', icon: '✅' },
-    { name: 'Chat', href: '/dashboard/chat', icon: '💬' },
-    { name: 'Groups', href: '/dashboard/groups', icon: '👥' },
-    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️' },
+    {
+        name: 'Dashboard',
+        href: '/dashboard',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+        ),
+        gradient: 'from-blue-500 to-violet-500'
+    },
+    {
+        name: 'Calendar',
+        href: '/dashboard/calendar',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        ),
+        gradient: 'from-cyan-500 to-blue-500'
+    },
+    {
+        name: 'Tasks',
+        href: '/dashboard/tasks',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+        ),
+        gradient: 'from-emerald-500 to-teal-500'
+    },
+    {
+        name: 'Chat',
+        href: '/dashboard/chat',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+        ),
+        gradient: 'from-pink-500 to-rose-500'
+    },
+    {
+        name: 'Groups',
+        href: '/dashboard/groups',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+        ),
+        gradient: 'from-amber-500 to-orange-500'
+    },
+    {
+        name: 'Settings',
+        href: '/dashboard/settings',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        ),
+        gradient: 'from-slate-500 to-slate-600'
+    },
 ];
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const [user, setUser] = useState<{ username?: string; email?: string } | null>(null);
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr && userStr !== 'undefined') {
+            try {
+                setUser(JSON.parse(userStr));
+            } catch (e) {
+                console.error('Failed to parse user');
+            }
+        }
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+    };
+
+    const getInitials = (name: string = 'User') => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    };
 
     return (
-        <div className="w-64 bg-[#0f172a] border-r border-white/10 flex flex-col h-screen sticky top-0">
+        <div className="w-72 bg-gradient-to-b from-[#0f172a] to-[#1e1b4b] border-r border-white/10 flex flex-col h-screen sticky top-0">
+            {/* Logo */}
             <div className="p-6 flex items-center gap-3 border-b border-white/10">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-violet-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/30 animate-bounce-subtle">
                     S
                 </div>
-                <span className="text-xl font-bold text-white tracking-tight">SmartBoard</span>
+                <span className="text-xl font-bold text-white tracking-tight">
+                    Smart<span className="text-gradient-static">Board</span>
+                </span>
             </div>
 
-            <nav className="flex-1 p-4 space-y-1">
+            {/* Quick Stats */}
+            <div className="px-4 py-4">
+                <div className="glass-panel p-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400">Today's Tasks</span>
+                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">3 left</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2">
+                        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">Menu</p>
                 {navigation.map((item) => {
-                    const isActive = pathname === item.href;
+                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     return (
                         <Link
                             key={item.name}
                             href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${isActive
+                                ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
                                 : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
-                            <span className="text-xl">{item.icon}</span>
+                            {/* Hover glow effect */}
+                            {!isActive && (
+                                <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity ${item.gradient}" />
+                            )}
+                            <span className={`transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`}>
+                                {item.icon}
+                            </span>
                             <span className="font-medium">{item.name}</span>
+                            {isActive && (
+                                <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
+                            )}
                         </Link>
                     );
                 })}
             </nav>
 
+            {/* Smarty Assistant Promo */}
+            <div className="px-4 py-3">
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 p-4">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+                    <div className="relative">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xl">🤖</span>
+                            <span className="font-bold text-white text-sm">AI Assistant</span>
+                        </div>
+                        <p className="text-xs text-white/80 mb-3">Ask Smarty for help with tasks!</p>
+                        <script dangerouslySetInnerHTML={{__html:`
+                            window.openSmartyBubble = () => {
+                                window.dispatchEvent(new CustomEvent('open-smarty-bubble'));
+                            };
+                        `}} />
+                        <button
+                            className="w-full py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors"
+                            onClick={() => window.openSmartyBubble && window.openSmartyBubble()}
+                        >
+                            Open Smarty
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* User Profile */}
             <div className="p-4 border-t border-white/10">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-xs font-bold text-white">
-                        JD
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-pink-500/30">
+                        {getInitials(user?.username)}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">John Doe</p>
-                        <p className="text-xs text-slate-400 truncate">john@example.com</p>
+                        <p className="text-sm font-medium text-white truncate">{user?.username || 'User'}</p>
+                        <p className="text-xs text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Logout"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
