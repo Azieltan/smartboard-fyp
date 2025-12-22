@@ -388,11 +388,10 @@ export class AutomationService {
             const task = await TaskService.createTask({
                 title: entities.taskTitle,
                 description: entities.taskDescription,
-                due_date: dueDate?.toISOString(),
+                due_date: dueDate,
                 priority: (entities.priority as 'low' | 'medium' | 'high') || 'medium',
                 status: 'todo',
-                user_id: userId,
-                created_by: userId
+                user_id: userId
             });
 
             return {
