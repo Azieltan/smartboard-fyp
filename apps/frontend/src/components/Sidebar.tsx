@@ -46,6 +46,16 @@ const navigation = [
         gradient: 'from-pink-500 to-rose-500'
     },
     {
+        name: 'FAQ',
+        href: '/dashboard/faq',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8a3 3 0 00-3 3c0 1.657 1.343 3 3 3s3-1.343 3-3a3 3 0 00-3-3zm0 8v2m0-10v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        ),
+        gradient: 'from-indigo-500 to-blue-500'
+    },
+    {
         name: 'Groups',
         href: '/dashboard/groups',
         icon: (

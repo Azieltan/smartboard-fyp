@@ -29,6 +29,15 @@ export function SmartyBubble() {
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatInputRef = useRef<HTMLInputElement | null>(null);
+
+    const PREVIEW_QUESTIONS: string[] = [
+        'What is SmartBoard?',
+        'How can I create a new task?',
+        'How do I reset my password?',
+        'How do I upload files?',
+        'How do I add a new member to my group?'
+    ];
 
     const [showTooltip, setShowTooltip] = useState(false);
     const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -244,10 +253,10 @@ export function SmartyBubble() {
         try {
             const formData = new FormData();
             formData.append('file', audioBlob, 'recording.webm');
-            // You can add other fields if needed, e.g., sessionId
-            // formData.append('sessionId', user.uid);
+            formData.append('sessionId', user.uid);
+            formData.append('chatInput', 'Please process this audio recording');
 
-            const res = await axios.post('https://n8n.h5preact.app/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', formData, {
+            const res = await axios.post('https://n8n.h5preact.app/webhook/4ab49c20-fc5b-4095-b0c6-1cbb3f1f5d11', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -389,6 +398,21 @@ export function SmartyBubble() {
                                         <span className="text-sm font-medium text-gray-700">Chat with Smarty</span>
                                     </div>
 
+                                    <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+                                        <div className="text-xs text-gray-500 mb-2">Quick questions</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {PREVIEW_QUESTIONS.map((q, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => { setChatInput(q); chatInputRef.current?.focus(); }}
+                                                    className="text-xs px-3 py-1 bg-white border border-gray-100 rounded-full hover:bg-indigo-50 text-gray-700"
+                                                >
+                                                    {q}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
                                         {messages.map((msg, idx) => (
                                             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
@@ -418,6 +442,7 @@ export function SmartyBubble() {
                                         <div className="relative flex items-center gap-2">
                                             <div className="relative flex-1">
                                                 <input
+                                                    ref={chatInputRef}
                                                     type="text"
                                                     className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-900 placeholder-gray-400 transition-all"
                                                     placeholder="Ask a question..."
