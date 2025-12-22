@@ -8,6 +8,7 @@ interface Group {
     group_id: string;
     name: string;
     role: string;
+    join_code?: string;
     member_count?: number;
 }
 
@@ -24,6 +25,8 @@ export default function GroupsPage() {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [showAddFriend, setShowAddFriend] = useState(false);
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+    const [isJoiningGroup, setIsJoiningGroup] = useState(false);
+    const [joinCode, setJoinCode] = useState('');
     const [newGroupName, setNewGroupName] = useState('');
     const [userId, setUserId] = useState<string>('');
 
@@ -67,6 +70,25 @@ export default function GroupsPage() {
         }
     };
 
+    const handleJoinGroup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!joinCode.trim()) return;
+
+        try {
+            await api.post('/groups/join', {
+                code: joinCode.trim().toUpperCase(),
+                userId
+            });
+            setJoinCode('');
+            setIsJoiningGroup(false);
+            fetchData(userId);
+            alert('Successfully joined group!');
+        } catch (error: any) {
+            console.error('Failed to join group:', error);
+            alert(error.response?.data?.error || 'Failed to join group. Check the code.');
+        }
+    };
+
     return (
         <div className="space-y-6">
             <header className="flex justify-between items-center">
@@ -74,12 +96,20 @@ export default function GroupsPage() {
                     <h1 className="text-3xl font-bold text-white">Social & Groups</h1>
                     <p className="text-slate-400 mt-1">Manage your teams and connections.</p>
                 </div>
-                <button
-                    onClick={() => activeTab === 'groups' ? setIsCreatingGroup(true) : setShowAddFriend(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-colors"
-                >
-                    {activeTab === 'groups' ? '+ New Group' : '+ Invite Friend'}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsJoiningGroup(true)}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-colors"
+                    >
+                        Join via Code
+                    </button>
+                    <button
+                        onClick={() => activeTab === 'groups' ? setIsCreatingGroup(true) : setShowAddFriend(true)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-colors"
+                    >
+                        {activeTab === 'groups' ? '+ New Group' : '+ Invite Friend'}
+                    </button>
+                </div>
             </header>
 
             {/* Tabs */}
@@ -102,31 +132,73 @@ export default function GroupsPage() {
                 </button>
             </div>
 
-            {/* Create Group Modal/Form */}
+            {/* Join Group Modal */}
+            {isJoiningGroup && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="glass-panel bg-[#1e293b] rounded-2xl p-6 w-full max-w-md border border-white/10 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-white">Join a Group</h3>
+                            <button onClick={() => setIsJoiningGroup(false)} className="text-slate-400 hover:text-white">✕</button>
+                        </div>
+                        <form onSubmit={handleJoinGroup} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-1">Group Code</label>
+                                <input
+                                    type="text"
+                                    value={joinCode}
+                                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                    placeholder="e.g. A1B2C3"
+                                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:outline-none placeholder-slate-600 uppercase"
+                                    maxLength={8}
+                                    autoFocus
+                                />
+                                <p className="text-xs text-slate-500 mt-2 text-center">Ask your group admin for the code</p>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsJoiningGroup(false)}
+                                    className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-colors"
+                                >
+                                    Join Group
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Group Modal */}
             {isCreatingGroup && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                        <h3 className="text-xl font-bold mb-4 text-gray-900">Create New Group</h3>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="glass-panel bg-[#1e293b] rounded-2xl p-6 w-full max-w-md border border-white/10 shadow-2xl">
+                        <h3 className="text-xl font-bold mb-6 text-white">Create New Group</h3>
                         <form onSubmit={handleCreateGroup}>
                             <input
                                 type="text"
                                 value={newGroupName}
                                 onChange={(e) => setNewGroupName(e.target.value)}
                                 placeholder="Group Name"
-                                className="w-full px-3 py-2 border rounded mb-4 text-gray-900"
+                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white mb-6 focus:border-blue-500 focus:outline-none"
                                 autoFocus
                             />
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setIsCreatingGroup(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                                    className="px-6 py-2 text-slate-400 hover:bg-white/5 rounded-xl transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 shadow-lg shadow-blue-500/20"
                                 >
                                     Create
                                 </button>
@@ -155,6 +227,26 @@ export default function GroupsPage() {
                                 </div>
                                 <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{group.name}</h3>
                                 <p className="text-sm text-slate-400">{group.member_count || 1} members</p>
+
+                                {group.role === 'owner' && group.join_code && (
+                                    <div className="mt-3 p-2 bg-black/30 rounded-lg border border-white/5 flex flex-col">
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Join Code</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-mono text-blue-400 font-bold tracking-widest">{group.join_code}</span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigator.clipboard.writeText(group.join_code!);
+                                                    alert('Code copied!');
+                                                }}
+                                                className="p-1 hover:text-white text-slate-500"
+                                                title="Copy Code"
+                                            >
+                                                📋
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="mt-6 flex gap-2">
                                     <button className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium text-white transition-colors">
@@ -188,7 +280,21 @@ export default function GroupsPage() {
                                     <h3 className="text-base font-bold text-white truncate">{friend.friend_name}</h3>
                                     <p className="text-xs text-slate-400 truncate">{friend.friend_email}</p>
                                 </div>
-                                <button className="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors">
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const res = await api.post('/chats/dm', { user1Id: userId, user2Id: friend.friend_id });
+                                            // Switch to Chat Tab? Or just open chat?
+                                            // Ideally we redirect to /dashboard/chat?groupId=...
+                                            window.location.href = `/dashboard/chat?groupId=${res.groupId}`;
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert('Failed to open chat');
+                                        }
+                                    }}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors"
+                                    title="Send Message"
+                                >
                                     💬
                                 </button>
                             </div>

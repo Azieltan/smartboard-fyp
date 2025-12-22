@@ -261,6 +261,26 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
+// DM Route
+app.post('/chats/dm', async (req, res) => {
+    try {
+        const { user1Id, user2Id } = req.body;
+        // 1. Get/Create the underlying "Group" for this DM
+        const groupId = await GroupService.getOrCreateDirectChat(user1Id, user2Id);
+
+        // 2. Ensure Chat exists for this Group
+        let chat = await ChatService.getChatByGroupId(groupId);
+        if (!chat) {
+            chat = await ChatService.createChat(groupId);
+        }
+
+        res.json({ groupId, chatId: chat.chat_id });
+    } catch (error) {
+        console.error('DM Error:', error);
+        res.status(500).json({ error: 'Failed to create DM' });
+    }
+});
+
 // Chat Routes
 app.get('/chats/group/:groupId', async (req, res) => {
     try {

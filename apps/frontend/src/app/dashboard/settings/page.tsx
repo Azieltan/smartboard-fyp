@@ -2,44 +2,45 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
+// import FileUpload from '../../../components/FileUpload'; // Unlock this when avatar backend is ready
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<{ user_id: string; user_name: string; email: string } | null>(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+
+  // Profile State
+  const [username, setUsername] = useState('');
+
+  // Security State
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const u = JSON.parse(userStr);
       setUser(u);
-      setName(u.user_name);
-      setEmail(u.email);
+      setUsername(u.username || u.user_name || '');
     }
   }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setIsLoading(true);
-    setMessage(null);
-
     try {
-      await api.put(`/users/${user.user_id}`, { user_name: name });
-
-      // Updating local storage to reflect changes immediately
-      const updatedUser = { ...user, user_name: name };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-
-      setMessage({ type: 'success', text: 'Profile updated successfully' });
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update profile' });
+      await api.put(`/users/${user.user_id}`, { user_name: username });
+      // Update local storage
+      const newUser = { ...user, user_name: username, username };
+      localStorage.setItem('user', JSON.stringify(newUser));
+      setUser(newUser);
+      alert('Profile updated successfully!');
+      window.location.reload(); // Force refresh to update Sidebar
+    } catch (error: any) {
+      alert('Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -47,22 +48,22 @@ export default function SettingsPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
+    if (passwords.new !== passwords.confirm) {
+      alert('New passwords do not match');
       return;
     }
     setIsLoading(true);
-    setMessage(null);
-
     try {
-      await api.post('/auth/change-password', { userId: user?.user_id, currentPassword, newPassword });
-
-      setMessage({ type: 'success', text: 'Password changed successfully' });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      await api.post('/auth/change-password', {
+        userId: user.user_id,
+        currentPassword: passwords.current,
+        newPassword: passwords.new
+      });
+      alert('Password changed successfully');
+      setPasswords({ current: '', new: '', confirm: '' });
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to change password' });
+      console.error(error);
+      alert(error.response?.data?.error || 'Failed to change password');
     } finally {
       setIsLoading(false);
     }
@@ -74,108 +75,132 @@ export default function SettingsPage() {
     window.location.href = '/login';
   };
 
-
-  if (!user) return <div className="p-8 text-white">Loading settings...</div>;
+  if (!user) return <div className="text-slate-400 p-8">Loading...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Settings</h1>
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 rounded-xl transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-xl transition-colors text-sm font-medium"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-          Logout
+          Log Out
         </button>
       </div>
 
-      {message && (
-        <div className={`p-4 rounded-xl border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-6 border-b border-white/10">
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`pb-3 px-1 text-sm font-medium transition-colors relative ${activeTab === 'profile' ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
+        >
+          Profile Settings
+          {activeTab === 'profile' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full"></div>}
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`pb-3 px-1 text-sm font-medium transition-colors relative ${activeTab === 'security' ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
+        >
+          Security & Password
+          {activeTab === 'security' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full"></div>}
+        </button>
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Profile Section */}
-        <div className="glass-panel p-6 space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-            Profile Information
-          </h2>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
-              />
+      <div className="glass-panel p-8 animate-in fade-in duration-300">
+        {activeTab === 'profile' ? (
+          <div className="space-y-8">
+            {/* Avatar Section (Placeholder for now) */}
+            <div className="flex items-center gap-6">
+              <div className="relative group">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl">
+                  {username ? username[0].toUpperCase() : 'U'}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Profile Photo</h3>
+                <p className="text-sm text-slate-400 mb-3">Your initials are used as your default avatar.</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                disabled
-                className="w-full px-4 py-2.5 bg-black/40 border border-white/5 rounded-xl text-slate-500 cursor-not-allowed"
-              />
-              <p className="text-xs text-slate-500 mt-1">Email cannot be changed</p>
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-            >
-              Update Profile
-            </button>
-          </form>
-        </div>
 
-        {/* Password Section */}
-        <div className="glass-panel p-6 space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-            Change Password
-          </h2>
-          <form onSubmit={handleChangePassword} className="space-y-4">
+            <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={user.email}
+                  disabled
+                  className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-slate-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-slate-500 mt-1">Email cannot be changed.</p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                >
+                  {isLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Current Password</label>
               <input
                 type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
+                value={passwords.current}
+                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">New Password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
-              />
+            <div className="space-y-4 pt-2 border-t border-white/5">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={passwords.new}
+                  onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                  className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwords.confirm}
+                  onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                  className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                  required
+                  minLength={6}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Confirm New Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-colors"
-              />
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-6 py-3 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 transition-all disabled:opacity-50"
+              >
+                {isLoading ? 'Updating...' : 'Update Password'}
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-            >
-              Change Password
-            </button>
           </form>
-        </div>
+        )}
       </div>
     </div>
   );
