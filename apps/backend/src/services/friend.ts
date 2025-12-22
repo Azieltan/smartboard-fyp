@@ -29,7 +29,7 @@ export class FriendService {
 
         const { data, error } = await supabase
             .from('friends')
-            .insert([{ user_id: userId, friend_id: friendId, status: 'pending' }])
+            .insert([{ requester_id: userId, addressee_id: friendId, status: 'pending' }])
             .select()
             .single();
 
@@ -37,22 +37,27 @@ export class FriendService {
             throw new Error(error.message);
         }
 
-        return data as Friend;
+        return ({
+            user_id: (data as any).requester_id,
+            friend_id: (data as any).addressee_id,
+            status: (data as any).status,
+            created_at: (data as any).created_at
+        } as Friend);
     }
 
     static async getFriends(userId: string): Promise<Friend[]> {
         // Get friends where user is sender
         const { data: sent, error: sentError } = await supabase
             .from('friends')
-            .select('*, friend:users!friend_id(*)')
-            .eq('user_id', userId)
+            .select('*, friend:users!addressee_id(*)')
+            .eq('requester_id', userId)
             .eq('status', 'accepted');
 
         // Get friends where user is receiver
         const { data: received, error: receivedError } = await supabase
             .from('friends')
-            .select('*, friend:users!user_id(*)')
-            .eq('friend_id', userId)
+            .select('*, friend:users!requester_id(*)')
+            .eq('addressee_id', userId)
             .eq('status', 'accepted');
 
         if (sentError || receivedError) {
@@ -60,8 +65,20 @@ export class FriendService {
         }
 
         const friends = [
-            ...(sent || []).map(f => ({ ...f, friend_details: f.friend })),
-            ...(received || []).map(f => ({ ...f, friend_details: f.friend }))
+            ...(sent || []).map((f: any) => ({
+                user_id: f.requester_id,
+                friend_id: f.addressee_id,
+                status: f.status,
+                created_at: f.created_at,
+                friend_details: f.friend
+            })),
+            ...(received || []).map((f: any) => ({
+                user_id: f.addressee_id,
+                friend_id: f.requester_id,
+                status: f.status,
+                created_at: f.created_at,
+                friend_details: f.friend
+            }))
         ];
 
         return friends as Friend[];

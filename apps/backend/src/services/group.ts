@@ -3,14 +3,15 @@ import { supabase } from '../lib/supabase';
 export interface Group {
     group_id: string;
     name: string;
-    user_id: string; // Owner
+    owner_id: string; // DB owner
     created_at: string;
 }
 
 export interface GroupMember {
     group_id: string;
     user_id: string;
-    role: 'owner' | 'admin' | 'member';
+    role: 'admin' | 'member';
+    status?: 'active' | 'pending';
     joined_at: string;
 }
 
@@ -37,7 +38,7 @@ export class GroupService {
             .from('groups')
             .insert([{
                 name: dmGroupName,
-                user_id: user1Id, // One user technically owns it, doesn't matter much for DM
+                owner_id: user1Id, // One user technically owns it, doesn't matter much for DM
                 requires_approval: false,
                 is_dm: true // Ideally we add this column. If not, we rely on name.
             }])
@@ -61,7 +62,7 @@ export class GroupService {
 
         const { data: groupData, error: groupError } = await supabase
             .from('groups')
-            .insert([{ name, user_id: ownerId, join_code: joinCode, requires_approval: requiresApproval }])
+            .insert([{ name, owner_id: ownerId, join_code: joinCode, requires_approval: requiresApproval }])
             .select()
             .single();
 
@@ -69,8 +70,8 @@ export class GroupService {
             throw new Error(groupError.message);
         }
 
-        // Add owner as a member (always active)
-        await this.addMember(groupData.group_id, ownerId, 'owner', 'active');
+        // Add owner as a member (schema only has admin/member)
+        await this.addMember(groupData.group_id, ownerId, 'admin', 'active');
 
         // Add friends if provided
         if (friendIds.length > 0) {
@@ -107,7 +108,7 @@ export class GroupService {
         return data as Group;
     }
 
-    static async addMember(groupId: string, userId: string, role: 'owner' | 'admin' | 'member' = 'member', status: 'active' | 'pending' = 'active'): Promise<GroupMember> {
+    static async addMember(groupId: string, userId: string, role: 'admin' | 'member' = 'member', status: 'active' | 'pending' = 'active'): Promise<GroupMember> {
         const { data, error } = await supabase
             .from('group_members')
             .insert([{ group_id: groupId, user_id: userId, role, status }])
@@ -155,7 +156,11 @@ export class GroupService {
         return {
             success: true,
             message: status === 'pending' ? 'Join request sent. Waiting for approval.' : 'Joined group successfully',
-            group: group
+            group: {
+                ...group,
+                // Frontend expects owner under user_id
+                user_id: group.owner_id
+            }
         };
     }
 
@@ -175,6 +180,8 @@ export class GroupService {
         // Flatten the result to return group details with the user's role
         return data.map((item: any) => ({
             ...item.groups,
+            // Frontend expects owner under user_id
+            user_id: item.groups.owner_id,
             role: item.role
         }));
     }

@@ -5,8 +5,8 @@ export interface CalendarEvent {
     title: string;
     start_time: string;
     end_time: string;
-    user_id: string; // The creator
-    shared_with_group_id?: string; // Optional: specific group
+    user_id: string; // API: creator id (frontend expects user_id)
+    shared_with_group_id?: string; // API: group share id
     shared_with_user_ids?: string[]; // Optional: specific friends (requires DB support for array or separate table, simulating with JSON or logic)
     // Note: To support 'shared_with_user_ids' properly in Supabase without a new table, we often use a JSONB column 'attendees' or similar.
     // For this implementation, we'll assume we add a 'shared_with' JSONB column to 'calendar_events'.
@@ -15,11 +15,13 @@ export interface CalendarEvent {
 
 export class CalendarService {
     static async createEvent(event: Partial<CalendarEvent>): Promise<CalendarEvent> {
-        // Ensure shared_with is initialized if needed
-        const eventData = {
-            ...event,
-            shared_with: event.shared_with || []
-        };
+        // Map API payload -> DB columns
+        const eventData: any = { ...event };
+        eventData.shared_with = eventData.shared_with || [];
+        if (!eventData.creator_id && eventData.user_id) eventData.creator_id = eventData.user_id;
+        if (!eventData.shared_group_id && eventData.shared_with_group_id) eventData.shared_group_id = eventData.shared_with_group_id;
+        delete eventData.user_id;
+        delete eventData.shared_with_group_id;
 
         const { data, error } = await supabase
             .from('calendar_events')
@@ -31,7 +33,12 @@ export class CalendarService {
             throw new Error(error.message);
         }
 
-        return data as CalendarEvent;
+        // Map DB -> API
+        return ({
+            ...data,
+            user_id: (data as any).creator_id,
+            shared_with_group_id: (data as any).shared_group_id
+        } as any) as CalendarEvent;
     }
 
     static async getEvents(userId: string): Promise<CalendarEvent[]> {
@@ -55,11 +62,11 @@ export class CalendarService {
         // We'll use the .or() filter string.
 
         // Construct the OR filter
-        // user_id.eq.userId, shared_with_group_id.in.(...ids), shared_with.cs.{userId} (contains)
+        // creator_id.eq.userId, shared_group_id.in.(...ids), shared_with.cs.{userId} (contains)
 
-        let orQuery = `user_id.eq.${userId}`;
+        let orQuery = `creator_id.eq.${userId}`;
         if (myGroupIds.length > 0) {
-            orQuery += `,shared_with_group_id.in.(${myGroupIds.join(',')})`;
+            orQuery += `,shared_group_id.in.(${myGroupIds.join(',')})`;
         }
         // NOTE: 'cs' filter for JSON/Array column requires PostgREST support. assuming 'shared_with' is text[] or jsonb.
         // If 'shared_with' is simple text array:
@@ -75,7 +82,11 @@ export class CalendarService {
             throw new Error(error.message);
         }
 
-        return data as CalendarEvent[];
+        return (data || []).map((e: any) => ({
+            ...e,
+            user_id: e.creator_id,
+            shared_with_group_id: e.shared_group_id
+        })) as CalendarEvent[];
     }
 
     static async getAllCalendarItems(userId: string): Promise<any[]> {
@@ -86,7 +97,7 @@ export class CalendarService {
         const { data: tasks, error: taskError } = await supabase
             .from('tasks')
             .select('*')
-            .eq('user_id', userId)
+            .eq('owner_id', userId)
             .not('due_date', 'is', null);
 
         if (taskError) throw new Error(taskError.message);

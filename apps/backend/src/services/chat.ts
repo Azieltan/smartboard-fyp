@@ -20,13 +20,17 @@ export class ChatService {
             .from('messages')
             .select('*')
             .eq('chat_id', chatId)
-            .order('send_time', { ascending: true });
+            .order('created_at', { ascending: true });
 
         if (error) {
             throw new Error(error.message);
         }
 
-        return data as Message[];
+        // Map DB created_at -> API send_time
+        return (data || []).map((m: any) => ({
+            ...m,
+            send_time: m.created_at
+        })) as Message[];
     }
 
     static async sendMessage(chatId: string, userId: string, content: string): Promise<Message> {
@@ -40,7 +44,7 @@ export class ChatService {
             throw new Error(error.message);
         }
 
-        return data as Message;
+        return ({ ...data, send_time: (data as any).created_at } as any) as Message;
     }
 
     static async createChat(groupId: string): Promise<Chat> {
@@ -54,7 +58,8 @@ export class ChatService {
             throw new Error(error.message);
         }
 
-        return data as Chat;
+        // Map DB created_at -> API created_date
+        return ({ ...data, created_date: (data as any).created_at } as any) as Chat;
     }
 
     static async getChatByGroupId(groupId: string): Promise<Chat | null> {
@@ -68,6 +73,6 @@ export class ChatService {
             throw new Error(error.message);
         }
 
-        return data as Chat | null;
+        return data ? (({ ...data, created_date: (data as any).created_at } as any) as Chat) : null;
     }
 }

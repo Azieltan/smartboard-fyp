@@ -6,7 +6,7 @@ export class TaskService {
         let query = supabase.from('tasks').select('*');
 
         if (userId) {
-            query = query.eq('user_id', userId);
+            query = query.eq('owner_id', userId);
         }
 
         const { data, error } = await query;
@@ -15,13 +15,25 @@ export class TaskService {
             throw new Error(error.message);
         }
 
-        return data as Task[];
+        // Map DB shape -> frontend expected shape
+        return (data || []).map((t: any) => ({
+            ...t,
+            user_id: t.owner_id
+        })) as Task[];
     }
 
     static async createTask(task: Partial<Task>): Promise<Task> {
+        // Accept frontend payloads that use user_id; DB uses owner_id
+        const insertPayload: any = { ...task };
+        if (!insertPayload.owner_id && insertPayload.user_id) insertPayload.owner_id = insertPayload.user_id;
+        delete insertPayload.user_id;
+        // Strip fields that don't exist in Supabase Auth schema
+        delete insertPayload.created_by;
+        delete insertPayload.edited_by;
+
         const { data, error } = await supabase
             .from('tasks')
-            .insert([task])
+            .insert([insertPayload])
             .select()
             .single();
 
@@ -30,14 +42,15 @@ export class TaskService {
         }
 
         // Notification Logic
-        if (task.group_id) {
+        if (insertPayload.group_id) {
             try {
                 // Import dynamically to avoid circular dependency issues if any
                 const { ChatService } = require('./chat');
-                const chat = await ChatService.getChatByGroupId(task.group_id);
+                const chat = await ChatService.getChatByGroupId(insertPayload.group_id);
                 if (chat) {
-                    const messageContent = `📋 New Task Assigned: **${task.title}**\nDue: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No Date'}`;
-                    await ChatService.sendMessage(chat.chat_id, task.created_by || 'system', messageContent);
+                    const messageContent = `📋 New Task Assigned: **${insertPayload.title}**\nDue: ${insertPayload.due_date ? new Date(insertPayload.due_date).toLocaleDateString() : 'No Date'}`;
+                    // Use owner_id as sender when we don't have created_by
+                    await ChatService.sendMessage(chat.chat_id, insertPayload.owner_id || 'system', messageContent);
                 }
             } catch (notifyError) {
                 console.error('Failed to send task notification:', notifyError);
@@ -45,12 +58,19 @@ export class TaskService {
             }
         }
 
-        return data as Task;
+        return ({ ...data, user_id: (data as any).owner_id } as any) as Task;
     }
     static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+        // Accept frontend payload user_id; DB uses owner_id
+        const updatePayload: any = { ...updates };
+        if (!updatePayload.owner_id && updatePayload.user_id) updatePayload.owner_id = updatePayload.user_id;
+        delete updatePayload.user_id;
+        delete updatePayload.created_by;
+        delete updatePayload.edited_by;
+
         const { data, error } = await supabase
             .from('tasks')
-            .update(updates)
+            .update(updatePayload)
             .eq('task_id', taskId)
             .select()
             .single();
@@ -59,7 +79,7 @@ export class TaskService {
             throw new Error(error.message);
         }
 
-        return data as Task;
+        return ({ ...data, user_id: (data as any).owner_id } as any) as Task;
     }
 
     static async addSubtask(taskId: string, title: string): Promise<any> {

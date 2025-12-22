@@ -1,84 +1,100 @@
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAuth } from '../lib/supabase';
 import { User } from '@smartboard/home';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 export class AuthService {
     static async register(username: string, email: string, password: string): Promise<User> {
-        // Check if user exists
+        // 1) Check if profile exists
         const { data: existingUser } = await supabase
             .from('users')
-            .select('*')
+            .select('user_id')
             .eq('email', email)
-            .single();
+            .maybeSingle();
 
-        if (existingUser) {
-            throw new Error('User already exists');
+        if (existingUser) throw new Error('User already exists');
+
+        // 2) Create Supabase Auth user (requires service role key)
+        const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true
+        });
+
+        if (createErr || !created?.user) {
+            throw new Error(createErr?.message || 'Failed to create auth user');
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
-        // Generate a custom 10-character alphanumeric ID
-        const generateCustomId = () => {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let result = '';
-            for (let i = 0; i < 10; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-        };
-        const userId = generateCustomId();
-
-        const { data: newUser, error } = await supabase
+        // 3) Create public profile row
+        const { data: newUser, error: profileErr } = await supabase
             .from('users')
-            .insert([{
-                user_id: userId,
-                user_name: username,
-                email,
-                password_hash: passwordHash,
-                role: 'member'
-            }])
-            .select()
+            .insert([
+                {
+                    user_id: created.user.id,
+                    user_name: username,
+                    email,
+                    role: 'member'
+                }
+            ])
+            .select('user_id, user_name, email, role, created_at')
             .single();
 
-        if (error) {
-            if (error.code === '23505') { // unique_violation
-                throw new Error('User already exists');
-            }
-            throw new Error(error.message);
+        if (profileErr) {
+            // Roll back auth user if profile creation fails
+            await supabase.auth.admin.deleteUser(created.user.id);
+            throw new Error(profileErr.message);
         }
 
-        // Remove password_hash from return
-        const { password_hash, ...user } = newUser;
-        return user as User;
+        return newUser as any as User;
     }
 
     static async login(email: string, password: string): Promise<{ user: User; token: string }> {
-        const { data: user, error } = await supabase
+        // Validate credentials using Supabase Auth
+        const { data: signInData, error: signInErr } = await supabaseAuth.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (signInErr || !signInData?.user) {
+            throw new Error('Invalid credentials');
+        }
+
+        // Fetch profile
+        let { data: user, error } = await supabase
             .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
+            .select('user_id, user_name, email, role, created_at')
+            .eq('user_id', signInData.user.id)
+            .maybeSingle();
 
-        if (error || !user) {
-            throw new Error('Invalid credentials');
+        // If profile missing, create it (happens when auth user existed but profile row didn't)
+        if (!user) {
+            const { data: inserted, error: insertErr } = await supabase
+                .from('users')
+                .insert([
+                    {
+                        user_id: signInData.user.id,
+                        user_name: signInData.user.email?.split('@')[0] || 'User',
+                        email: signInData.user.email,
+                        role: 'member'
+                    }
+                ])
+                .select('user_id, user_name, email, role, created_at')
+                .single();
+
+            if (insertErr) throw new Error(insertErr.message);
+            user = inserted;
         }
 
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
-            throw new Error('Invalid credentials');
-        }
-
+        // Keep your existing backend JWT so the current frontend keeps working
         const token = jwt.sign(
             { userId: user.user_id, email: user.email, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        const { password_hash, ...userWithoutPassword } = user;
-        return { user: userWithoutPassword as User, token };
+        return { user: user as any as User, token };
     }
     static async getAllUsers(): Promise<User[]> {
         const { data, error } = await supabase
@@ -108,33 +124,28 @@ export class AuthService {
     }
 
     static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-        // 1. Verify current password
-        const { data: user, error } = await supabase
+        // 1) Get user email from profile
+        const { data: profile, error: profileErr } = await supabase
             .from('users')
-            .select('password_hash')
+            .select('email')
             .eq('user_id', userId)
             .single();
 
-        if (error || !user) {
-            throw new Error('User not found');
-        }
+        if (profileErr || !profile?.email) throw new Error('User not found');
 
-        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
-        if (!isMatch) {
-            throw new Error('Invalid current password');
-        }
+        // 2) Verify current password by signing in
+        const { error: signInErr } = await supabaseAuth.auth.signInWithPassword({
+            email: profile.email,
+            password: currentPassword
+        });
 
-        // 2. Hash new password
-        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        if (signInErr) throw new Error('Invalid current password');
 
-        // 3. Update password
-        const { error: updateError } = await supabase
-            .from('users')
-            .update({ password_hash: newPasswordHash })
-            .eq('user_id', userId);
+        // 3) Update password in Supabase Auth
+        const { error: updateErr } = await supabase.auth.admin.updateUserById(userId, {
+            password: newPassword
+        });
 
-        if (updateError) {
-            throw new Error('Failed to update password');
-        }
+        if (updateErr) throw new Error(updateErr.message);
     }
 }

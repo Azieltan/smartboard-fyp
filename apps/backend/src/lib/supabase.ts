@@ -4,10 +4,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+const anonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.warn('Missing Supabase credentials in .env');
+if (!supabaseUrl || !serviceKey) {
+    console.warn('Missing Supabase credentials in apps/backend/.env (SUPABASE_URL, SUPABASE_SERVICE_KEY)');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+// Admin client: bypasses RLS. Use ONLY on backend.
+export const supabase = createClient(supabaseUrl || '', serviceKey || '');
+
+// User auth client: used for sign-in flows where Supabase expects anon/public key.
+// If SUPABASE_ANON_KEY is not provided, fall back to service key to avoid hard crash,
+// but you should set SUPABASE_ANON_KEY for correct/auth-safe behavior.
+export const supabaseAuth = createClient(supabaseUrl || '', anonKey || serviceKey || '');
