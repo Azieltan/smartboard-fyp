@@ -42,10 +42,10 @@ export class CalendarService {
     }
 
     static async getEvents(userId: string): Promise<CalendarEvent[]> {
-        // We need to fetch events where:
-        // 1. user_id = userId (Created by me)
-        // 2. shared_with_group_id IN (my_group_ids)
-        // 3. shared_with contains userId (Shared with me directly)
+        // Fetch events where:
+        // 1) creator_id = userId
+        // 2) shared_group_id IN my groups
+        // 3) shared_with (jsonb array) contains userId
 
         // First, get my group IDs
         const { data: groupMembers, error: groupError } = await supabase
@@ -57,36 +57,45 @@ export class CalendarService {
         if (groupError) throw new Error(groupError.message);
         const myGroupIds = groupMembers.map(g => g.group_id);
 
-        // Supabase 'or' syntax is tricky for mixed AND/OR logic.
-        // Simplest strategy: Fetch by Creator OR Group OR Shared Array
-        // We'll use the .or() filter string.
+        // For jsonb, `.contains()` is the most reliable way to filter shared_with.
+        // We'll do 3 queries and union results in memory (small dataset per user).
 
-        // Construct the OR filter
-        // creator_id.eq.userId, shared_group_id.in.(...ids), shared_with.cs.{userId} (contains)
+        const [mine, byGroup, byShare] = await Promise.all([
+            supabase
+                .from('calendar_events')
+                .select('*')
+                .eq('creator_id', userId)
+                .order('start_time', { ascending: true }),
+            myGroupIds.length > 0
+                ? supabase
+                    .from('calendar_events')
+                    .select('*')
+                    .in('shared_group_id', myGroupIds)
+                    .order('start_time', { ascending: true })
+                : Promise.resolve({ data: [], error: null } as any),
+            supabase
+                .from('calendar_events')
+                .select('*')
+                .contains('shared_with', [userId])
+                .order('start_time', { ascending: true })
+        ]);
 
-        let orQuery = `creator_id.eq.${userId}`;
-        if (myGroupIds.length > 0) {
-            orQuery += `,shared_group_id.in.(${myGroupIds.join(',')})`;
+        const errors = [mine.error, byGroup.error, byShare.error].filter(Boolean);
+        if (errors.length) {
+            throw new Error((errors[0] as any).message);
         }
-        // NOTE: 'cs' filter for JSON/Array column requires PostgREST support. assuming 'shared_with' is text[] or jsonb.
-        // If 'shared_with' is simple text array:
-        orQuery += `,shared_with.cs.{${userId}}`;
 
-        const { data, error } = await supabase
-            .from('calendar_events')
-            .select('*')
-            .or(orQuery)
-            .order('start_time', { ascending: true });
+        const combined = [...(mine.data || []), ...(byGroup.data || []), ...(byShare.data || [])];
+        const dedupedById = new Map<string, any>();
+        for (const e of combined) dedupedById.set(e.event_id, e);
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        return (data || []).map((e: any) => ({
-            ...e,
-            user_id: e.creator_id,
-            shared_with_group_id: e.shared_group_id
-        })) as CalendarEvent[];
+        return Array.from(dedupedById.values())
+            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+            .map((e: any) => ({
+                ...e,
+                user_id: e.creator_id,
+                shared_with_group_id: e.shared_group_id
+            })) as CalendarEvent[];
     }
 
     static async getAllCalendarItems(userId: string): Promise<any[]> {
