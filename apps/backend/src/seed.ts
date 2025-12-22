@@ -2,6 +2,7 @@ import { supabase } from './lib/supabase';
 
 export async function seedDatabase() {
   console.log('Starting database seed...');
+  let hadErrors = false;
 
   // Option B uses Supabase Auth UUID users.
   // This seed assumes you already have at least 1 row in public.users.
@@ -31,7 +32,10 @@ export async function seedDatabase() {
     .select('*')
     .single();
 
-  if (groupError) console.error('Error creating group:', groupError.message);
+  if (groupError) {
+    hadErrors = true;
+    console.error('Error creating group:', groupError.message);
+  }
   else console.log('Group created.');
 
   // 3. Add Members to Group
@@ -48,7 +52,12 @@ export async function seedDatabase() {
         },
         { onConflict: 'group_id,user_id' }
       );
-    if (memberErr) console.error('Error adding owner to group:', memberErr.message);
+    if (memberErr) {
+      hadErrors = true;
+      console.error('Error adding owner to group:', memberErr.message);
+    }
+  } else {
+    hadErrors = true;
   }
 
   // 4. Create Tasks
@@ -87,9 +96,26 @@ export async function seedDatabase() {
       .from('tasks')
       .upsert(task, { onConflict: 'task_id' });
 
-    if (error) console.error(`Error creating task ${task.title}:`, error.message);
+    if (error) {
+      hadErrors = true;
+      console.error(`Error creating task ${task.title}:`, error.message);
+    }
   }
 
   console.log('Database seed completed.');
-  return { success: true, message: 'Database seeded successfully' };
+  return hadErrors
+    ? { success: false, message: 'Database seed completed with errors' }
+    : { success: true, message: 'Database seeded successfully' };
+}
+
+// Allow running via: npx ts-node src/seed.ts
+if (require.main === module) {
+  seedDatabase()
+    .then((result) => {
+      if (!result?.success) process.exitCode = 1;
+    })
+    .catch((err) => {
+      console.error('Seed failed:', err?.message || err);
+      process.exitCode = 1;
+    });
 }
