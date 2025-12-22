@@ -8,6 +8,7 @@ import Image from 'next/image';
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
@@ -152,13 +153,30 @@ export default function LoginPage() {
                                         </svg>
                                     </div>
                                     <input
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
+                                        className="w-full pl-12 pr-12 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
                                         placeholder="••••••••"
                                         required
                                     />
+                                    <button
+                                        type="button"
+                                        aria-pressed={showPassword}
+                                        onClick={() => setShowPassword((s) => !s)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200"
+                                    >
+                                        {showPassword ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8a18.62 18.62 0 012.4-4.3M6.5 6.5L17.5 17.5M9.9 9.9A3 3 0 0014.1 14.1" />
+                                            </svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
 
