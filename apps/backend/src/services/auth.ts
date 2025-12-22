@@ -24,20 +24,26 @@ export class AuthService {
         });
 
         if (createErr || !created?.user) {
-            throw new Error(createErr?.message || 'Failed to create auth user');
+            // Common Supabase error when email already exists
+            const msg = createErr?.message || 'Failed to create auth user';
+            if (/already\s*registered|already\s*exists/i.test(msg)) throw new Error('User already exists');
+            throw new Error(msg);
         }
 
-        // 3) Create public profile row
+        // 3) Create/update public profile row.
+        // If you have an auth.users -> public.users trigger, it may have already inserted this row.
+        // Using upsert avoids duplicate key violations.
         const { data: newUser, error: profileErr } = await supabase
             .from('users')
-            .insert([
+            .upsert(
                 {
                     user_id: created.user.id,
                     user_name: username,
                     email,
                     role: 'member'
-                }
-            ])
+                },
+                { onConflict: 'user_id' }
+            )
             .select('user_id, user_name, email, role, created_at')
             .single();
 
@@ -72,14 +78,15 @@ export class AuthService {
         if (!user) {
             const { data: inserted, error: insertErr } = await supabase
                 .from('users')
-                .insert([
+                .upsert(
                     {
                         user_id: signInData.user.id,
                         user_name: signInData.user.email?.split('@')[0] || 'User',
                         email: signInData.user.email,
                         role: 'member'
-                    }
-                ])
+                    },
+                    { onConflict: 'user_id' }
+                )
                 .select('user_id, user_name, email, role, created_at')
                 .single();
 
