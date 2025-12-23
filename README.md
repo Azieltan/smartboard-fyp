@@ -18,13 +18,23 @@ npm install
 
 ### 3. Environment Setup
 You need to set up environment variables for both the frontend and backend.
-**Ask the project owner for the `.env` file contents.**
 
 #### Backend
-Create a file named `.env` in `apps/backend/` and add the required variables (e.g., Supabase credentials, JWT secret).
+Use the provided `apps/backend/.env.example` as a starting point. Do NOT commit a `.env` file that contains real secrets.
+
+- To create a local `.env` file from the example (cross-platform):
+
+```bash
+cd apps/backend
+npm run env:setup
+# then open .env and fill in the real secret values
+```
+
+If you need to share secrets with a teammate, use a secure channel (encrypted chat, password manager, or GitHub Secrets for CI/CD), not a public repository.
 
 #### Frontend
-Create a file named `.env.local` in `apps/frontend/` and add the required variables (e.g., Firebase config, API URL).
+Create a file named `.env.local` in `apps/frontend/` and add the required variables (e.g., Firebase config, API URL). Do not commit real keys to public repos.
+
 
 ### 4. Running the Application
 You need to run the backend and frontend in separate terminals.
