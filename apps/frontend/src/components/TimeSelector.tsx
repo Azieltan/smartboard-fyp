@@ -43,7 +43,6 @@ export default function TimeSelector({ value, onChange }: TimeSelectorProps) {
                             type="range"
                             min="0"
                             max="23"
-                            orient="vertical"
                             value={hours}
                             onChange={(e) => handleTimeChange(parseInt(e.target.value), minutes)}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-ns-resize z-10"

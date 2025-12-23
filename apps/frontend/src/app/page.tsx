@@ -1,7 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
+import { FAQ_DATA } from "@/config/faq";
 
 export default function Home() {
+  const homeFaqIds = [
+    'faq-smart-calendar',
+    'faq-smart-reminders',
+    'faq-real-time-chat',
+    'faq-what-is-smartboard',
+  ];
+
+  const homeFaqItems = FAQ_DATA.filter((item) => homeFaqIds.includes(item.id));
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-mesh-gradient">
       {/* Floating Decorative Elements */}
@@ -146,19 +156,22 @@ export default function Home() {
               title: "Smart Calendar",
               desc: "Interactive scheduling with drag-and-drop. Never miss a deadline again.",
               icon: "/calendar-icon.svg",
-              gradient: "from-blue-500 to-violet-500"
+              gradient: "from-blue-500 to-violet-500",
+              learnMoreHref: "#faq-smart-calendar"
             },
             {
               title: "Smart Reminders",
               desc: "Automated notifications for deadlines & status changes powered by AI.",
               icon: "/reminder-icon.svg",
-              gradient: "from-amber-500 to-pink-500"
+              gradient: "from-amber-500 to-pink-500",
+              learnMoreHref: "#faq-smart-reminders"
             },
             {
               title: "Real-time Chat",
               desc: "Built-in communication for every task. Collaborate seamlessly.",
               icon: "/chat-icon.svg",
-              gradient: "from-emerald-500 to-blue-500"
+              gradient: "from-emerald-500 to-blue-500",
+              learnMoreHref: "#faq-real-time-chat"
             }
           ].map((feature, i) => (
             <div
@@ -179,15 +192,46 @@ export default function Home() {
                 {feature.title}
               </h3>
               <p className="text-slate-400 leading-relaxed">{feature.desc}</p>
-              <div className="mt-4 flex items-center text-sm text-violet-400 group-hover:text-violet-300 transition-colors">
+              <Link
+                href={feature.learnMoreHref}
+                className="mt-4 inline-flex items-center text-sm text-violet-400 group-hover:text-violet-300 transition-colors"
+              >
                 <span>Learn more</span>
                 <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </div>
+              </Link>
             </div>
           ))}
         </div>
+
+        {/* FAQ */}
+        <section id="faq" className="mt-24 max-w-6xl w-full text-left">
+          <div className="glass-panel-glow p-8">
+            <div className="flex items-start justify-between gap-6 mb-6">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold">FAQ</h2>
+                <p className="text-slate-400 mt-2">Quick answers to common SmartBoard questions.</p>
+              </div>
+              <Link href="/dashboard/faq" className="text-sm text-violet-300 hover:text-violet-200 transition-colors whitespace-nowrap">
+                View all FAQs
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {homeFaqItems.map((item) => (
+                <details
+                  key={item.id}
+                  id={item.id}
+                  className="scroll-mt-24 bg-white/3 p-4 rounded-lg border border-white/5"
+                >
+                  <summary className="cursor-pointer font-medium text-white">{item.q}</summary>
+                  <div className="mt-2 text-slate-300">{item.a}</div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Bottom CTA */}
         <div className="mt-24 text-center max-w-2xl">
