@@ -2,9 +2,12 @@
 
 A social collaboration platform for teams to manage tasks, schedules, group chats, and automated workflows.
 
-## 📋 Project Status
+## 📋 Documentation
 
-**For a detailed overview of implemented features and current status:**
+**New to SmartBoard?**
+- 🚀 [**Quick Start Guide**](./QUICK_START.md) - Get started quickly!
+
+**Project Status & Features:**
 - 📖 [**Application Status Report (English)**](./APP_STATUS.md)
 - 📖 [**应用现状报告 (中文)**](./APP_STATUS_CN.md)
 - 📝 [**Implementation Plan**](./implementation_plan.md)
