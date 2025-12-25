@@ -6,6 +6,7 @@ A social collaboration platform for teams to manage tasks, schedules, group chat
 
 **New to SmartBoard?**
 - 🚀 [**Quick Start Guide**](./QUICK_START.md) - Get started quickly!
+- 📊 [**Feature Matrix**](./FEATURE_MATRIX.md) - Status at a glance
 
 **Project Status & Features:**
 - 📖 [**Application Status Report (English)**](./APP_STATUS.md)
