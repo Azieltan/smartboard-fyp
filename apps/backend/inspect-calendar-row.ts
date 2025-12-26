@@ -1,7 +1,13 @@
+import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://hwqykcvqbrqcsdmqrfci.supabase.co';
-const serviceKey = 'sb_secret_7hABIeqnFqzDFNdHHZ55uw_0RyKQAHU';
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !serviceKey) {
+    console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env file');
+    process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, serviceKey);
 
