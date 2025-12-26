@@ -32,9 +32,9 @@ While searching for GitHub tokens, the following **critical security issues** we
 
 **Location**: Committed to git history in commit `5a326e3f4cc7f47a93c98a03b118e5f18fc0d308`
 
-- ❌ **Supabase Service Key**: `sb_secret_7hABIeqnFqzDFNdHHZ55uw_0RyKQAHU`
-- ❌ **Supabase Anon Key**: `sb_publishable_kGy1YPQkFVYRoZXCLjO9Kg_2vB-W7wx`
-- ❌ **JWT Secret**: `smartyboard_super_secret_key_2025`
+- ❌ **Supabase Service Key**: `sb_secret_[REDACTED]`
+- ❌ **Supabase Anon Key**: `sb_publishable_[REDACTED]`
+- ❌ **JWT Secret**: `[REDACTED]`
 - ❌ **Supabase URL**: `https://hwqykcvqbrqcsdmqrfci.supabase.co`
 
 **Risk**: Anyone with access to the repository can:
@@ -116,7 +116,7 @@ All TypeScript debug/test files now:
 
 **Before**:
 ```typescript
-const serviceKey = 'sb_secret_7hABIeqnFqzDFNdHHZ55uw_0RyKQAHU';
+const serviceKey = 'sb_secret_[REDACTED]'; // Hardcoded - BAD!
 ```
 
 **After**:

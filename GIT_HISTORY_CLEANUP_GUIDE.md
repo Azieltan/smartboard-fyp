@@ -147,8 +147,8 @@ After cleaning git history, all team members must:
 
 2. **Search for any remaining secrets**:
    ```bash
-   git log --all -p | grep -i "sb_secret_7hABIeqnFqzDFNdHHZ55uw_0RyKQAHU"
-   # Should return nothing
+   git log --all -p | grep -i "sb_secret_"
+   # Should return nothing (or only redacted references in documentation)
    ```
 
 3. **Verify file size reduction**:
