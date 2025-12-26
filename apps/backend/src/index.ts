@@ -114,6 +114,17 @@ app.post('/auth/login', async (req, res) => {
     }
 });
 
+app.get('/users/search', async (req, res) => {
+    try {
+        const query = req.query.query as string;
+        if (!query) return res.json([]);
+        const users = await AuthService.searchUser(query);
+        res.json(users);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/users', async (req, res) => {
     try {
         const users = await AuthService.getAllUsers();
@@ -225,6 +236,25 @@ app.post('/groups/:groupId/members', async (req, res) => {
     }
 });
 
+app.get('/groups/:groupId/pending', async (req, res) => {
+    try {
+        const members = await GroupService.getPendingMembers(req.params.groupId);
+        res.json(members);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/groups/:groupId/members/:userId', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await GroupService.updateMemberStatus(req.params.groupId, req.params.userId, status);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -328,8 +358,8 @@ app.post('/chats/:groupId/messages', async (req, res) => {
 
         const message = await ChatService.sendMessage(chat.chat_id, userId, content);
 
-        // Emit real-time event
-        io.to(chat.chat_id).emit('new_message', message);
+        // Emit real-time event to the groupId room
+        io.to(req.params.groupId).emit('new_message', message);
 
         res.json(message);
     } catch (error) {
@@ -346,8 +376,8 @@ app.post('/friends', async (req, res) => {
         const { userId, friendIdentifier } = req.body;
         const friend = await FriendService.addFriend(userId, friendIdentifier);
         res.json(friend);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add friend' });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
     }
 });
 
@@ -355,10 +385,20 @@ app.get('/friends/:userId', async (req, res) => {
     try {
         const friends = await FriendService.getFriends(req.params.userId);
         res.json(friends);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch friends' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
+
+app.put('/friends/:id/accept', async (req, res) => {
+    try {
+        await FriendService.acceptFriend(req.params.id);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 // Calendar Routes
 app.post('/calendar', async (req, res) => {
@@ -376,6 +416,15 @@ app.get('/calendar/:userId', async (req, res) => {
         res.json(events);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch events' });
+    }
+});
+
+app.get('/calendar/:userId/items', async (req, res) => {
+    try {
+        const items = await CalendarService.getAllCalendarItems(req.params.userId);
+        res.json(items);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 

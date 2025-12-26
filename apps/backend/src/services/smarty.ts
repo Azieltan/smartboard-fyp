@@ -7,7 +7,7 @@ export class SmartyService {
      */
     static async automate(userId: string, prompt: string) {
         console.log(`[Smarty] Processing automation: "${prompt}" for user ${userId}`);
-        
+
         try {
             // Send to n8n webhook for processing
             const result = await N8NService.triggerWebhook('smarty-automate', {
@@ -15,7 +15,7 @@ export class SmartyService {
                 prompt,
                 timestamp: new Date().toISOString()
             });
-            
+
             return result;
         } catch (error: any) {
             console.error('[Smarty] Automation error:', error);
@@ -37,7 +37,12 @@ export class SmartyService {
             "what is smarty": "I am Smarty, your AI assistant! I can automate tasks like adding members to groups, creating tasks, and more. Try 'Let Smarty Do' for automations!",
             "what can you do": "I can help you:\n• Add/remove members from groups\n• Create and update tasks\n• Create new groups\n• List group members\n\nJust tell me what you need!",
             "how to remove member": "Use 'Let Smarty Do' and say 'Remove [name] from [group]' to remove a member.",
-            "how to create group": "Go to the Groups page and click 'Create Group'. Or use 'Let Smarty Do' and say 'Create group called [name]'!"
+            "how to create group": "Go to the Groups page and click 'Create Group'. Or use 'Let Smarty Do' and say 'Create group called [name]'!",
+            "how to add friend": "Click the 'Add Friend' button on your dashboard. You can search for friends by their Email or User ID!",
+            "pending friend": "Check the 'Friends' list on the side of your dashboard. Any requests Sent to you will appear there with an 'Accept' button.",
+            "join group": "To join a group, click the 'Join' icon in the Groups widget and enter the 6-character Join Code shared by the owner.",
+            "share calendar": "Events you create can be shared with entire groups or specific friends. In the 'Add Event' window, just select 'Group' or 'Friend' in the 'Who is this for?' section.",
+            "where are my friends": "Your friends and pending requests are listed in the 'Friends' widget on the right side of your dashboard!"
         };
 
         // Simple keyword matching for responses

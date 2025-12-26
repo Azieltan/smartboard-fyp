@@ -8,6 +8,7 @@ import TaskAssignment from '../../components/TaskAssignment';
 import CreateTaskModal from '../../components/CreateTaskModal';
 import AddFriendModal from '../../components/AddFriendModal';
 import CalendarWidget from '../../components/CalendarWidget';
+import FriendList from '../../components/FriendList';
 
 export default function DashboardPage() {
     const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -37,7 +38,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <div>
+        <div className="max-w-7xl mx-auto w-full p-8">
             <header className="mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-white">My Calendar</h1>
@@ -97,6 +98,8 @@ export default function DashboardPage() {
                     )}
 
                     <TaskAssignment userId={userId} onAssign={(type, id) => console.log('Assigned to', type, id)} />
+
+                    <FriendList userId={userId} />
                 </div>
             </div>
 

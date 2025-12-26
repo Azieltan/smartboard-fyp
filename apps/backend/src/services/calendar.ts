@@ -15,13 +15,11 @@ export interface CalendarEvent {
 
 export class CalendarService {
     static async createEvent(event: Partial<CalendarEvent>): Promise<CalendarEvent> {
-        // Map API payload -> DB columns
+        // Use DB columns directly
         const eventData: any = { ...event };
+
+        // Ensure shared_with is at least an empty array
         eventData.shared_with = eventData.shared_with || [];
-        if (!eventData.creator_id && eventData.user_id) eventData.creator_id = eventData.user_id;
-        if (!eventData.shared_group_id && eventData.shared_with_group_id) eventData.shared_group_id = eventData.shared_with_group_id;
-        delete eventData.user_id;
-        delete eventData.shared_with_group_id;
 
         const { data, error } = await supabase
             .from('calendar_events')
@@ -33,21 +31,16 @@ export class CalendarService {
             throw new Error(error.message);
         }
 
-        // Map DB -> API
-        return ({
-            ...data,
-            user_id: (data as any).creator_id,
-            shared_with_group_id: (data as any).shared_group_id
-        } as any) as CalendarEvent;
+        return data as CalendarEvent;
     }
 
     static async getEvents(userId: string): Promise<CalendarEvent[]> {
         // Fetch events where:
-        // 1) creator_id = userId
-        // 2) shared_group_id IN my groups
-        // 3) shared_with (jsonb array) contains userId
+        // 1) user_id = userId (Owned by user)
+        // 2) shared_with_group_id IN my groups
+        // 3) shared_with array contains userId
 
-        // First, get my group IDs
+        // Get my active group memberships
         const { data: groupMembers, error: groupError } = await supabase
             .from('group_members')
             .select('group_id')
@@ -55,22 +48,20 @@ export class CalendarService {
             .eq('status', 'active');
 
         if (groupError) throw new Error(groupError.message);
-        const myGroupIds = groupMembers.map(g => g.group_id);
+        const myGroupIds = (groupMembers || []).map(g => g.group_id);
 
-        // For jsonb, `.contains()` is the most reliable way to filter shared_with.
-        // We'll do 3 queries and union results in memory (small dataset per user).
-
+        // Fetch all relevant events in parallel
         const [mine, byGroup, byShare] = await Promise.all([
             supabase
                 .from('calendar_events')
                 .select('*')
-                .eq('creator_id', userId)
+                .eq('user_id', userId)
                 .order('start_time', { ascending: true }),
             myGroupIds.length > 0
                 ? supabase
                     .from('calendar_events')
                     .select('*')
-                    .in('shared_group_id', myGroupIds)
+                    .in('shared_with_group_id', myGroupIds)
                     .order('start_time', { ascending: true })
                 : Promise.resolve({ data: [], error: null } as any),
             supabase
@@ -85,17 +76,13 @@ export class CalendarService {
             throw new Error((errors[0] as any).message);
         }
 
+        // Deduplicate events (e.g. if I'm the creator AND I shared it with a group I'm in)
         const combined = [...(mine.data || []), ...(byGroup.data || []), ...(byShare.data || [])];
-        const dedupedById = new Map<string, any>();
+        const dedupedById = new Map<string, CalendarEvent>();
         for (const e of combined) dedupedById.set(e.event_id, e);
 
         return Array.from(dedupedById.values())
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-            .map((e: any) => ({
-                ...e,
-                user_id: e.creator_id,
-                shared_with_group_id: e.shared_group_id
-            })) as CalendarEvent[];
+            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     }
 
     static async getAllCalendarItems(userId: string): Promise<any[]> {

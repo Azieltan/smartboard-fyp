@@ -20,7 +20,8 @@ export class AuthService {
         const { data: created, error: createErr } = await supabase.auth.admin.createUser({
             email,
             password,
-            email_confirm: true
+            email_confirm: true,
+            user_metadata: { user_name: username }
         });
 
         if (createErr || !created?.user) {
@@ -154,5 +155,16 @@ export class AuthService {
         });
 
         if (updateErr) throw new Error(updateErr.message);
+    }
+
+    static async searchUser(query: string): Promise<User[]> {
+        const { data, error } = await supabase
+            .from('users')
+            .select('user_id, user_name, email, role, created_at')
+            .or(`email.ilike.%${query}%,user_name.ilike.%${query}%,user_id.eq.${query}`)
+            .limit(5);
+
+        if (error) throw new Error(error.message);
+        return data as any as User[];
     }
 }

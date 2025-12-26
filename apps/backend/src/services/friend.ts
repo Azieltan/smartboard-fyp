@@ -1,16 +1,17 @@
 import { supabase } from '../lib/supabase';
 
 export interface Friend {
-    user_id: string;
-    friend_id: string;
-    status: 'pending' | 'accepted';
+    id: string; // Map request_id to id for frontend compatibility
+    from_user_id: string;
+    to_user_id: string;
+    status: 'pending' | 'accepted' | 'rejected';
     created_at: string;
-    friend_details?: any; // To store joined user data
+    friend_details?: any;
 }
 
 export class FriendService {
-    static async addFriend(userId: string, identifier: string): Promise<Friend> {
-        // Try to find by ID first, then Email
+    static async addFriend(userId: string, identifier: string): Promise<any> {
+        // Find target user
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('user_id')
@@ -21,66 +22,78 @@ export class FriendService {
             throw new Error('User not found');
         }
 
-        const friendId = userData.user_id;
+        const targetFriendId = userData.user_id;
+        if (targetFriendId === userId) throw new Error('Cannot add yourself');
 
-        if (friendId === userId) {
-            throw new Error('Cannot add yourself as a friend');
-        }
+        // Check existing
+        const { data: existing } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`and(from_user_id.eq.${userId},to_user_id.eq.${targetFriendId}),and(from_user_id.eq.${targetFriendId},to_user_id.eq.${userId})`)
+            .maybeSingle();
+
+        if (existing) throw new Error('Friend request already exists');
 
         const { data, error } = await supabase
-            .from('friends')
-            .insert([{ requester_id: userId, addressee_id: friendId, status: 'pending' }])
+            .from('friend_requests')
+            .insert([{ from_user_id: userId, to_user_id: targetFriendId, status: 'pending' }])
             .select()
             .single();
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        return ({
-            user_id: (data as any).requester_id,
-            friend_id: (data as any).addressee_id,
-            status: (data as any).status,
-            created_at: (data as any).created_at
-        } as Friend);
+        if (error) throw new Error(error.message);
+        return data;
     }
 
-    static async getFriends(userId: string): Promise<Friend[]> {
-        // Get friends where user is sender
-        const { data: sent, error: sentError } = await supabase
-            .from('friends')
-            .select('*, friend:users!addressee_id(*)')
-            .eq('requester_id', userId)
-            .eq('status', 'accepted');
+    static async acceptFriend(relationshipId: string): Promise<void> {
+        const { error } = await supabase
+            .from('friend_requests')
+            .update({ status: 'accepted' })
+            .eq('request_id', relationshipId);
 
-        // Get friends where user is receiver
-        const { data: received, error: receivedError } = await supabase
-            .from('friends')
-            .select('*, friend:users!requester_id(*)')
-            .eq('addressee_id', userId)
-            .eq('status', 'accepted');
+        if (error) throw new Error(error.message);
+    }
 
-        if (sentError || receivedError) {
-            throw new Error('Failed to fetch friends');
-        }
+    static async getFriends(userId: string): Promise<any[]> {
+        // Fetch friend requests
+        const { data: requests, error } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`);
 
-        const friends = [
-            ...(sent || []).map((f: any) => ({
-                user_id: f.requester_id,
-                friend_id: f.addressee_id,
-                status: f.status,
-                created_at: f.created_at,
-                friend_details: f.friend
-            })),
-            ...(received || []).map((f: any) => ({
-                user_id: f.addressee_id,
-                friend_id: f.requester_id,
-                status: f.status,
-                created_at: f.created_at,
-                friend_details: f.friend
-            }))
-        ];
+        if (error) throw new Error(error.message);
+        if (!requests || requests.length === 0) return [];
 
-        return friends as Friend[];
+        // Collect all related user IDs
+        const userIds = new Set<string>();
+        requests.forEach(r => {
+            userIds.add(r.from_user_id);
+            userIds.add(r.to_user_id);
+        });
+
+        // Fetch user details for all related users
+        const { data: users, error: userErr } = await supabase
+            .from('users')
+            .select('user_id, user_name, email')
+            .in('user_id', Array.from(userIds));
+
+        if (userErr) throw new Error(userErr.message);
+
+        const userMap = new Map(users?.map(u => [u.user_id, u]));
+
+        // Format for frontend
+        return requests.map(r => {
+            const isSender = r.from_user_id === userId;
+            const otherUserId = isSender ? r.to_user_id : r.from_user_id;
+            const otherUser = userMap.get(otherUserId);
+
+            return {
+                id: r.request_id,
+                relationship_id: r.request_id, // Compatibility
+                user_id: r.from_user_id,
+                friend_id: r.to_user_id,
+                status: r.status,
+                friend_details: otherUser || { user_id: otherUserId, user_name: 'Unknown', email: '' }
+            };
+        });
     }
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import AddFriendModal from '../../../components/AddFriendModal';
+import AddMemberModal from '../../../components/AddMemberModal';
 
 interface Group {
     group_id: string;
@@ -24,6 +25,8 @@ export default function GroupsPage() {
     const [groups, setGroups] = useState<Group[]>([]);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [showAddFriend, setShowAddFriend] = useState(false);
+    const [showAddMember, setShowAddMember] = useState(false);
+    const [selectedGroupForAdd, setSelectedGroupForAdd] = useState<string | null>(null);
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
     const [isJoiningGroup, setIsJoiningGroup] = useState(false);
     const [joinCode, setJoinCode] = useState('');
@@ -218,7 +221,7 @@ export default function GroupsPage() {
                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xl font-bold text-white">
                                         {group.name[0]}
                                     </div>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium border ${group.role === 'owner'
+                                    <span className={`px-2 py-1 rounded text-xs font-medium border ${group.role === 'admin'
                                         ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
                                         : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                         }`}>
@@ -228,7 +231,7 @@ export default function GroupsPage() {
                                 <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{group.name}</h3>
                                 <p className="text-sm text-slate-400">{group.member_count || 1} members</p>
 
-                                {group.role === 'owner' && group.join_code && (
+                                {group.role === 'admin' && group.join_code && (
                                     <div className="mt-3 p-2 bg-black/30 rounded-lg border border-white/5 flex flex-col">
                                         <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Join Code</span>
                                         <div className="flex items-center justify-between gap-2">
@@ -252,6 +255,18 @@ export default function GroupsPage() {
                                     <button className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium text-white transition-colors">
                                         View
                                     </button>
+                                    {group.role === 'admin' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedGroupForAdd(group.group_id);
+                                                setShowAddMember(true);
+                                            }}
+                                            className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors border border-blue-500/20"
+                                        >
+                                            + Member
+                                        </button>
+                                    )}
                                     {group.role === 'owner' && (
                                         <button className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors">
                                             ⚙️
@@ -306,6 +321,18 @@ export default function GroupsPage() {
                     )
                 )}
             </div>
+
+            {showAddMember && selectedGroupForAdd && (
+                <AddMemberModal
+                    groupId={selectedGroupForAdd}
+                    userId={userId}
+                    onClose={() => {
+                        setShowAddMember(false);
+                        setSelectedGroupForAdd(null);
+                    }}
+                    onMemberAdded={() => fetchData(userId)}
+                />
+            )}
 
             {showAddFriend && (
                 <AddFriendModal

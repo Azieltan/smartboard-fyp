@@ -8,12 +8,22 @@ const getHeaders = () => {
     };
 };
 
+const handleResponse = async (res: Response) => {
+    const data = await res.json();
+    if (!res.ok) {
+        throw {
+            response: { data }
+        };
+    }
+    return data;
+};
+
 export const api = {
     get: async (endpoint: string) => {
         const res = await fetch(`${API_URL}${endpoint}`, {
             headers: getHeaders(),
         });
-        return res.json();
+        return handleResponse(res);
     },
     post: async (endpoint: string, body: any) => {
         const res = await fetch(`${API_URL}${endpoint}`, {
@@ -21,7 +31,7 @@ export const api = {
             headers: getHeaders(),
             body: JSON.stringify(body),
         });
-        return res.json();
+        return handleResponse(res);
     },
     put: async (endpoint: string, body: any) => {
         const res = await fetch(`${API_URL}${endpoint}`, {
@@ -29,6 +39,6 @@ export const api = {
             headers: getHeaders(),
             body: JSON.stringify(body),
         });
-        return res.json();
+        return handleResponse(res);
     }
 };

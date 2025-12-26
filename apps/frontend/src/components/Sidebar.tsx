@@ -56,16 +56,6 @@ const navigation = [
         gradient: 'from-indigo-500 to-blue-500'
     },
     {
-        name: 'Groups',
-        href: '/dashboard/groups',
-        icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-        ),
-        gradient: 'from-amber-500 to-orange-500'
-    },
-    {
         name: 'Settings',
         href: '/dashboard/settings',
         icon: (
@@ -81,18 +71,41 @@ const navigation = [
 export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [user, setUser] = useState<{ username?: string; email?: string } | null>(null);
+    const [user, setUser] = useState<{ user_id: string; username?: string; email?: string } | null>(null);
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [stats, setStats] = useState({ total: 0, completed: 0, remaining: 0 });
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
         if (userStr && userStr !== 'undefined') {
             try {
-                setUser(JSON.parse(userStr));
+                const parsedUser = JSON.parse(userStr);
+                setUser(parsedUser);
+                fetchTasks(parsedUser.user_id);
             } catch (e) {
                 console.error('Failed to parse user');
             }
         }
     }, []);
+
+    const fetchTasks = async (uid: string) => {
+        try {
+            const res = await fetch(`http://localhost:3001/tasks?userId=${uid}`);
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                const activeTasks = data.filter(t => t.status !== 'completed');
+                const completedTasks = data.filter(t => t.status === 'completed');
+                setTasks(data);
+                setStats({
+                    total: data.length,
+                    completed: completedTasks.length,
+                    remaining: activeTasks.length
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch tasks in sidebar:', error);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -120,12 +133,20 @@ export function Sidebar() {
             <div className="px-4 py-4">
                 <div className="glass-panel p-4 space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">Today's Tasks</span>
-                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">3 left</span>
+                        <span className="text-slate-400">My Tasks</span>
+                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
+                            {stats.remaining} left
+                        </span>
                     </div>
                     <div className="w-full bg-white/10 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+                        <div
+                            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-1000"
+                            style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
+                        ></div>
                     </div>
+                    <p className="text-[10px] text-slate-500 text-center">
+                        {stats.completed}/{stats.total} completed
+                    </p>
                 </div>
             </div>
 
@@ -159,30 +180,6 @@ export function Sidebar() {
                 })}
             </nav>
 
-            {/* Smarty Assistant Promo */}
-            <div className="px-4 py-3">
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 p-4">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                    <div className="relative">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xl">🤖</span>
-                            <span className="font-bold text-white text-sm">AI Assistant</span>
-                        </div>
-                        <p className="text-xs text-white/80 mb-3">Ask Smarty for help with tasks!</p>
-                        <script dangerouslySetInnerHTML={{__html:`
-                            window.openSmartyBubble = () => {
-                                window.dispatchEvent(new CustomEvent('open-smarty-bubble'));
-                            };
-                        `}} />
-                        <button
-                            className="w-full py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors"
-                            onClick={() => window.openSmartyBubble && window.openSmartyBubble()}
-                        >
-                            Open Smarty
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             {/* User Profile */}
             <div className="p-4 border-t border-white/10">

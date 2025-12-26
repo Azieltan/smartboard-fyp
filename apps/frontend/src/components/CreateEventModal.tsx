@@ -33,7 +33,8 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                     api.get(`/friends/${userId}`)
                 ]);
                 setGroups(Array.isArray(groupsRes) ? groupsRes : []);
-                setFriends(Array.isArray(friendsRes) ? friendsRes : []);
+                // Only show accepted friends
+                setFriends(Array.isArray(friendsRes) ? friendsRes.filter((f: any) => f.status === 'accepted') : []);
             } catch (e) {
                 console.error("Failed to load sharing options", e);
             }
@@ -186,7 +187,7 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                                 >
                                     {friends.length === 0 && <option value="">No friends added</option>}
                                     {friends.map(f => (
-                                        <option key={f.friend_id} value={f.friend_id}>{f.friend_name}</option>
+                                        <option key={f.friend_id} value={f.friend_id}>{f.friend_details?.user_name || f.friend_details?.email}</option>
                                     ))}
                                 </select>
                             </div>

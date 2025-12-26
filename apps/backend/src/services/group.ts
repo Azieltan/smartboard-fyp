@@ -3,8 +3,11 @@ import { supabase } from '../lib/supabase';
 export interface Group {
     group_id: string;
     name: string;
-    owner_id: string; // DB owner
+    user_id: string; // DB owner
     created_at: string;
+    join_code?: string;
+    requires_approval?: boolean;
+    is_dm?: boolean;
 }
 
 export interface GroupMember {
@@ -17,41 +20,54 @@ export interface GroupMember {
 
 export class GroupService {
     static async getOrCreateDirectChat(user1Id: string, user2Id: string): Promise<string> {
+        console.log(`[GroupService] getOrCreateDirectChat: ${user1Id} <-> ${user2Id}`);
         // 1. Try to find existing DM group
-        // We look for a group where ONLY these 2 users are members and type is 'dm' (we'll use a naming convention or metadata if schema is rigid)
-        // For now, let's use a naming convention for the hidden group: "dm-{sorted_ids}"
         const userIds = [user1Id, user2Id].sort();
         const dmGroupName = `dm-${userIds[0]}-${userIds[1]}`;
+        console.log(`[GroupService] DM group name: ${dmGroupName}`);
 
-        const { data: existingGroup } = await supabase
+        const { data: existingGroup, error: findError } = await supabase
             .from('groups')
             .select('group_id')
             .eq('name', dmGroupName)
-            .single();
+            .eq('is_dm', true)
+            .maybeSingle();
+
+        if (findError) console.error(`[GroupService] Find DM error:`, findError);
 
         if (existingGroup) {
+            console.log(`[GroupService] Found existing DM group: ${existingGroup.group_id}`);
             return existingGroup.group_id;
         }
 
         // 2. Create new DM group
+        console.log(`[GroupService] Creating new DM group...`);
         const { data: newGroup, error } = await supabase
             .from('groups')
             .insert([{
                 name: dmGroupName,
-                owner_id: user1Id, // One user technically owns it, doesn't matter much for DM
+                user_id: user1Id, // One user technically owns it
                 requires_approval: false,
-                is_dm: true // Ideally we add this column. If not, we rely on name.
+                is_dm: true
             }])
             .select()
             .single();
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error(`[GroupService] Create DM error:`, error);
+            throw new Error(error.message);
+        }
+        console.log(`[GroupService] Created group: ${newGroup.group_id}`);
 
         // 3. Add both members
-        await Promise.all([
-            this.addMember(newGroup.group_id, user1Id, 'member', 'active'),
-            this.addMember(newGroup.group_id, user2Id, 'member', 'active')
-        ]);
+        try {
+            await Promise.all([
+                this.addMember(newGroup.group_id, user1Id, 'member', 'active'),
+                this.addMember(newGroup.group_id, user2Id, 'member', 'active')
+            ]);
+        } catch (memberErr) {
+            console.error("Error adding DM members:", memberErr);
+        }
 
         return newGroup.group_id;
     }
@@ -62,7 +78,7 @@ export class GroupService {
 
         const { data: groupData, error: groupError } = await supabase
             .from('groups')
-            .insert([{ name, owner_id: ownerId, join_code: joinCode, requires_approval: requiresApproval }])
+            .insert([{ name, user_id: ownerId, join_code: joinCode, requires_approval: requiresApproval, is_dm: false }])
             .select()
             .single();
 
@@ -70,7 +86,7 @@ export class GroupService {
             throw new Error(groupError.message);
         }
 
-        // Add owner as a member (schema only has admin/member)
+        // Add owner as a member
         await this.addMember(groupData.group_id, ownerId, 'admin', 'active');
 
         // Add friends if provided
@@ -79,11 +95,9 @@ export class GroupService {
                 group_id: groupData.group_id,
                 user_id: friendId,
                 role: 'member',
-                status: 'active' // Direct add assumes active, or could be pending if preferred
+                status: 'active'
             }));
 
-            // Need to handle one by one or bulk? addMember is single.
-            // Let's use bulk insert for friends
             const { error: friendsError } = await supabase
                 .from('group_members')
                 .insert(members);
@@ -116,6 +130,16 @@ export class GroupService {
             .single();
 
         if (error) {
+            // If already exists, just return existing
+            if (error.code === '23505') {
+                const { data: existing } = await supabase
+                    .from('group_members')
+                    .select('*')
+                    .eq('group_id', groupId)
+                    .eq('user_id', userId)
+                    .single();
+                return existing as GroupMember;
+            }
             throw new Error(error.message);
         }
 
@@ -140,7 +164,7 @@ export class GroupService {
             .select('*')
             .eq('group_id', group.group_id)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             if (existing.status === 'pending') {
@@ -151,16 +175,12 @@ export class GroupService {
 
         const status = group.requires_approval ? 'pending' : 'active';
 
-        await this.addMember(group.group_id, userId, 'member', status); // Use implicit 'member' role
+        await this.addMember(group.group_id, userId, 'member', status);
 
         return {
             success: true,
             message: status === 'pending' ? 'Join request sent. Waiting for approval.' : 'Joined group successfully',
-            group: {
-                ...group,
-                // Frontend expects owner under user_id
-                user_id: group.owner_id
-            }
+            group: group
         };
     }
 
@@ -169,20 +189,47 @@ export class GroupService {
             .from('group_members')
             .select('role, groups!inner(*)')
             .eq('user_id', userId)
-            .eq('status', 'active')
-            // Filter out DMs from the main group list
-            .or('is_dm.is.null,is_dm.eq.false', { foreignTable: 'groups' });
+            .eq('status', 'active');
 
         if (error) {
             throw new Error(error.message);
         }
 
-        // Flatten the result to return group details with the user's role
-        return data.map((item: any) => ({
-            ...item.groups,
-            // Frontend expects owner under user_id
-            user_id: item.groups.owner_id,
-            role: item.role
-        }));
+        // Filter out DMs and map
+        return (data || [])
+            .filter((item: any) => !item.groups.is_dm)
+            .map((item: any) => ({
+                ...item.groups,
+                role: item.role
+            }));
+    }
+
+    static async getPendingMembers(groupId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('group_members')
+            .select('*, users!inner(user_name, email)')
+            .eq('group_id', groupId)
+            .eq('status', 'pending');
+
+        if (error) throw new Error(error.message);
+        return data;
+    }
+
+    static async updateMemberStatus(groupId: string, userId: string, status: 'active' | 'rejected'): Promise<void> {
+        if (status === 'rejected') {
+            const { error } = await supabase
+                .from('group_members')
+                .delete()
+                .eq('group_id', groupId)
+                .eq('user_id', userId);
+            if (error) throw new Error(error.message);
+        } else {
+            const { error } = await supabase
+                .from('group_members')
+                .update({ status: 'active' })
+                .eq('group_id', groupId)
+                .eq('user_id', userId);
+            if (error) throw new Error(error.message);
+        }
     }
 }

@@ -11,43 +11,47 @@ export interface Message {
 export interface Chat {
     chat_id: string;
     group_id: string;
-    created_date: string;
+    send_time: string; // Using send_time for compatibility with schema.sql chats
 }
 
 export class ChatService {
-    static async getMessages(chatId: string): Promise<Message[]> {
+    static async getMessages(chatId: string): Promise<any[]> {
         const { data, error } = await supabase
             .from('messages')
-            .select('*')
+            .select('*, users(user_name, email)') // users!inner? maybe not if system messages exist
             .eq('chat_id', chatId)
-            .order('created_at', { ascending: true });
+            .order('send_time', { ascending: true });
 
         if (error) {
             throw new Error(error.message);
         }
 
-        // Map DB created_at -> API send_time
         return (data || []).map((m: any) => ({
             ...m,
-            send_time: m.created_at
-        })) as Message[];
+            user_name: m.users?.user_name,
+            email: m.users?.email
+        }));
     }
 
-    static async sendMessage(chatId: string, userId: string, content: string): Promise<Message> {
+    static async sendMessage(chatId: string, userId: string, content: string): Promise<any> {
         const { data, error } = await supabase
             .from('messages')
             .insert([{ chat_id: chatId, user_id: userId, content }])
-            .select()
+            .select('*, users(user_name, email)')
             .single();
 
         if (error) {
             throw new Error(error.message);
         }
 
-        return ({ ...data, send_time: (data as any).created_at } as any) as Message;
+        return {
+            ...data,
+            user_name: (data as any).users?.user_name,
+            email: (data as any).users?.email
+        };
     }
 
-    static async createChat(groupId: string): Promise<Chat> {
+    static async createChat(groupId: string): Promise<any> {
         const { data, error } = await supabase
             .from('chats')
             .insert([{ group_id: groupId }])
@@ -58,21 +62,22 @@ export class ChatService {
             throw new Error(error.message);
         }
 
-        // Map DB created_at -> API created_date
-        return ({ ...data, created_date: (data as any).created_at } as any) as Chat;
+        return data;
     }
 
-    static async getChatByGroupId(groupId: string): Promise<Chat | null> {
+    static async getChatByGroupId(groupId: string): Promise<any | null> {
         const { data, error } = await supabase
             .from('chats')
             .select('*')
             .eq('group_id', groupId)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "The result contains 0 rows"
+        if (error) {
+            console.error(`[ChatService] getChatByGroupId error for ${groupId}:`, error);
             throw new Error(error.message);
         }
 
-        return data ? (({ ...data, created_date: (data as any).created_at } as any) as Chat) : null;
+        return data;
     }
 }
