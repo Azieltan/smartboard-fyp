@@ -32,10 +32,10 @@ While searching for GitHub tokens, the following **critical security issues** we
 
 **Location**: Committed to git history in commit `5a326e3f4cc7f47a93c98a03b118e5f18fc0d308`
 
-- ❌ **Supabase Service Key**: `sb_secret_[REDACTED]`
-- ❌ **Supabase Anon Key**: `sb_publishable_[REDACTED]`
-- ❌ **JWT Secret**: `[REDACTED]`
-- ❌ **Supabase URL**: `https://hwqykcvqbrqcsdmqrfci.supabase.co`
+- ❌ **Supabase Service Key**: `[SERVICE_KEY_REDACTED]`
+- ❌ **Supabase Anon Key**: `[ANON_KEY_REDACTED]`
+- ❌ **JWT Secret**: `[JWT_SECRET_REDACTED]`
+- ❌ **Supabase URL**: `https://[PROJECT_ID].supabase.co`
 
 **Risk**: Anyone with access to the repository can:
 - Read/write/delete all database data
@@ -116,7 +116,7 @@ All TypeScript debug/test files now:
 
 **Before**:
 ```typescript
-const serviceKey = 'sb_secret_[REDACTED]'; // Hardcoded - BAD!
+const serviceKey = '[HARDCODED_SECRET_HERE]'; // Hardcoded - BAD!
 ```
 
 **After**:

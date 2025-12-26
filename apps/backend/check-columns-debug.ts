@@ -9,7 +9,8 @@ if (!supabaseUrl || !serviceKey) {
     process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, serviceKey);
+// Type assertion: we've validated these are defined above
+const supabase = createClient(supabaseUrl as string, serviceKey as string);
 
 async function checkColumns() {
     console.log('Checking columns for [groups] and [group_members]...');

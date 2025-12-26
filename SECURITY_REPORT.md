@@ -11,7 +11,7 @@ Multiple sensitive secrets have been exposed in this repository, including in th
 ## Exposed Secrets
 
 ### 1. Supabase Service Key (CRITICAL)
-- **Value**: `sb_secret_[REDACTED]` (exposed in commit history)
+- **Value**: `[SERVICE_KEY_REDACTED]`
 - **Exposed in**:
   - Git commit history: commit `5a326e3f4cc7f47a93c98a03b118e5f18fc0d308`
   - File: `apps/backend/.env` (committed to git)
@@ -24,7 +24,7 @@ Multiple sensitive secrets have been exposed in this repository, including in th
 - **Risk**: Full administrative access to Supabase database, including ability to read/write/delete all data
 
 ### 2. Supabase Anonymous Key
-- **Value**: `sb_publishable_[REDACTED]` (exposed in commit history)
+- **Value**: `[ANON_KEY_REDACTED]`
 - **Exposed in**:
   - Git commit history: commit `5a326e3f4cc7f47a93c98a03b118e5f18fc0d308`
   - File: `apps/backend/.env` (committed to git)
@@ -38,7 +38,7 @@ Multiple sensitive secrets have been exposed in this repository, including in th
 - **Risk**: Ability to forge authentication tokens and impersonate any user
 
 ### 4. Supabase Project URL
-- **Value**: `https://hwqykcvqbrqcsdmqrfci.supabase.co`
+- **Value**: `https://[PROJECT_ID].supabase.co`
 - **Exposed in**: Same locations as above
 - **Risk**: Reveals the specific Supabase project target
 
@@ -108,7 +108,7 @@ Multiple sensitive secrets have been exposed in this repository, including in th
    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
    
    // Bad
-   const serviceKey = 'sb_secret_[REDACTED]'; // Never hardcode secrets!
+   const serviceKey = '[HARDCODED_SECRET_HERE]'; // Never hardcode secrets!
    ```
 
 3. **Regular security audits**:
