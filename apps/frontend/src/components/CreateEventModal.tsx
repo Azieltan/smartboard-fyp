@@ -32,15 +32,21 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                     api.get(`/groups/${userId}`),
                     api.get(`/friends/${userId}`)
                 ]);
-                setGroups(Array.isArray(groupsRes) ? groupsRes : []);
-                // Only show accepted friends
-                setFriends(Array.isArray(friendsRes) ? friendsRes.filter((f: any) => f.status === 'accepted') : []);
+                const loadedGroups = Array.isArray(groupsRes) ? groupsRes : [];
+                setGroups(loadedGroups);
+                const loadedFriends = Array.isArray(friendsRes) ? friendsRes.filter((f: any) => f.status === 'accepted') : [];
+                setFriends(loadedFriends);
+
+                // Auto-select first item if switching types
+                if (shareType === 'group' && loadedGroups.length > 0) setSelectedTargetId(loadedGroups[0].group_id);
+                if (shareType === 'friend' && loadedFriends.length > 0) setSelectedTargetId(loadedFriends[0].friend_id);
+
             } catch (e) {
                 console.error("Failed to load sharing options", e);
             }
         };
         fetchOptions();
-    }, [userId]);
+    }, [userId, shareType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,20 +83,22 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in zoom-in-95 duration-200">
-            <div className="bg-[#1e293b] rounded-2xl shadow-2xl p-6 w-full max-w-md border border-white/10">
+            <div className="glass-panel w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 shadow-2xl bg-white dark:bg-[#1e293b] border-slate-200 dark:border-white/10">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-white">Add Event</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Add Event</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Event Title</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Event Title</label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500"
                             placeholder="Meeting, Birthday, etc."
                             required
                             autoFocus
@@ -98,37 +106,37 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Date</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Date</label>
                         <input
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
-                            className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-white focus:border-blue-500 outline-none"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all [color-scheme:light] dark:[color-scheme:dark]"
                             required
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">Start Time</label>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Start Time</label>
                             <TimeSelector value={startTime} onChange={setStartTime} />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">End Time</label>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">End Time</label>
                             <TimeSelector value={endTime} onChange={setEndTime} />
                         </div>
                     </div>
 
                     {/* Audience Selector Section */}
-                    <div className="pt-4 border-t border-white/10">
-                        <label className="block text-sm font-bold text-blue-400 mb-3">Who is this for?</label>
+                    <div className="pt-4 border-t border-slate-200 dark:border-white/10">
+                        <label className="block text-sm font-bold text-blue-500 dark:text-blue-400 mb-3">Who is this for?</label>
                         <div className="flex gap-2 mb-4">
                             <button
                                 type="button"
                                 onClick={() => { setShareType('private'); setSelectedTargetId(''); }}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${shareType === 'private'
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 transform scale-105'
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border ${shareType === 'private'
+                                    ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-white/5 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                                     }`}
                             >
                                 🔒 Private
@@ -137,11 +145,10 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                                 type="button"
                                 onClick={() => {
                                     setShareType('group');
-                                    if (groups.length > 0) setSelectedTargetId(groups[0].group_id);
                                 }}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${shareType === 'group'
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 transform scale-105'
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${shareType === 'group'
+                                    ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-white/5 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                                     }`}
                             >
                                 👥 Group
@@ -150,11 +157,10 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                                 type="button"
                                 onClick={() => {
                                     setShareType('friend');
-                                    if (friends.length > 0) setSelectedTargetId(friends[0].friend_id);
                                 }}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${shareType === 'friend'
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 transform scale-105'
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${shareType === 'friend'
+                                    ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-white/5 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                                     }`}
                             >
                                 👤 Friend
@@ -163,49 +169,63 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
 
                         {shareType === 'group' && (
                             <div className="animate-in slide-in-from-top-2 fade-in duration-200">
-                                <label className="block text-xs text-slate-400 mb-1">Select Group</label>
-                                <select
-                                    value={selectedTargetId}
-                                    onChange={(e) => setSelectedTargetId(e.target.value)}
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:border-blue-500 outline-none"
-                                >
-                                    {groups.length === 0 && <option value="">No groups joined</option>}
-                                    {groups.map(g => (
-                                        <option key={g.group_id} value={g.group_id}>{g.name}</option>
-                                    ))}
-                                </select>
+                                {groups.length > 0 ? (
+                                    <>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 ml-1">Select Group</label>
+                                        <select
+                                            value={selectedTargetId}
+                                            onChange={(e) => setSelectedTargetId(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white text-sm focus:border-blue-500 outline-none transition-all"
+                                        >
+                                            {groups.map(g => (
+                                                <option key={g.group_id} value={g.group_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">{g.name}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                ) : (
+                                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-200 text-xs text-center">
+                                        You haven't joined any groups yet.
+                                    </div>
+                                )}
                             </div>
                         )}
 
                         {shareType === 'friend' && (
                             <div className="animate-in slide-in-from-top-2 fade-in duration-200">
-                                <label className="block text-xs text-slate-400 mb-1">Select Friend</label>
-                                <select
-                                    value={selectedTargetId}
-                                    onChange={(e) => setSelectedTargetId(e.target.value)}
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:border-blue-500 outline-none"
-                                >
-                                    {friends.length === 0 && <option value="">No friends added</option>}
-                                    {friends.map(f => (
-                                        <option key={f.friend_id} value={f.friend_id}>{f.friend_details?.user_name || f.friend_details?.email}</option>
-                                    ))}
-                                </select>
+                                {friends.length > 0 ? (
+                                    <>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 ml-1">Select Friend</label>
+                                        <select
+                                            value={selectedTargetId}
+                                            onChange={(e) => setSelectedTargetId(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white text-sm focus:border-blue-500 outline-none transition-all"
+                                        >
+                                            {friends.map(f => (
+                                                <option key={f.friend_id} value={f.friend_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">{f.friend_details?.user_name || f.friend_details?.email}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                ) : (
+                                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-200 text-xs text-center">
+                                        You don't have any friends to share with yet.
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            className="px-6 py-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all font-medium"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            disabled={isLoading}
-                            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                            disabled={isLoading || (shareType === 'group' && groups.length === 0) || (shareType === 'friend' && friends.length === 0)}
+                            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:shadow-none"
                         >
                             {isLoading ? 'Creating...' : 'Create Event'}
                         </button>

@@ -63,7 +63,7 @@ create table tasks (
   edited_by text references users(user_id),
   user_id text references users(user_id), -- Assignee/Owner
   group_id uuid references groups(group_id) on delete set null,
-  status text check (status in ('todo', 'in_progress', 'done')) default 'todo',
+  status text check (status in ('todo', 'in_progress', 'in_review', 'done')) default 'todo',
   priority text check (priority in ('low', 'medium', 'high')) default 'medium',
   created_at timestamp with time zone default now()
 );
@@ -131,4 +131,17 @@ create table notifications (
   metadata jsonb, -- link, groupId, etc.
   read boolean default false,
   created_at timestamp with time zone default now()
+);
+
+-- Task Submissions Table (for Review Workflow)
+create table task_submissions (
+  submission_id uuid primary key default uuid_generate_v4(),
+  task_id uuid references tasks(task_id) on delete cascade,
+  user_id text references users(user_id), -- Who submitted
+  content text,
+  attachments text[], -- Array of URLs
+  status text check (status in ('pending', 'approved', 'rejected')) default 'pending',
+  feedback text,
+  submitted_at timestamp with time zone default now(),
+  reviewed_at timestamp with time zone
 );

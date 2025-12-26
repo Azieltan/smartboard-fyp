@@ -3,32 +3,51 @@ import { Task } from '@smartboard/home';
 
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
-        let query = supabase.from('tasks').select('*');
-
-        if (userId) {
-            query = query.eq('owner_id', userId);
+        if (!userId) {
+            const { data, error } = await supabase.from('tasks').select('*');
+            if (error) throw new Error(error.message);
+            return data as Task[];
         }
 
-        const { data, error } = await query;
+        // 1. Get my groups
+        const { data: groupMembers, error: groupError } = await supabase
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId)
+            .eq('status', 'active');
+
+        if (groupError) throw new Error(groupError.message);
+
+        const myGroupIds = (groupMembers || []).map(g => g.group_id);
+
+        // 2. Build Query: user_id is me OR group_id is in my groups
+        // Supabase 'or' syntax: "user_id.eq.uid,group_id.in.(g1,g2)"
+
+        let orCondition = `user_id.eq.${userId},created_by.eq.${userId}`;
+        if (myGroupIds.length > 0) {
+            const groupsStr = `(${myGroupIds.map(id => `"${id}"`).join(',')})`;
+            orCondition += `,group_id.in.${groupsStr}`;
+        }
+
+        // Also include tasks created_by me? Maybe not, stick to assignee/owner context.
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .or(orCondition);
 
         if (error) {
             throw new Error(error.message);
         }
 
-        // Map DB shape -> frontend expected shape
-        return (data || []).map((t: any) => ({
-            ...t,
-            user_id: t.owner_id
-        })) as Task[];
+        return data as Task[];
     }
 
     static async createTask(task: Partial<Task>): Promise<Task> {
-        // Accept frontend payloads that use user_id; DB uses owner_id
+        // Use DB columns directly. Schema has user_id (Assignee) and created_by.
         const insertPayload: any = { ...task };
-        if (!insertPayload.owner_id && insertPayload.user_id) insertPayload.owner_id = insertPayload.user_id;
-        delete insertPayload.user_id;
-        // Strip fields that don't exist in Supabase Auth schema
-        delete insertPayload.created_by;
+
+        // Remove edited_by if not in schema or handled elsewhere
         delete insertPayload.edited_by;
 
         const { data, error } = await supabase
@@ -42,29 +61,36 @@ export class TaskService {
         }
 
         // Notification Logic
-        if (insertPayload.group_id) {
-            try {
-                // Import dynamically to avoid circular dependency issues if any
-                const { ChatService } = require('./chat');
+        try {
+            const { ChatService } = require('./chat');
+            const { GroupService } = require('./group');
+            const messageContent = `📋 New Task Assigned: **${insertPayload.title}**\nDue: ${insertPayload.due_date ? new Date(insertPayload.due_date).toLocaleDateString() : 'No Date'}`;
+
+            // 1. Group Notification
+            if (insertPayload.group_id) {
                 const chat = await ChatService.getChatByGroupId(insertPayload.group_id);
                 if (chat) {
-                    const messageContent = `📋 New Task Assigned: **${insertPayload.title}**\nDue: ${insertPayload.due_date ? new Date(insertPayload.due_date).toLocaleDateString() : 'No Date'}`;
-                    // Use owner_id as sender when we don't have created_by
-                    await ChatService.sendMessage(chat.chat_id, insertPayload.owner_id || 'system', messageContent);
+                    await ChatService.sendMessage(chat.chat_id, insertPayload.created_by || 'system', messageContent);
                 }
-            } catch (notifyError) {
-                console.error('Failed to send task notification:', notifyError);
-                // Don't fail the task creation just because notification failed
             }
+            // 2. Individual Notification (if assigned to someone else)
+            else if (insertPayload.user_id && insertPayload.user_id !== insertPayload.created_by) {
+                const groupId = await GroupService.getOrCreateDirectChat(insertPayload.created_by, insertPayload.user_id);
+                let chat = await ChatService.getChatByGroupId(groupId);
+                if (!chat) chat = await ChatService.createChat(groupId);
+
+                await ChatService.sendMessage(chat.chat_id, insertPayload.created_by || 'system', messageContent);
+            }
+        } catch (notifyError) {
+            console.error('Failed to send task notification:', notifyError);
+            // Don't fail the task creation just because notification failed
         }
 
-        return ({ ...data, user_id: (data as any).owner_id } as any) as Task;
+        return data as Task;
     }
+
     static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
-        // Accept frontend payload user_id; DB uses owner_id
         const updatePayload: any = { ...updates };
-        if (!updatePayload.owner_id && updatePayload.user_id) updatePayload.owner_id = updatePayload.user_id;
-        delete updatePayload.user_id;
         delete updatePayload.created_by;
         delete updatePayload.edited_by;
 
@@ -79,7 +105,7 @@ export class TaskService {
             throw new Error(error.message);
         }
 
-        return ({ ...data, user_id: (data as any).owner_id } as any) as Task;
+        return data as Task;
     }
 
     static async addSubtask(taskId: string, title: string): Promise<any> {
@@ -122,6 +148,92 @@ export class TaskService {
             throw new Error(error.message);
         }
 
+        return data;
+    }
+    static async submitTask(taskId: string, userId: string, content: string, attachments: string[] = []): Promise<any> {
+        // 1. Create Submission
+        const { data: submission, error } = await supabase
+            .from('task_submissions')
+            .insert([{
+                task_id: taskId,
+                user_id: userId,
+                content,
+                attachments,
+                status: 'pending'
+            }])
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+
+        // 2. Update Task Status -> in_review
+        await this.updateTask(taskId, { status: 'in_review' } as any);
+
+        // 3. Notify Task Creator
+        try {
+            const { data: task } = await supabase.from('tasks').select('created_by, title').eq('task_id', taskId).single();
+            if (task) {
+                const { NotificationService } = require('./notification');
+                await NotificationService.createNotification(
+                    task.created_by,
+                    'task_submission',
+                    'Task Submitted',
+                    `Task "${task.title}" has been submitted for review.`,
+                    { taskId, submissionId: submission.submission_id }
+                );
+            }
+        } catch (e) {
+            console.error('Failed to notify task creator', e);
+        }
+
+        return submission;
+    }
+
+    static async reviewSubmission(submissionId: string, status: 'approved' | 'rejected', feedback?: string): Promise<any> {
+        // 1. Update Submission
+        const { data: submission, error } = await supabase
+            .from('task_submissions')
+            .update({ status, feedback, reviewed_at: new Date() })
+            .eq('submission_id', submissionId)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+
+        // 2. Update Task Status
+        const { data: task } = await supabase.from('tasks').select('*').eq('task_id', submission.task_id).single();
+        if (task) {
+            const newStatus = status === 'approved' ? 'done' : 'in_progress';
+            await this.updateTask(task.task_id, { status: newStatus } as any);
+
+            // 3. Notify Submitter
+            try {
+                const { NotificationService } = require('./notification');
+                await NotificationService.createNotification(
+                    submission.user_id,
+                    'task_review',
+                    `Task ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+                    `Your submission for "${task.title}" was ${status}.${feedback ? ` Feedback: ${feedback}` : ''}`,
+                    { taskId: task.task_id }
+                );
+            } catch (e) {
+                console.error('Failed to notify submitter', e);
+            }
+        }
+
+        return submission;
+    }
+
+    static async getTaskSubmission(taskId: string): Promise<any> {
+        const { data, error } = await supabase
+            .from('task_submissions')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('submitted_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw new Error(error.message);
         return data;
     }
 }

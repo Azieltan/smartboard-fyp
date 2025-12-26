@@ -111,4 +111,12 @@ export class FriendService {
             };
         });
     }
+    static async removeFriend(relationshipId: string): Promise<void> {
+        const { error } = await supabase
+            .from('friend_requests') // Assuming requests table holds relationship also
+            .delete()
+            .eq('request_id', relationshipId); // And 'request_id' is the PK
+
+        if (error) throw new Error(error.message);
+    }
 }

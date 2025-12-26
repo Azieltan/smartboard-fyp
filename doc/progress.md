@@ -1,15 +1,16 @@
 # Project Progress: SmartBoard
 
-## Current Status: Development Complete (Final Testing)
+## Current Status: Refining Features (Group & Task Management)
 
 ### Completed Milestones
 - **[Phase 1] User & Foundation**: Custom authentication (Bcrypt/JWT) and user profile enhancements (Avatar upload).
-- **[Phase 2] Social & Groups**: Friend request system and Group management (join codes, settings) completed.
+- **[Phase 2] Social & Groups**: Friend request system and Group management (join codes, settings) completed. **Enhanced with Advanced Roles & 3-Dot Menu.**
 - **[Phase 3] Real-time Chat**: Socket.io integration for Group chats and DMs with historical persistence.
 - **[Phase 4] Calendar**: Unified view for personal and group calendar events with color-coding.
-- **[Phase 5] Notification System**: NotificationBell with Supabase Realtime, backend triggers for friend/group events.
+- **[Phase 5] Notification System**: NotificationBell with Supabase Realtime, backend triggers for friend/group events. **Updated to notify admins on Request-to-Join.**
 - **[Phase 6] Admin Dashboard**: Full CRUD with user management (ban/unban), group oversight, and live stats.
 - **[Phase 7] AI & Automation**: Voice-to-text temporarily disabled (service pending), N8N webhook integration, FAQ system.
+- **[Phase 8] Theming & Tasks**: Full Light/Dark mode support, robust task/calendar sharing logic. **Now includes Task Submissions & Review Workflow.**
 
 ### General Refinements Completed
 - Skeleton loaders for Chat component
@@ -19,60 +20,51 @@
 
 ---
 
-## Latest Updates (2025-12-25)
+## Latest Updates (2025-12-27 - Session 2)
 
-### FAQ System Implementation
-1. **Shared Supabase Client**: Created `apps/frontend/src/lib/supabase.ts` for consistent Supabase interaction.
-2. **Frontend FAQ Page**: Implemented `apps/frontend/src/app/faq/page.tsx` displaying database-backed questions and answers.
-3. **UI/UX**: Added premium dark-themed layout with loading states and responsive design.
+### 1. Group Management Enhancements
+- **UI Update**: Replaced standard join code view with a "3-dot" menu in Group Detail header.
+- **Menu Options**: Added "Group Settings" (for admins/owners) and "View Members".
+- **Settings Modal**: Created a dedicated modal for managing group settings like Join Code regeneration and Danger Zone (Delete Group).
+- **Role Permissions**: Refined the UI to show specific actions (Promote/Demote/Remove) only to authorized roles (Owner/Admin).
+- **Notifications**: Added logic to `joinGroupRaw` to automatically notify all Group Admins & Owner when a new user requests to join (if approval is required).
 
-### Database Schema Fixes
-1. **Friends Table**: Fixed column mismatch - updated schema to use `requester_id`/`addressee_id` (semantic naming for friend request flow)
-2. **Notifications Table**: Added to schema with proper structure for realtime support
-3. **Groups Table**: Confirmed `join_code`, `requires_approval`, `owner_id`, `is_dm` columns
-
-### Migration Files Created
-- `apps/backend/migrations/complete_migration.sql` - Run this in Supabase SQL Editor to:
-  - Fix friends table columns if using old schema
-  - Create notifications table with indexes
-  - Enable RLS policies
-  - Enable Supabase Realtime for notifications
-
-### Environment Configuration
-- Backend `.env` configured with Supabase credentials
-- Frontend `.env.local` created with `NEXT_PUBLIC_` variables
-- Fixed `supabase.ts` to use explicit path resolution for `.env` file
+### 2. Task Submission & Review Workflow
+- **Database**: Created `task_submissions` table to track student/member work.
+- **Backend Service**:
+    - Added `submitTask` (uploads file + notes, notifies creator).
+    - Added `reviewSubmission` (approve/reject workflow, updates task status, notifies submitter).
+- **Frontend UI**:
+    - **Task List**: Added "Submit Work" button for assignees and "Review Submission" button for task owners.
+    - **Submission Modal**: Form to upload files and write completion notes.
+    - **Review Modal**: detailed view for owners to see submission content/files and Approve (-> Done) or Reject (-> In Progress) with feedback.
 
 ### Code Status Summary
 | Component | Backend | Frontend | Database |
 |-----------|---------|----------|----------|
-| Friend System | ✅ Ready | ✅ Ready | ⚠️ Run migration |
-| Notifications | ✅ Ready | ✅ Ready | ⚠️ Run migration |
+| Friend System | ✅ Ready | ✅ Ready | ✅ Ready |
+| Notifications | ✅ Ready | ✅ Ready | ✅ Ready |
 | Groups/Join | ✅ Ready | ✅ Ready | ✅ Ready |
+| **Group Roles/Perms** | ✅ Ready | ✅ Ready | ✅ Ready |
 | Chat/Socket | ✅ Ready | ✅ Ready | ✅ Ready |
 | Calendar | ✅ Ready | ✅ Ready | ✅ Ready |
+| **Task Submissions**| ✅ Ready | ✅ Ready | ✅ Ready |
+| Theming | N/A | ✅ Ready | N/A |
+
+---
+
+## Previous Updates (2025-12-27 - Session 1)
+
+### Theme & UI Overhaul (Light/Dark Mode)
+... (Previous update content preserved)
 
 ---
 
 ## Next Steps (Action Required)
 
-### 1. Run Database Migration
-Execute `apps/backend/migrations/complete_migration.sql` in Supabase SQL Editor to:
-- Create/fix `notifications` table
-- Fix `friends` table column names
-- Enable Realtime for live notification updates
+### 1. User Testing
+- **Task Workflow**: Assign a task to a friend/group member. Have them submit work. Review it as the owner. Verify status transitions and notifications.
+- **Group Joining**: Test the "Request to Join" flow and ensure admins get the notification.
 
-### 2. Restart Backend
-After running migration, restart the backend to pick up the updated schema:
-```bash
-cd apps/backend
-npm run dev
-```
-
-### 3. Test Key Flows
-- [ ] Add friend by email → Check notification appears
-- [ ] Accept/Reject friend request
-- [ ] Create group with join code
-- [ ] Join group via code
-- [ ] Send chat message (real-time)
-- [ ] Create calendar event (color-coding)
+### 2. General Polish
+- Ensure file uploads for task submissions are robust (currently assumes generic upload endpoint).

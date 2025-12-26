@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import Chat from './Chat';
+import TaskSubmissionModal from './TaskSubmissionModal';
+import TaskReviewModal from './TaskReviewModal';
 import CreateTaskModal from './CreateTaskModal';
 
 interface GroupMember {
@@ -51,6 +53,12 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [codeCopied, setCodeCopied] = useState(false);
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [showMenu, setShowMenu] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    // Task Modals
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
 
     useEffect(() => {
         fetchGroupDetails();
@@ -180,232 +188,362 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="glass-panel p-4 mb-4">
+            <div className="glass-panel p-4 mb-4 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <button onClick={onBack} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                        <button onClick={onBack} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-all">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         </button>
                         <div>
-                            <h2 className="text-xl font-bold text-white">{group?.name}</h2>
-                            <p className="text-xs text-slate-400">{members.length} members</p>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{group?.name}</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{members.length} members</p>
                         </div>
                     </div>
 
-                    {/* Join Code (visible to owner/admin) */}
-                    {group?.join_code && (myRole?.role === 'owner' || myRole?.role === 'admin') && (
-                        <div className="flex items-center gap-2">
-                            <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/10 flex items-center gap-2">
-                                <span className="text-[10px] text-slate-500 uppercase">Code:</span>
-                                <span className="font-mono font-bold text-white">{group.join_code}</span>
-                                <button
-                                    onClick={copyCode}
-                                    className={`p-1 rounded transition-all ${codeCopied ? 'text-emerald-400' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    {codeCopied ? (
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                    ) : (
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                    )}
-                                </button>
+                    <div className="flex items-center gap-2">
+                        {/* Join Code (visible to owner/admin) */}
+                        {group?.join_code && (myRole?.role === 'owner' || myRole?.role === 'admin') && (
+                            <div className="hidden sm:flex items-center gap-2">
+                                <div className="bg-slate-100 dark:bg-black/30 rounded-lg px-3 py-2 border border-slate-200 dark:border-white/10 flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500 uppercase">Code:</span>
+                                    <span className="font-mono font-bold text-slate-900 dark:text-white">{group.join_code}</span>
+                                    <button
+                                        onClick={copyCode}
+                                        className={`p-1 rounded transition-all ${codeCopied ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-700 dark:hover:text-white'}`}
+                                    >
+                                        {codeCopied ? (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        ) : (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                            {isOwner && (
-                                <button
-                                    onClick={regenerateCode}
-                                    disabled={actionLoading === 'regen'}
-                                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                                    title="Regenerate Code"
-                                >
-                                    <svg className={`w-4 h-4 ${actionLoading === 'regen' ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                </button>
+                        )}
+
+                        {/* 3-Dot Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowMenu(!showMenu)}
+                                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-600 dark:text-slate-200 transition-all shadow-sm"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="6" r="2" />
+                                    <circle cx="12" cy="12" r="2" />
+                                    <circle cx="12" cy="18" r="2" />
+                                </svg>
+                            </button>
+
+                            {showMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)}></div>
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-slate-200 dark:border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                        {(isOwner || myRole?.role === 'admin') && (
+                                            <>
+                                                <button
+                                                    onClick={() => { setShowMenu(false); setShowSettingsModal(true); }}
+                                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    Group Settings
+                                                </button>
+                                                <div className="h-px bg-slate-100 dark:bg-white/5 mx-2"></div>
+                                            </>
+                                        )}
+                                        <button
+                                            onClick={() => { setShowMenu(false); setActiveTab('members'); }}
+                                            className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                            View Members
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 p-1 bg-slate-100 dark:bg-black/20 rounded-xl mt-4">
+                        {(['chat', 'members', 'tasks'] as ViewTab[]).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all capitalize ${activeTab === tab
+                                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm dark:shadow-lg'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'}`}
+                            >
+                                {tab}
+                                {tab === 'members' && <span className="ml-1 text-xs opacity-70">({members.length})</span>}
+                                {tab === 'tasks' && tasks.length > 0 && <span className="ml-1 text-xs opacity-70">({tasks.length})</span>}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-hidden">
+                    {/* Chat Tab */}
+                    {activeTab === 'chat' && (
+                        <Chat
+                            groupId={groupId}
+                            userId={userId}
+                            title={group?.name || 'Group Chat'}
+                            type="group"
+                            role={myRole?.role}
+                        />
+                    )}
+
+                    {/* Members Tab */}
+                    {activeTab === 'members' && (
+                        <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10">
+                            <div className="space-y-3">
+                                {members.map(member => (
+                                    <div key={member.user_id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${member.role === 'owner' ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
+                                                    member.role === 'admin' ? 'bg-blue-500' : 'bg-slate-500'
+                                                    }`}>
+                                                    {member.user_name?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-medium text-slate-900 dark:text-white">{member.user_name}</p>
+                                                        {getRoleBadge(member.role)}
+                                                        {member.role === 'admin' && member.can_manage_members && (
+                                                            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">CAN MANAGE</span>
+                                                        )}
+                                                        {member.user_id === userId && (
+                                                            <span className="text-[10px] text-slate-500">(you)</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{member.email}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions - only if can manage and not self */}
+                                            {member.user_id !== userId && member.role !== 'owner' && (
+                                                <div className="flex items-center gap-1">
+                                                    {/* Role change - owner only */}
+                                                    {isOwner && (
+                                                        <select
+                                                            value={member.role}
+                                                            onChange={(e) => updateRole(member.user_id, e.target.value as 'admin' | 'member')}
+                                                            disabled={actionLoading === member.user_id}
+                                                            className="text-xs bg-white dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1 text-slate-700 dark:text-white focus:outline-none focus:border-blue-500"
+                                                        >
+                                                            <option value="member">Member</option>
+                                                            <option value="admin">Admin</option>
+                                                        </select>
+                                                    )}
+
+                                                    {/* Toggle admin permission - owner only for admins */}
+                                                    {isOwner && member.role === 'admin' && (
+                                                        <button
+                                                            onClick={() => togglePermission(member.user_id, !!member.can_manage_members)}
+                                                            disabled={actionLoading === member.user_id}
+                                                            className={`p-1.5 rounded-lg text-xs transition-all ${member.can_manage_members ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-700 dark:hover:text-white'}`}
+                                                            title={member.can_manage_members ? "Revoke manage permission" : "Grant manage permission"}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Remove member */}
+                                                    {canManage && (
+                                                        <button
+                                                            onClick={() => removeMember(member.user_id)}
+                                                            disabled={actionLoading === member.user_id}
+                                                            className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                                            title="Remove member"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tasks Tab */}
+                    {activeTab === 'tasks' && (
+                        <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-slate-900 dark:text-white">Group Tasks</h3>
+                                {(isOwner || myRole?.role === 'admin') && (
+                                    <button
+                                        onClick={() => setShowTaskModal(true)}
+                                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-all"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                        Assign Task
+                                    </button>
+                                )}
+                            </div>
+
+                            {tasks.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                                        <svg className="w-8 h-8 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm">No tasks assigned to this group</p>
+                                    {(isOwner || myRole?.role === 'admin') && (
+                                        <button
+                                            onClick={() => setShowTaskModal(true)}
+                                            className="mt-3 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                                        >
+                                            Create the first task
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {tasks.map(task => (
+                                        <div key={task.task_id} className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <p className="font-medium text-slate-900 dark:text-white">{task.title}</p>
+                                                    {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{task.description}</p>}
+
+                                                    {/* Task Actions */}
+                                                    <div className="flex items-center gap-2 mt-3">
+                                                        {/* Submit Button */}
+                                                        {task.status !== 'done' && task.status !== 'in_review' && (
+                                                            <button
+                                                                onClick={() => { setSelectedTask(task); setShowSubmitModal(true); }}
+                                                                className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all"
+                                                            >
+                                                                Submit Work
+                                                            </button>
+                                                        )}
+
+                                                        {/* Review Button */}
+                                                        {task.status === 'in_review' && (isOwner || myRole?.role === 'admin' || task.owner_id === userId) && (
+                                                            <button
+                                                                onClick={() => { setSelectedTask(task); setShowReviewModal(true); }}
+                                                                className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all"
+                                                            >
+                                                                Review Submission
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                                        task.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' :
+                                                            task.status === 'in_review' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                                                                'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400'
+                                                        }`}>
+                                                        {task.status.replace('_', ' ').toUpperCase()}
+                                                    </span>
+                                                    {task.due_date && (
+                                                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                            Due: {new Date(task.due_date).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* Tabs */}
-                <div className="flex gap-1 p-1 bg-black/20 rounded-xl">
-                    {(['chat', 'members', 'tasks'] as ViewTab[]).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all capitalize ${activeTab === tab ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            {tab}
-                            {tab === 'members' && <span className="ml-1 text-xs opacity-70">({members.length})</span>}
-                            {tab === 'tasks' && tasks.length > 0 && <span className="ml-1 text-xs opacity-70">({tasks.length})</span>}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-hidden">
-                {/* Chat Tab */}
-                {activeTab === 'chat' && (
-                    <Chat
-                        groupId={groupId}
+                {/* Task Modal */}
+                {showTaskModal && (
+                    <CreateTaskModal
                         userId={userId}
-                        title={group?.name || 'Group Chat'}
-                        type="group"
-                        role={myRole?.role}
+                        groupId={groupId}
+                        onClose={() => setShowTaskModal(false)}
+                        onTaskCreated={() => {
+                            setShowTaskModal(false);
+                            fetchTasks();
+                        }}
                     />
                 )}
 
-                {/* Members Tab */}
-                {activeTab === 'members' && (
-                    <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar">
-                        <div className="space-y-3">
-                            {members.map(member => (
-                                <div key={member.user_id} className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${member.role === 'owner' ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
-                                                    member.role === 'admin' ? 'bg-blue-500' : 'bg-slate-600'
-                                                }`}>
-                                                {member.user_name?.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-medium text-white">{member.user_name}</p>
-                                                    {getRoleBadge(member.role)}
-                                                    {member.role === 'admin' && member.can_manage_members && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-400">CAN MANAGE</span>
-                                                    )}
-                                                    {member.user_id === userId && (
-                                                        <span className="text-[10px] text-slate-500">(you)</span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-500">{member.email}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Actions - only if can manage and not self */}
-                                        {member.user_id !== userId && member.role !== 'owner' && (
-                                            <div className="flex items-center gap-1">
-                                                {/* Role change - owner only */}
-                                                {isOwner && (
-                                                    <select
-                                                        value={member.role}
-                                                        onChange={(e) => updateRole(member.user_id, e.target.value as 'admin' | 'member')}
-                                                        disabled={actionLoading === member.user_id}
-                                                        className="text-xs bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-blue-500"
-                                                    >
-                                                        <option value="member">Member</option>
-                                                        <option value="admin">Admin</option>
-                                                    </select>
-                                                )}
-
-                                                {/* Toggle admin permission - owner only for admins */}
-                                                {isOwner && member.role === 'admin' && (
-                                                    <button
-                                                        onClick={() => togglePermission(member.user_id, !!member.can_manage_members)}
-                                                        disabled={actionLoading === member.user_id}
-                                                        className={`p-1.5 rounded-lg text-xs transition-all ${member.can_manage_members ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-slate-400 hover:text-white'}`}
-                                                        title={member.can_manage_members ? "Revoke manage permission" : "Grant manage permission"}
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-
-                                                {/* Remove member */}
-                                                {canManage && (
-                                                    <button
-                                                        onClick={() => removeMember(member.user_id)}
-                                                        disabled={actionLoading === member.user_id}
-                                                        className="p-1.5 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
-                                                        title="Remove member"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Tasks Tab */}
-                {activeTab === 'tasks' && (
-                    <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-white">Group Tasks</h3>
-                            {(isOwner || myRole?.role === 'admin') && (
-                                <button
-                                    onClick={() => setShowTaskModal(true)}
-                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-all"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                    Assign Task
+                {/* Group Settings Modal */}
+                {showSettingsModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Group Settings</h3>
+                                <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
-                            )}
-                        </div>
+                            </div>
 
-                        {tasks.length === 0 ? (
-                            <div className="text-center py-12">
-                                <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 flex items-center justify-center mb-3">
-                                    <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                    </svg>
+                            <div className="space-y-6">
+                                {/* Option: Join Code */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Join Code</label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-center tracking-widest">
+                                            {group?.join_code}
+                                        </div>
+                                        <button
+                                            onClick={regenerateCode}
+                                            className="px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-xl font-medium transition-colors"
+                                        >
+                                            Regenerate
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-2">Share this code with people you want to add to the group.</p>
                                 </div>
-                                <p className="text-slate-400 text-sm">No tasks assigned to this group</p>
-                                {(isOwner || myRole?.role === 'admin') && (
-                                    <button
-                                        onClick={() => setShowTaskModal(true)}
-                                        className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
-                                    >
-                                        Create the first task
-                                    </button>
+
+                                <div className="border-t border-slate-100 dark:border-white/5"></div>
+
+                                {/* Option: Danger Zone */}
+                                {myRole?.role === 'owner' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
+                                        <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
+                                            Delete Group
+                                        </button>
+                                    </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {tasks.map(task => (
-                                    <div key={task.task_id} className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                                        <div className="flex items-start justify-between">
-                                            <div>
-                                                <p className="font-medium text-white">{task.title}</p>
-                                                {task.description && <p className="text-xs text-slate-400 mt-1">{task.description}</p>}
-                                            </div>
-                                            <div className="flex flex-col items-end gap-1">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                        task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                            'bg-slate-500/20 text-slate-400'
-                                                    }`}>
-                                                    {task.status.replace('_', ' ').toUpperCase()}
-                                                </span>
-                                                {task.due_date && (
-                                                    <span className="text-[10px] text-slate-500">
-                                                        Due: {new Date(task.due_date).toLocaleDateString()}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        </div>
                     </div>
                 )}
-            </div>
 
-            {/* Task Modal */}
-            {showTaskModal && (
-                <CreateTaskModal
-                    userId={userId}
-                    groupId={groupId}
-                    onClose={() => setShowTaskModal(false)}
-                    onTaskCreated={() => {
-                        setShowTaskModal(false);
-                        fetchTasks();
-                    }}
-                />
-            )}
+                {/* Task Modals */}
+                {showSubmitModal && selectedTask && (
+                    <TaskSubmissionModal
+                        taskId={selectedTask.task_id}
+                        userId={userId}
+                        taskTitle={selectedTask.title}
+                        onClose={() => setShowSubmitModal(false)}
+                        onSubmitSuccess={() => {
+                            setShowSubmitModal(false);
+                            fetchTasks();
+                        }}
+                    />
+                )}
+
+                {showReviewModal && selectedTask && (
+                    <TaskReviewModal
+                        taskId={selectedTask.task_id}
+                        taskTitle={selectedTask.title}
+                        onClose={() => setShowReviewModal(false)}
+                        onReviewComplete={() => {
+                            setShowReviewModal(false);
+                            fetchTasks();
+                        }}
+                    />
+                )}
+            </div>
         </div>
     );
 }

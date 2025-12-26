@@ -98,20 +98,18 @@ export function Sidebar() {
     return (
         <div className="w-72 bg-[var(--background)] border-r border-[var(--border-color)] flex flex-col h-screen sticky top-0 transition-colors duration-300">
             {/* Logo */}
-            <div className="p-6 flex items-center gap-3 border-b border-white/10">
+            <div className="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-white/10">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-violet-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/30 animate-bounce-subtle">
                     S
                 </div>
-                <span className="text-xl font-bold text-white tracking-tight">
-                    Smart<span className="text-gradient-static">Board</span>
+                <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">
+                    Smart<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-violet-500">Board</span>
                 </span>
             </div>
 
-
-
             {/* Navigation */}
-            <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">Menu</p>
+            <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-4 mb-4">Menu</p>
                 {navigation.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     return (
@@ -120,12 +118,12 @@ export function Sidebar() {
                             href={item.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${isActive
                                 ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
-                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             {/* Hover glow effect */}
                             {!isActive && (
-                                <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity ${item.gradient}" />
+                                <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity ${item.gradient}`} />
                             )}
                             <span className={`transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`}>
                                 {item.icon}
@@ -139,17 +137,16 @@ export function Sidebar() {
                 })}
             </nav>
 
-
             {/* User Profile */}
-            <div className="p-4 border-t border-white/10">
-                <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+            <div className="p-4 border-t border-slate-200 dark:border-white/10">
+                <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors group">
                     <Link href="/dashboard/settings" className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-pink-500/30">
                             {getInitials(user?.username)}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                            <p className="text-sm font-medium text-white truncate">{user?.username || 'User'}</p>
-                            <p className="text-xs text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.username || 'User'}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
                         </div>
                     </Link>
                     <div className="flex items-center gap-1">
@@ -157,7 +154,7 @@ export function Sidebar() {
                         <ThemeToggle />
                         <button
                             onClick={handleLogout}
-                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                             title="Logout"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

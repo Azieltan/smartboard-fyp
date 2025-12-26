@@ -81,8 +81,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="glass-panel-glow bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/10 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in zoom-in-95 duration-200">
+            <div className="glass-panel w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-8 shadow-2xl bg-white dark:bg-[#1e293b] border-slate-200 dark:border-white/10">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-3">
@@ -92,13 +92,13 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                             </svg>
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">New Task</h2>
-                            <p className="text-sm text-slate-400">Create something awesome ✨</p>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">New Task</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Create something awesome ✨</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-all"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -109,10 +109,10 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Task Title</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Task Title</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
                             </div>
@@ -120,7 +120,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-500"
+                                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500"
                                 placeholder="What needs to be done?"
                                 required
                                 autoFocus
@@ -130,11 +130,11 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all resize-none h-24 placeholder-slate-500"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all resize-none h-24 placeholder-slate-400 dark:placeholder-slate-500"
                             placeholder="Add details about your task..."
                         />
                     </div>
@@ -142,7 +142,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                     {/* Date and Priority Grid */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span className="flex items-center gap-2">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -154,12 +154,12 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-emerald-500 outline-none transition-all [color-scheme:dark]"
+                                className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-emerald-500 outline-none transition-all [color-scheme:light] dark:[color-scheme:dark]"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-slate-300 mb-2">
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span className="flex items-center gap-2">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -173,7 +173,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
 
                     {/* Priority Selection */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-3">Priority Level</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Priority Level</label>
                         <div className="grid grid-cols-3 gap-3">
                             {(['low', 'medium', 'high'] as const).map((p) => (
                                 <button
@@ -195,7 +195,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
 
                     {/* Assignment Section */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-3">
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                             <span className="flex items-center gap-2">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -213,9 +213,9 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                                     key={item.type}
                                     type="button"
                                     onClick={() => setAssignType(item.type)}
-                                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${assignType === item.type
-                                        ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
-                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 border ${assignType === item.type
+                                        ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg border-transparent`
+                                        : 'bg-slate-100 dark:bg-white/5 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                                         }`}
                                 >
                                     {item.label}
@@ -224,42 +224,58 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                         </div>
 
                         {assignType === 'friend' && (
-                            <select
-                                value={assigneeId}
-                                onChange={(e) => setAssigneeId(e.target.value)}
-                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-pink-500 outline-none transition-all"
-                                required
-                            >
-                                <option value="" className="bg-[#1e293b]">Select a friend...</option>
-                                {friends.map(f => (
-                                    <option key={f.friend_id} value={f.friend_id} className="bg-[#1e293b]">
-                                        {f.friend_details?.user_name || f.friend_details?.email || 'Unknown User'}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                                {friends.length > 0 ? (
+                                    <select
+                                        value={assigneeId}
+                                        onChange={(e) => setAssigneeId(e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-pink-500 outline-none transition-all"
+                                        required
+                                    >
+                                        <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Select a friend...</option>
+                                        {friends.map(f => (
+                                            <option key={f.friend_id} value={f.friend_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">
+                                                {f.friend_details?.user_name || f.friend_details?.email || 'Unknown User'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="p-3 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-600 dark:text-pink-200 text-xs text-center">
+                                        You don't have any friends to assign tasks to yet.
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {assignType === 'group' && (
-                            <select
-                                value={assigneeId}
-                                onChange={(e) => setAssigneeId(e.target.value)}
-                                className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-amber-500 outline-none transition-all"
-                                required
-                            >
-                                <option value="" className="bg-[#1e293b]">Select a group...</option>
-                                {groups.map(g => (
-                                    <option key={g.group_id} value={g.group_id} className="bg-[#1e293b]">{g.name}</option>
-                                ))}
-                            </select>
+                            <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                                {groups.length > 0 ? (
+                                    <select
+                                        value={assigneeId}
+                                        onChange={(e) => setAssigneeId(e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-amber-500 outline-none transition-all"
+                                        required
+                                    >
+                                        <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Select a group...</option>
+                                        {groups.map(g => (
+                                            <option key={g.group_id} value={g.group_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">{g.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-200 text-xs text-center">
+                                        You haven't joined any groups yet.
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-6 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-medium"
+                            className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all font-medium"
                         >
                             Cancel
                         </button>

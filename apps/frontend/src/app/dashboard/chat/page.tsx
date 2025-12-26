@@ -149,10 +149,27 @@ export default function ChatPage() {
                 <div className="p-5 space-y-4">
                     <div className="flex items-center justify-between">
                         <h1 className="text-2xl font-bold tracking-tight text-white">Chats</h1>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <input
+                                type="text"
+                                placeholder="Search chats..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-[#1e293b] border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all placeholder-slate-500 text-white shadow-inner"
+                            />
+                            <svg className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        {/* Quick Actions Menu (Restored) */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowDropdown(!showDropdown)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${showDropdown ? 'bg-blue-600 text-white rotate-45 shadow-lg shadow-blue-600/30' : 'hover:bg-white/5 text-slate-400'}`}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${showDropdown ? 'bg-blue-600 text-white rotate-45 shadow-lg shadow-blue-600/30' : 'bg-[#1e293b] hover:bg-white/10 text-slate-400'}`}
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -162,36 +179,24 @@ export default function ChatPage() {
                             {showDropdown && (
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                                    <div className="absolute right-0 mt-3 w-52 bg-[#1e293b] border border-white/10 rounded-2xl shadow-2xl z-20 py-2 animate-in fade-in slide-in-from-top-2 duration-300 backdrop-blur-xl">
-                                        <button onClick={() => { setShowAddFriend(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-white/5 flex items-center gap-3 transition-colors text-slate-200 group">
-                                            <div className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">👤</div>
-                                            <span>Add Friend</span>
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-20 py-1 animate-in fade-in zoom-in-95 duration-200">
+                                        <button onClick={() => { setShowCreateGroup(true); setShowDropdown(false); }} className="w-full px-4 py-2.5 text-left text-xs font-medium hover:bg-white/5 flex items-center gap-2 transition-colors text-slate-300 hover:text-white group">
+                                            <span className="w-6 h-6 rounded bg-blue-500/20 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">➕</span>
+                                            Create Group
                                         </button>
-                                        <button onClick={() => { setShowCreateGroup(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-white/5 flex items-center gap-3 transition-colors text-slate-200 group">
-                                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">➕</div>
-                                            <span>Create Group</span>
+                                        <button onClick={() => { setShowJoinGroup(true); setShowDropdown(false); }} className="w-full px-4 py-2.5 text-left text-xs font-medium hover:bg-white/5 flex items-center gap-2 transition-colors text-slate-300 hover:text-white group">
+                                            <span className="w-6 h-6 rounded bg-amber-500/20 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">🔗</span>
+                                            Join Group
                                         </button>
-                                        <button onClick={() => { setShowJoinGroup(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm hover:bg-white/5 flex items-center gap-3 transition-colors text-slate-200 group">
-                                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">🧩</div>
-                                            <span>Join Group</span>
+                                        <div className="h-px bg-white/5 mx-2 my-1"></div>
+                                        <button onClick={() => { setShowAddFriend(true); setShowDropdown(false); }} className="w-full px-4 py-2.5 text-left text-xs font-medium hover:bg-white/5 flex items-center gap-2 transition-colors text-slate-300 hover:text-white group">
+                                            <span className="w-6 h-6 rounded bg-pink-500/20 text-pink-500 flex items-center justify-center group-hover:bg-pink-500 group-hover:text-white transition-all">👤</span>
+                                            Add Friend
                                         </button>
                                     </div>
                                 </>
                             )}
                         </div>
-                    </div>
-
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search chats..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#1e293b] border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all placeholder-slate-500 text-white shadow-inner"
-                        />
-                        <svg className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
                     </div>
 
                     <div className="flex gap-2 pb-1 no-scrollbar overflow-x-auto">

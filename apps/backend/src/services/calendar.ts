@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { TaskService } from './task';
 
 export interface CalendarEvent {
     event_id: string;
@@ -31,6 +32,37 @@ export class CalendarService {
             throw new Error(error.message);
         }
 
+        // Notification Logic
+        try {
+            // Import dynamically to avoid circular dependency
+            const { ChatService } = require('./chat');
+            const { GroupService } = require('./group');
+
+            const messageContent = `📅 New Event: **${eventData.title}**\nTime: ${new Date(eventData.start_time).toLocaleString()}`;
+
+            // 1. Group Notification
+            if (eventData.shared_with_group_id) {
+                const chat = await ChatService.getChatByGroupId(eventData.shared_with_group_id);
+                if (chat) {
+                    await ChatService.sendMessage(chat.chat_id, eventData.user_id || 'system', messageContent);
+                }
+            }
+
+            // 2. Direct Share Notification (to Friend)
+            if (eventData.shared_with && eventData.shared_with.length > 0) {
+                for (const friendId of eventData.shared_with) {
+                    // Find or create DM
+                    const groupId = await GroupService.getOrCreateDirectChat(eventData.user_id, friendId);
+                    let chat = await ChatService.getChatByGroupId(groupId);
+                    if (!chat) chat = await ChatService.createChat(groupId);
+
+                    await ChatService.sendMessage(chat.chat_id, eventData.user_id || 'system', messageContent);
+                }
+            }
+        } catch (notifyError) {
+            console.error('Failed to send event notification:', notifyError);
+        }
+
         return data as CalendarEvent;
     }
 
@@ -38,65 +70,82 @@ export class CalendarService {
         // Fetch events where:
         // 1) user_id = userId (Owned by user)
         // 2) shared_with_group_id IN my groups
-        // 3) shared_with array contains userId
+        // 3) shared_with array contains userId (using contains operator for text[] or jsonb)
 
-        // Get my active group memberships
-        const { data: groupMembers, error: groupError } = await supabase
-            .from('group_members')
-            .select('group_id')
-            .eq('user_id', userId)
-            .eq('status', 'active');
-
-        if (groupError) throw new Error(groupError.message);
-        const myGroupIds = (groupMembers || []).map(g => g.group_id);
-
-        // Fetch all relevant events in parallel
-        const [mine, byGroup, byShare] = await Promise.all([
-            supabase
-                .from('calendar_events')
-                .select('*')
+        try {
+            // Get my active group memberships
+            const { data: groupMembers, error: groupError } = await supabase
+                .from('group_members')
+                .select('group_id')
                 .eq('user_id', userId)
-                .order('start_time', { ascending: true }),
-            myGroupIds.length > 0
-                ? supabase
+                .eq('status', 'active');
+
+            if (groupError) throw new Error(`Group fetch error: ${groupError.message}`);
+            const myGroupIds = (groupMembers || []).map(g => g.group_id);
+
+            // Fetch all relevant events
+            const queries = [
+                // 1. My events
+                supabase
                     .from('calendar_events')
                     .select('*')
-                    .in('shared_with_group_id', myGroupIds)
-                    .order('start_time', { ascending: true })
-                : Promise.resolve({ data: [], error: null } as any),
-            supabase
-                .from('calendar_events')
-                .select('*')
-                .contains('shared_with', [userId])
-                .order('start_time', { ascending: true })
-        ]);
+                    .eq('user_id', userId),
 
-        const errors = [mine.error, byGroup.error, byShare.error].filter(Boolean);
-        if (errors.length) {
-            throw new Error((errors[0] as any).message);
+                // 2. Shared directly with me
+                // Note: 'shared_with' is text[] or jsonb. 'cs' (contains) works for both.
+                supabase
+                    .from('calendar_events')
+                    .select('*')
+                    .contains('shared_with', [userId])
+            ];
+
+            // 3. Group events (only if in groups)
+            if (myGroupIds.length > 0) {
+                queries.push(
+                    supabase
+                        .from('calendar_events')
+                        .select('*')
+                        .in('shared_with_group_id', myGroupIds)
+                );
+            }
+
+            const results = await Promise.all(queries);
+
+            // Collect all events
+            const allEvents: CalendarEvent[] = [];
+            for (const res of results) {
+                if (res.error) console.error("Event fetch warning:", res.error.message);
+                if (res.data) allEvents.push(...(res.data as any[]));
+            }
+
+            // Deduplicate by event_id
+            const uniqueEvents = new Map<string, CalendarEvent>();
+            allEvents.forEach(e => uniqueEvents.set(e.event_id, e));
+
+            return Array.from(uniqueEvents.values())
+                .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+        } catch (error: any) {
+            console.error("Critical error in getEvents:", error);
+            // Return empty array instead of crashing on calendar load
+            return [];
         }
-
-        // Deduplicate events (e.g. if I'm the creator AND I shared it with a group I'm in)
-        const combined = [...(mine.data || []), ...(byGroup.data || []), ...(byShare.data || [])];
-        const dedupedById = new Map<string, CalendarEvent>();
-        for (const e of combined) dedupedById.set(e.event_id, e);
-
-        return Array.from(dedupedById.values())
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     }
 
     static async getAllCalendarItems(userId: string): Promise<any[]> {
         // Fetch Events
         const events = await this.getEvents(userId);
 
-        // Fetch Tasks with due dates
-        const { data: tasks, error: taskError } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('owner_id', userId)
-            .not('due_date', 'is', null);
-
-        if (taskError) throw new Error(taskError.message);
+        // Fetch Tasks via TaskService (centralized logic)
+        let tasks: any[] = [];
+        try {
+            const allTasks = await TaskService.getAllTasks(userId);
+            // Only tasks with due dates
+            tasks = allTasks.filter(t => t.due_date);
+        } catch (error: any) {
+            console.error('Failed to fetch tasks for calendar:', error);
+            // Don't crash calendar if tasks fail
+        }
 
         // Fetch Reminders
         // Note: Reminders are linked to tasks or events, but we might want to show them independently or just rely on the task/event

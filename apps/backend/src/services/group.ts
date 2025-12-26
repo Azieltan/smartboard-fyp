@@ -382,6 +382,36 @@ export class GroupService {
         const status = group.requires_approval ? 'pending' : 'active';
         await this.addMember(group.group_id, userId, 'member', status);
 
+        // If pending, notify owner/admins
+        if (status === 'pending') {
+            try {
+                // Fetch group name and joiner name
+                const { data: joiner } = await supabase.from('users').select('user_name').eq('user_id', userId).single();
+                const joinerName = joiner?.user_name || 'Someone';
+
+                // Fetch owner and admins
+                const { data: admins } = await supabase
+                    .from('group_members')
+                    .select('user_id')
+                    .eq('group_id', group.group_id)
+                    .in('role', ['owner', 'admin']);
+
+                if (admins) {
+                    for (const admin of admins) {
+                        await NotificationService.createNotification(
+                            admin.user_id,
+                            'join_request',
+                            'New Join Request',
+                            `${joinerName} has requested to join "${group.name}".`,
+                            { groupId: group.group_id, joinerId: userId }
+                        );
+                    }
+                }
+            } catch (notifyError) {
+                console.error('Failed to notify admins of join request', notifyError);
+            }
+        }
+
         return {
             success: true,
             message: status === 'pending' ? 'Join request sent. Waiting for approval.' : 'Joined group successfully',
@@ -435,6 +465,23 @@ export class GroupService {
                 .eq('group_id', groupId)
                 .eq('user_id', userId);
             if (error) throw new Error(error.message);
+
+            // Notify user
+            try {
+                // Fetch group name
+                const { data: group } = await supabase.from('groups').select('name').eq('group_id', groupId).single();
+                const groupName = group?.name || 'Group';
+
+                await NotificationService.createNotification(
+                    userId,
+                    'group_approval',
+                    'Request Approved',
+                    `Your request to join "${groupName}" has been approved!`,
+                    { groupId }
+                );
+            } catch (e) {
+                console.error('Failed to notify approved member', e);
+            }
         }
     }
 }

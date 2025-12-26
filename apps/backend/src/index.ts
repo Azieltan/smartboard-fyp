@@ -8,6 +8,11 @@ import { N8NService } from './services/n8n';
 import { AuthService } from './services/auth';
 import { authMiddleware } from './middleware/auth';
 import { supabase } from './lib/supabase';
+import { TaskService } from './services/task';
+import { FriendService } from './services/friend';
+import { CalendarService } from './services/calendar';
+import { NotificationService } from './services/notification';
+import { SmartyService } from './services/smarty';
 
 dotenv.config();
 
@@ -71,7 +76,7 @@ app.get('/test-shared', (req, res) => {
 });
 
 // Smarty Routes
-import { SmartyService } from './services/smarty';
+// Smarty Routes
 
 app.post('/smarty/automate', async (req, res) => {
     try {
@@ -137,7 +142,8 @@ app.get('/users', async (req, res) => {
 app.put('/users/:userId', async (req, res) => {
     try {
         const { user_name } = req.body;
-        const user = await AuthService.updateUser(req.params.userId, { username: user_name } as any); // Mapping username to user_name if needed, or just passing body
+        // Use user_name key to match DB column
+        const user = await AuthService.updateUser(req.params.userId, { user_name } as any);
         res.json(user);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -170,26 +176,7 @@ app.post('/seed', async (req, res) => {
 // Apply Auth Middleware to all subsequent routes
 app.use(authMiddleware);
 
-import { TaskService } from './services/task';
 
-app.get('/tasks', async (req, res) => {
-    try {
-        const userId = req.query.userId as string;
-        const tasks = await TaskService.getAllTasks(userId);
-        res.json(tasks);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch tasks' });
-    }
-});
-
-app.post('/tasks', async (req, res) => {
-    try {
-        const task = await TaskService.createTask(req.body);
-        res.json(task);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to create task' });
-    }
-});
 
 import { GroupService } from './services/group';
 import { ChatService } from './services/chat';
@@ -324,34 +311,61 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        console.log('[Upload] Received upload request');
         if (!req.file) {
+            console.error('[Upload] No file received');
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
         const file = req.file;
+        console.log(`[Upload] Processing file: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
+
         const fileExt = file.originalname.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${fileName}`;
 
+        // Ensure bucket exists
+        const BUCKET_NAME = 'chat-attachments';
+        const { data: bucketData, error: bucketError } = await supabase.storage.getBucket(BUCKET_NAME);
+
+        if (bucketError && bucketError.message.includes('not found')) {
+            console.log(`[Upload] Bucket '${BUCKET_NAME}' not found. Creating...`);
+            const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
+                public: true,
+                fileSizeLimit: 10485760, // 10MB
+                allowedMimeTypes: undefined // Allow all
+            });
+            if (createError) {
+                console.error('[Upload] Failed to create bucket:', createError);
+                throw new Error(`Failed to create storage bucket: ${createError.message}`);
+            }
+            console.log(`[Upload] Bucket '${BUCKET_NAME}' created.`);
+        } else if (bucketError) {
+            // Ignore other errors (like permission denied which shouldn't happen with service key, but just in case)
+            console.warn('[Upload] Check bucket warning:', bucketError);
+        }
+
         const { data, error } = await supabase.storage
-            .from('chat-attachments')
+            .from(BUCKET_NAME)
             .upload(filePath, file.buffer, {
                 contentType: file.mimetype,
                 upsert: false
             });
 
         if (error) {
+            console.error('[Upload] Supabase upload error:', error);
             throw error;
         }
 
         const { data: { publicUrl } } = supabase.storage
-            .from('chat-attachments')
+            .from(BUCKET_NAME)
             .getPublicUrl(filePath);
 
+        console.log(`[Upload] Success: ${publicUrl}`);
         res.json({ url: publicUrl, type: file.mimetype });
     } catch (error: any) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Failed to upload file' });
+        console.error('[Upload] Internal server error:', error);
+        res.status(500).json({ error: error.message || 'Failed to upload file' });
     }
 });
 
@@ -431,8 +445,7 @@ app.post('/chats/:groupId/messages', async (req, res) => {
     }
 });
 
-import { FriendService } from './services/friend';
-import { CalendarService } from './services/calendar';
+// Friend Routes
 
 // Friend Routes
 app.post('/friends', async (req, res) => {
@@ -457,6 +470,15 @@ app.get('/friends/:userId', async (req, res) => {
 app.put('/friends/:id/accept', async (req, res) => {
     try {
         await FriendService.acceptFriend(req.params.id);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/friends/:id', async (req, res) => {
+    try {
+        await FriendService.removeFriend(req.params.id);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -501,7 +523,66 @@ app.get('/calendar/all/:userId', async (req, res) => {
     }
 });
 
-import { NotificationService } from './services/notification';
+// Task Routes
+
+// Task Routes
+app.get('/tasks', async (req, res) => {
+    try {
+        const userId = req.query.userId as string;
+        const tasks = await TaskService.getAllTasks(userId);
+        res.json(tasks);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/tasks', async (req, res) => {
+    try {
+        const task = await TaskService.createTask(req.body);
+        res.json(task);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/tasks/:id', async (req, res) => {
+    try {
+        const task = await TaskService.updateTask(req.params.id, req.body);
+        res.json(task);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/tasks/:taskId/submit', async (req, res) => {
+    try {
+        const { userId, content, attachments } = req.body;
+        const submission = await TaskService.submitTask(req.params.taskId, userId, content, attachments);
+        res.json(submission);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/tasks/:taskId/submission', async (req, res) => {
+    try {
+        const submission = await TaskService.getTaskSubmission(req.params.taskId);
+        // Better to return 200 with null than 404 which can cause confusion if handled strictly
+        res.json(submission || null);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/tasks/submissions/:submissionId/review', async (req, res) => {
+    try {
+        const { status, feedback } = req.body;
+        const submission = await TaskService.reviewSubmission(req.params.submissionId, status, feedback);
+        res.json(submission);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // Notification Routes
 app.get('/notifications/:userId', async (req, res) => {
