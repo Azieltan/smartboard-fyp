@@ -58,6 +58,9 @@
 ### Theme & UI Overhaul (Light/Dark Mode)
 ... (Previous update content preserved)
 
+- **Deployment/Version Control**: Successfully pushed all recent changes to the GitHub repository.
+- **Service Status**: Both Frontend (Next.js) and Backend (Express) are currently running in development mode.
+
 ---
 
 ## Next Steps (Action Required)
@@ -68,3 +71,4 @@
 
 ### 2. General Polish
 - Ensure file uploads for task submissions are robust (currently assumes generic upload endpoint).
+- Minor UI tweaks for mobile responsiveness.
