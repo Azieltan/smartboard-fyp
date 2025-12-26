@@ -120,3 +120,15 @@ create table friends (
   created_at timestamp with time zone default now(),
   primary key (user_id, friend_id)
 );
+
+-- Notifications Table
+create table notifications (
+  id uuid primary key default uuid_generate_v4(),
+  user_id text references users(user_id) not null,
+  type text not null, -- 'group_invite', 'system', 'message', 'friend_request'
+  title text not null,
+  message text,
+  metadata jsonb, -- link, groupId, etc.
+  read boolean default false,
+  created_at timestamp with time zone default now()
+);

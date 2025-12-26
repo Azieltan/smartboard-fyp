@@ -197,13 +197,13 @@ import { ChatService } from './services/chat';
 // Group Routes
 app.post('/groups', async (req, res) => {
     try {
-        const { name, ownerId, requiresApproval, friendIds } = req.body;
-        const group = await GroupService.createGroup(name, ownerId, requiresApproval, friendIds);
+        const { name, ownerId, requiresApproval, friendIds, friendRoles } = req.body;
+        const group = await GroupService.createGroup(name, ownerId, requiresApproval, friendIds || [], friendRoles || {});
         // Automatically create a chat for the group
         await ChatService.createChat(group.group_id);
         res.json(group);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to create group' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Failed to create group' });
     }
 });
 
@@ -250,6 +250,70 @@ app.put('/groups/:groupId/members/:userId', async (req, res) => {
         const { status } = req.body;
         await GroupService.updateMemberStatus(req.params.groupId, req.params.userId, status);
         res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all members of a group
+app.get('/groups/:groupId/members', async (req, res) => {
+    try {
+        const members = await GroupService.getGroupMembers(req.params.groupId);
+        res.json(members);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Remove a member from group
+app.delete('/groups/:groupId/members/:targetUserId', async (req, res) => {
+    try {
+        const { requesterId } = req.body;
+        await GroupService.removeMember(req.params.groupId, req.params.targetUserId, requesterId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Update member role
+app.put('/groups/:groupId/members/:targetUserId/role', async (req, res) => {
+    try {
+        const { newRole, requesterId } = req.body;
+        await GroupService.updateMemberRole(req.params.groupId, req.params.targetUserId, newRole, requesterId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Toggle admin permission (by owner)
+app.put('/groups/:groupId/members/:adminUserId/permission', async (req, res) => {
+    try {
+        const { canManage, ownerId } = req.body;
+        await GroupService.toggleAdminPermission(req.params.groupId, req.params.adminUserId, canManage, ownerId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Regenerate join code
+app.post('/groups/:groupId/regenerate-code', async (req, res) => {
+    try {
+        const { requesterId } = req.body;
+        const newCode = await GroupService.regenerateJoinCode(req.params.groupId, requesterId);
+        res.json({ success: true, join_code: newCode });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Get group details
+app.get('/groups/detail/:groupId', async (req, res) => {
+    try {
+        const group = await GroupService.getGroup(req.params.groupId);
+        res.json(group);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -434,6 +498,37 @@ app.get('/calendar/all/:userId', async (req, res) => {
         res.json(items);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch calendar items' });
+    }
+});
+
+import { NotificationService } from './services/notification';
+
+// Notification Routes
+app.get('/notifications/:userId', async (req, res) => {
+    try {
+        const notifications = await NotificationService.getNotifications(req.params.userId);
+        res.json(notifications);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/notifications/:id/read', async (req, res) => {
+    try {
+        await NotificationService.markAsRead(req.params.id);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/notifications/all/read', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        await NotificationService.markAllAsRead(userId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 

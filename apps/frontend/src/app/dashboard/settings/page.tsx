@@ -7,7 +7,7 @@ import { api } from '../../../lib/api';
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'support'>('profile');
 
   // Profile State
   const [username, setUsername] = useState('');
@@ -105,6 +105,13 @@ export default function SettingsPage() {
           Security & Password
           {activeTab === 'security' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full"></div>}
         </button>
+        <button
+          onClick={() => setActiveTab('support')}
+          className={`pb-3 px-1 text-sm font-medium transition-colors relative ${activeTab === 'support' ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
+        >
+          Help & Support
+          {activeTab === 'support' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full"></div>}
+        </button>
       </div>
 
       <div className="glass-panel p-8 animate-in fade-in duration-300">
@@ -154,7 +161,7 @@ export default function SettingsPage() {
               </div>
             </form>
           </div>
-        ) : (
+        ) : activeTab === 'security' ? (
           <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Current Password</label>
@@ -200,6 +207,28 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+        ) : (
+          <div className="space-y-6 max-w-2xl">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2">Frequently Asked Questions</h3>
+              <p className="text-slate-400 mb-4">Find answers to common questions about using SmartBoard.</p>
+              <a href="/dashboard/faq" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium">
+                Visit FAQ Page
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              </a>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2">Contact Support</h3>
+              <p className="text-slate-400 mb-4">Need help with something else? Reach out to our support team.</p>
+              <div className="flex items-center gap-3 text-slate-300">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                </div>
+                <span>support@smartboard.com</span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

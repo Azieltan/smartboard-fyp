@@ -6,11 +6,12 @@ import TimeSelector from './TimeSelector';
 
 interface CreateTaskModalProps {
     userId: string;
+    groupId?: string;  // Optional: pre-select group for task assignment
     onClose: () => void;
     onTaskCreated: () => void;
 }
 
-export default function CreateTaskModal({ userId, onClose, onTaskCreated }: CreateTaskModalProps) {
+export default function CreateTaskModal({ userId, groupId: presetGroupId, onClose, onTaskCreated }: CreateTaskModalProps) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -18,8 +19,8 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
     const [priority, setPriority] = useState('medium');
     const [isLoading, setIsLoading] = useState(false);
 
-    const [assignType, setAssignType] = useState<'me' | 'friend' | 'group'>('me');
-    const [assigneeId, setAssigneeId] = useState('');
+    const [assignType, setAssignType] = useState<'me' | 'friend' | 'group'>(presetGroupId ? 'group' : 'me');
+    const [assigneeId, setAssigneeId] = useState(presetGroupId || '');
     const [friends, setFriends] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
 
@@ -180,8 +181,8 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
                                     type="button"
                                     onClick={() => setPriority(p)}
                                     className={`py-3 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${priority === p
-                                            ? `bg-gradient-to-r ${priorityConfig[p].color} text-white shadow-lg`
-                                            : `${priorityConfig[p].bg} ${priorityConfig[p].text} hover:opacity-80`
+                                        ? `bg-gradient-to-r ${priorityConfig[p].color} text-white shadow-lg`
+                                        : `${priorityConfig[p].bg} ${priorityConfig[p].text} hover:opacity-80`
                                         }`}
                                 >
                                     <span className={`w-2 h-2 rounded-full ${priority === p ? 'bg-white' : ''}`}
@@ -213,8 +214,8 @@ export default function CreateTaskModal({ userId, onClose, onTaskCreated }: Crea
                                     type="button"
                                     onClick={() => setAssignType(item.type)}
                                     className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${assignType === item.type
-                                            ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
-                                            : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                        ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
                                         }`}
                                 >
                                     {item.label}

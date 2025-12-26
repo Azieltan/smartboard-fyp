@@ -212,9 +212,9 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                     </div>
                     <div>
                         <h3 className="font-bold text-white leading-tight">{title}</h3>
-                        <p className="text-[10px] text-emerald-400 font-medium">Online</p>
                     </div>
                 </div>
+
                 <div className="flex items-center gap-3">
                     <button className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,7 +253,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-[length:400px] bg-opacity-[0.03] bg-blend-soft-light">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar chat-bg-pattern bg-blend-soft-light">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-2 opacity-50">
                         <span className="text-4xl">✨</span>
@@ -344,13 +344,15 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 </form>
             </div>
 
-            {showAddMember && (
-                <AddMemberModal
-                    groupId={groupId}
-                    userId={userId}
-                    onClose={() => setShowAddMember(false)}
-                />
-            )}
-        </div>
+            {
+                showAddMember && (
+                    <AddMemberModal
+                        groupId={groupId}
+                        userId={userId}
+                        onClose={() => setShowAddMember(false)}
+                    />
+                )
+            }
+        </div >
     );
 }

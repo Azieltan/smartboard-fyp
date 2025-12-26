@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { NotificationService } from './notification';
 
 export interface Friend {
     id: string; // Map request_id to id for frontend compatibility
@@ -41,6 +42,20 @@ export class FriendService {
             .single();
 
         if (error) throw new Error(error.message);
+
+        // Notify target user
+        try {
+            await NotificationService.createNotification(
+                targetFriendId,
+                'friend_request',
+                'New Friend Request',
+                'You have a pending friend request',
+                { fromUserId: userId }
+            );
+        } catch (e) {
+            console.error('Failed to send notification', e);
+        }
+
         return data;
     }
 

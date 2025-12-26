@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 
 import { SmartyBubble } from "@/components/SmartyBubble";
 
+import { ThemeProvider } from '../context/ThemeContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,8 +31,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <SmartyBubble />
+        <ThemeProvider>
+          {children}
+          <SmartyBubble />
+        </ThemeProvider>
       </body>
     </html>
   );

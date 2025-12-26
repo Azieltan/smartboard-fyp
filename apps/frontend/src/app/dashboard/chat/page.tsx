@@ -80,8 +80,7 @@ export default function ChatPage() {
                 .map((f: any) => ({
                     id: f.friend_details.user_id,
                     name: f.friend_details.user_name || f.friend_details.username || 'User',
-                    type: 'dm',
-                    status: 'online'
+                    type: 'dm'
                 }));
 
             const pending = friends
@@ -253,9 +252,7 @@ export default function ChatPage() {
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-lg transition-transform group-hover:scale-105 ${conv.type === 'group' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-teal-500 to-emerald-600'}`}>
                                         {conv.name[0]}
                                     </div>
-                                    {conv.type === 'dm' && (
-                                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0f172a] bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]`} />
-                                    )}
+
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                     <div className="flex justify-between items-start mb-0.5">

@@ -40,5 +40,13 @@ export const api = {
             body: JSON.stringify(body),
         });
         return handleResponse(res);
+    },
+    delete: async (endpoint: string, body?: any) => {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        return handleResponse(res);
     }
 };

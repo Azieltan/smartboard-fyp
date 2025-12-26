@@ -229,7 +229,7 @@ export default function GroupList({ userId, onSelectGroup }: GroupListProps) {
                                     <div className="flex justify-between items-center mb-1">
                                         <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">{group.name}</h3>
                                         <div className="flex items-center gap-2">
-                                            {pending.length > 0 && group.user_id === userId && (
+                                            {pending.length > 0 && (group.role === 'owner' || group.role === 'admin') && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setExpandedGroupId(isExpanded ? null : group.group_id); }}
                                                     className="w-5 h-5 rounded-full bg-pink-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse"
@@ -237,14 +237,20 @@ export default function GroupList({ userId, onSelectGroup }: GroupListProps) {
                                                     {pending.length}
                                                 </button>
                                             )}
-                                            {group.user_id === userId && (
-                                                <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">OWNER</span>
+                                            {group.role === 'owner' && (
+                                                <span className="text-[10px] font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full">OWNER</span>
+                                            )}
+                                            {group.role === 'admin' && (
+                                                <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">ADMIN</span>
+                                            )}
+                                            {group.role === 'member' && (
+                                                <span className="text-[10px] font-bold bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full">MEMBER</span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <p className="text-[10px] text-slate-500 font-mono italic">#{group.group_id.split('-')[0]}</p>
-                                        {group.join_code && group.user_id === userId && (
+                                        {group.join_code && (group.role === 'owner' || group.role === 'admin') && (
                                             <span className="text-[10px] text-indigo-400 font-bold font-mono bg-black/30 px-2 py-0.5 rounded border border-white/5 group-hover:border-indigo-500/30 transition-all">
                                                 Code: {group.join_code}
                                             </span>

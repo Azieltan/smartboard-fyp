@@ -3,6 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { ThemeToggle } from './ThemeToggle';
+import { NotificationBell } from './NotificationBell';
+
+interface User {
+    user_id: string;
+    username: string;
+    email: string;
+}
 
 const navigation = [
     {
@@ -45,16 +53,7 @@ const navigation = [
         ),
         gradient: 'from-pink-500 to-rose-500'
     },
-    {
-        name: 'FAQ',
-        href: '/dashboard/faq',
-        icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8a3 3 0 00-3 3c0 1.657 1.343 3 3 3s3-1.343 3-3a3 3 0 00-3-3zm0 8v2m0-10v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        ),
-        gradient: 'from-indigo-500 to-blue-500'
-    },
+
     {
         name: 'Settings',
         href: '/dashboard/settings',
@@ -72,8 +71,6 @@ export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const [user, setUser] = useState<{ user_id: string; username?: string; email?: string } | null>(null);
-    const [tasks, setTasks] = useState<any[]>([]);
-    const [stats, setStats] = useState({ total: 0, completed: 0, remaining: 0 });
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -81,31 +78,12 @@ export function Sidebar() {
             try {
                 const parsedUser = JSON.parse(userStr);
                 setUser(parsedUser);
-                fetchTasks(parsedUser.user_id);
             } catch (e) {
                 console.error('Failed to parse user');
             }
         }
     }, []);
 
-    const fetchTasks = async (uid: string) => {
-        try {
-            const res = await fetch(`http://localhost:3001/tasks?userId=${uid}`);
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                const activeTasks = data.filter(t => t.status !== 'completed');
-                const completedTasks = data.filter(t => t.status === 'completed');
-                setTasks(data);
-                setStats({
-                    total: data.length,
-                    completed: completedTasks.length,
-                    remaining: activeTasks.length
-                });
-            }
-        } catch (error) {
-            console.error('Failed to fetch tasks in sidebar:', error);
-        }
-    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -118,7 +96,7 @@ export function Sidebar() {
     };
 
     return (
-        <div className="w-72 bg-gradient-to-b from-[#0f172a] to-[#1e1b4b] border-r border-white/10 flex flex-col h-screen sticky top-0">
+        <div className="w-72 bg-[var(--background)] border-r border-[var(--border-color)] flex flex-col h-screen sticky top-0 transition-colors duration-300">
             {/* Logo */}
             <div className="p-6 flex items-center gap-3 border-b border-white/10">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-violet-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/30 animate-bounce-subtle">
@@ -129,26 +107,7 @@ export function Sidebar() {
                 </span>
             </div>
 
-            {/* Quick Stats */}
-            <div className="px-4 py-4">
-                <div className="glass-panel p-4 space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">My Tasks</span>
-                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
-                            {stats.remaining} left
-                        </span>
-                    </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                        <div
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-1000"
-                            style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
-                        ></div>
-                    </div>
-                    <p className="text-[10px] text-slate-500 text-center">
-                        {stats.completed}/{stats.total} completed
-                    </p>
-                </div>
-            </div>
+
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
@@ -183,23 +142,29 @@ export function Sidebar() {
 
             {/* User Profile */}
             <div className="p-4 border-t border-white/10">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-pink-500/30">
-                        {getInitials(user?.username)}
+                <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+                    <Link href="/dashboard/settings" className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-pink-500/30">
+                            {getInitials(user?.username)}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-medium text-white truncate">{user?.username || 'User'}</p>
+                            <p className="text-xs text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
+                        </div>
+                    </Link>
+                    <div className="flex items-center gap-1">
+                        {user && <NotificationBell userId={user.user_id} />}
+                        <ThemeToggle />
+                        <button
+                            onClick={handleLogout}
+                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Logout"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{user?.username || 'User'}</p>
-                        <p className="text-xs text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                        title="Logout"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                    </button>
                 </div>
             </div>
         </div>
