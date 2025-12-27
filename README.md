@@ -1,5 +1,18 @@
 # SmartBoard FYP
 
+A social collaboration platform for teams to manage tasks, schedules, group chats, and automated workflows.
+
+## 📋 Documentation
+
+**New to SmartBoard?**
+- 🚀 [**Quick Start Guide**](./QUICK_START.md) - Get started quickly!
+- 📊 [**Feature Matrix**](./FEATURE_MATRIX.md) - Status at a glance
+
+**Project Status & Features:**
+- 📖 [**Application Status Report (English)**](./APP_STATUS.md)
+- 📖 [**应用现状报告 (中文)**](./APP_STATUS_CN.md)
+- 📝 [**Implementation Plan**](./implementation_plan.md)
+
 ## Getting Started
 
 Follow these steps to set up the project locally.
