@@ -32,7 +32,9 @@ interface Task {
     due_date?: string;
     status: string;
     priority: string;
-    owner_id?: string;
+    created_by: string;
+    user_id?: string;
+    group_id?: string;
 }
 
 interface GroupDetailViewProps {
@@ -427,7 +429,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                                                         )}
 
                                                         {/* Review Button */}
-                                                        {task.status === 'in_review' && (isOwner || myRole?.role === 'admin' || task.owner_id === userId) && (
+                                                        {task.status === 'in_review' && (isOwner || myRole?.role === 'admin' || task.created_by === userId) && (
                                                             <button
                                                                 onClick={() => { setSelectedTask(task); setShowReviewModal(true); }}
                                                                 className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all"

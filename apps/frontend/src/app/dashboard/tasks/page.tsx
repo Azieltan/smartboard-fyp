@@ -8,15 +8,16 @@ import TaskReviewModal from '../../../components/TaskReviewModal';
 
 export default function TasksPage() {
     const [tasks, setTasks] = useState<any[]>([]);
+    const [filteredTasks, setFilteredTasks] = useState<any[]>([]);
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
-
-    // Modal types
     const [activeModal, setActiveModal] = useState<'detail' | 'submission' | 'review' | null>(null);
-
     const [userId, setUserId] = useState<string | null>(null);
+    const [userMap, setUserMap] = useState<Record<string, string>>({});
 
-    // ... (useEffect and specific fetchTasks remain same)
+    // Sidebar Navigation
+    type NavTab = 'overall' | 'ongoing' | 'in_review' | 'completed';
+    const [activeTab, setActiveTab] = useState<NavTab>('overall');
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -24,8 +25,13 @@ export default function TasksPage() {
             const user = JSON.parse(userStr);
             setUserId(user.user_id);
             fetchTasks(user.user_id);
+            fetchUserMap(user.user_id);
         }
     }, []);
+
+    useEffect(() => {
+        filterTasks();
+    }, [tasks, activeTab]);
 
     const fetchTasks = async (uid: string) => {
         try {
@@ -38,180 +44,258 @@ export default function TasksPage() {
         }
     };
 
-    const [activeTab, setActiveTab] = useState<'my_work' | 'delegated'>('my_work');
+    const fetchUserMap = async (uid: string) => {
+        try {
+            // Fetch friends and group members to build a name map
+            // This is a "best effort" to resolve names without a dedicated /users endpoints
+            const friends = await api.get(`/friends/${uid}`);
+            const map: Record<string, string> = { [uid]: 'Me' };
 
-    const getTasksByStatus = (status: string) => {
-        return tasks.filter((t) => {
-            const statusMatch = t.status === status;
-            if (!statusMatch) return false;
-
-            if (activeTab === 'my_work') {
-                // Show tasks assigned to me
-                // OR tasks I created but haven't assigned to anyone yet (so I can see them to assign) which naturally fall into todo
-                return t.user_id === userId || (t.created_by === userId && !t.user_id);
-            } else {
-                // Delegated: Created by me, assigned to someone else
-                return t.created_by === userId && t.user_id && t.user_id !== userId;
+            if (Array.isArray(friends)) {
+                friends.forEach((f: any) => {
+                    const details = f.friend_details;
+                    if (details) {
+                        map[f.friend_id] = details.user_name || details.email;
+                    }
+                });
             }
+            setUserMap(map);
+        } catch (e) {
+            console.error('Failed to fetch user map', e);
+        }
+    }
+
+    const getUserName = (id: string) => {
+        if (!id) return 'Unassigned';
+        if (id === userId) return 'Me';
+        return userMap[id] || `User (${id.substring(0, 4)}...)`;
+    };
+
+    const filterTasks = () => {
+        let result = [];
+        switch (activeTab) {
+            case 'overall':
+                result = tasks;
+                break;
+            case 'ongoing':
+                result = tasks.filter(t => t.status === 'todo' || t.status === 'in_progress');
+                break;
+            case 'in_review':
+                result = tasks.filter(t => t.status === 'in_review');
+                break;
+            case 'completed':
+                result = tasks.filter(t => t.status === 'done');
+                break;
+            default:
+                result = tasks;
+        }
+        // Sort by due date (nearest first) or created_at
+        result.sort((a, b) => {
+            if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            if (!a.due_date && b.due_date) return 1;
+            if (a.due_date && !b.due_date) return -1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
+        setFilteredTasks(result);
     };
 
     const handleTaskClick = async (task: any) => {
-        console.log('Task Clicked:', task);
-        console.log('Current User:', userId);
-        console.log('Logic Check:', {
-            status: task.status,
-            isAssignee: task.user_id === userId,
-            isCreator: task.created_by === userId,
-            creatorId: task.created_by
-        });
-
-        // 1. Todo -> In Progress (Auto-move if assignee)
-        if (task.status === 'todo' && task.user_id === userId) {
-            try {
-                // Optimistic update
-                const updatedTask = { ...task, status: 'in_progress' };
-                setTasks(prev => prev.map(t => t.task_id === task.task_id ? updatedTask : t));
-
-                // API Call
-                await api.put(`/tasks/${task.task_id}`, { status: 'in_progress' });
-
-                // Open Submission Modal (now it's in progress)
-                setSelectedTask(updatedTask);
-                setActiveModal('submission');
-                return;
-            } catch (e) {
-                console.error("Failed to auto-progress task", e);
-                // Revert on fail? For now just simple log
-            }
-        }
-
+        // Logic similar to before but adapted for list view actions
+        // 1. If I am assignee and status is Todo, waiting for start? 
+        // Or if clicked row, just view detail unless action button clicked.
+        // For simpler UX, clicking row opens Detail. specific buttons for actions.
         setSelectedTask(task);
+        setActiveModal('detail');
+    };
 
-        // 2. Open appropriate modal based on status/role
-        if (task.status === 'in_progress' && task.user_id === userId) {
-            console.log('Opening Submission Modal');
-            setActiveModal('submission');
-        } else if (task.status === 'in_review') {
-            // If I created it, OR I am the owner of the group it belongs to (complex check not done here yet), OR I am just the original creator
-            // For now, checking created_by is the most robust direct check
-            if (task.created_by === userId) {
-                console.log('Opening Review Modal (Creator)');
-                setActiveModal('review');
-            } else {
-                // Logic hole: What if I am the admin of the group but didn't create the task?
-                // For now, let's assume only creator reviews.
-                console.log('Opening Detail Modal (Not Creator)', { creator: task.created_by, me: userId });
-                setActiveModal('detail');
-            }
-        } else {
-            console.log('Opening Detail Modal (Fallback)');
-            setActiveModal('detail');
+    const handleAction = (e: React.MouseEvent, task: any, action: 'submit' | 'review' | 'start') => {
+        e.stopPropagation();
+        setSelectedTask(task);
+        if (action === 'submit') setActiveModal('submission');
+        if (action === 'review') setActiveModal('review');
+        if (action === 'start') {
+            // Auto start logic
+            startTask(task);
+        }
+    };
+
+    const startTask = async (task: any) => {
+        try {
+            await api.put(`/tasks/${task.task_id}`, { status: 'in_progress' });
+            // Update local state
+            const updated = { ...task, status: 'in_progress' };
+            setTasks(prev => prev.map(t => t.task_id === task.task_id ? updated : t));
+            // Show submission modal immediately? Maybe optional.
+        } catch (e) {
+            console.error('Failed to start task', e);
         }
     };
 
     if (!userId) return <div className="p-8 text-center text-slate-400">Please login to view tasks.</div>;
 
+    const navItems: { id: NavTab; label: string; count: number }[] = [
+        { id: 'overall', label: 'All Tasks', count: tasks.length },
+        { id: 'ongoing', label: 'On Going', count: tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').length },
+        { id: 'in_review', label: 'In Review', count: tasks.filter(t => t.status === 'in_review').length },
+        { id: 'completed', label: 'Completed', count: tasks.filter(t => t.status === 'done').length },
+    ];
+
     return (
-        <div className="h-full flex flex-col">
-            <header className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Task Board</h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">Manage assignments and track progress.</p>
-                    </div>
+        <div className="h-full flex flex-col md:flex-row bg-slate-50 dark:bg-[#0f172a] overflow-hidden rounded-2xl border border-slate-200 dark:border-white/5">
+            {/* Sidebar */}
+            <div className="w-full md:w-64 bg-white dark:bg-[#1e293b] border-r border-slate-200 dark:border-white/5 flex flex-col">
+                <div className="p-6">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Tasks</h1>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-colors"
+                        className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
                     >
-                        + New Task
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        New Task
                     </button>
                 </div>
 
-                {/* View Toggles */}
-                <div className="flex p-1 bg-slate-100 dark:bg-white/5 w-fit rounded-lg">
-                    <button
-                        onClick={() => setActiveTab('my_work')}
-                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'my_work'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                            }`}
-                    >
-                        My Work
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('delegated')}
-                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'delegated'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                            }`}
-                    >
-                        Delegated / Reviewed
-                    </button>
-                </div>
-            </header>
-
-            {/* Kanban Board */}
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-hidden overflow-x-auto min-w-[1000px] lg:min-w-0">
-                {['todo', 'in_progress', 'in_review', 'done'].map((status) => (
-                    <div key={status} className="flex flex-col glass-panel h-full bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 min-w-[280px]">
-                        <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center sticky top-0 bg-inherit z-10 rounded-t-2xl">
-                            <h3 className="font-bold text-slate-800 dark:text-white capitalize flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${status === 'todo' ? 'bg-slate-400' :
-                                    status === 'in_progress' ? 'bg-blue-500' :
-                                        status === 'in_review' ? 'bg-purple-500' : 'bg-emerald-500'
-                                    }`}></span>
-                                {status.replace('_', ' ')}
-                            </h3>
-                            <span className="bg-white dark:bg-white/10 px-2 py-0.5 rounded text-xs text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-transparent font-mono">
-                                {getTasksByStatus(status).length}
+                <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+                    {navItems.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id)}
+                            className={`w-full flex justify-between items-center px-4 py-3 text-sm font-medium rounded-xl transition-all ${activeTab === item.id
+                                    ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                                }`}
+                        >
+                            <span>{item.label}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs ${activeTab === item.id
+                                    ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                                    : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
+                                }`}>
+                                {item.count}
                             </span>
-                        </div>
-                        <div className="flex-1 p-4 space-y-3 overflow-y-auto custom-scrollbar">
-                            {getTasksByStatus(status).map((task) => (
-                                <div
-                                    key={task.task_id}
-                                    onClick={() => handleTaskClick(task)}
-                                    className="p-4 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/5 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md group shadow-sm active:scale-[0.98]"
-                                >
-                                    <div className="flex justify-between items-start mb-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${task.priority === 'high' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
-                                            task.priority === 'medium' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20' :
-                                                'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-green-400 dark:border-emerald-500/20'
-                                            }`}>
-                                            {task.priority}
-                                        </span>
-                                        {task.user_id !== userId && (
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <h4 className="font-bold text-slate-900 dark:text-white mb-2 line-clamp-2 leading-tight">{task.title}</h4>
-
-                                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 dark:border-white/5">
-                                        <div className={`text-[11px] font-medium flex items-center gap-1 ${task.due_date && new Date(task.due_date) < new Date() ? 'text-red-500' : 'text-slate-400'
-                                            }`}>
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                            {task.due_date ? new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No Date'}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                        </button>
+                    ))}
+                </nav>
             </div>
 
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-[#0f172a]">
+                {/* Mobile Header (optional if needed, hidden on desktop) */}
+
+                {/* List Header */}
+                <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 border-b border-slate-200 dark:border-white/5 text-xs font-bold text-slate-500 uppercase tracking-wider bg-white dark:bg-[#1e293b]/50">
+                    <div className="col-span-4">Task Name</div>
+                    <div className="col-span-2">Owner</div>
+                    <div className="col-span-2">Assignee</div>
+                    <div className="col-span-2">Due Date</div>
+                    <div className="col-span-2 text-right">Status</div>
+                </div>
+
+                {/* List Content */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-0 md:p-2 space-y-2 md:space-y-0">
+                    {filteredTasks.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                            <svg className="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                            <p>No tasks found in this view</p>
+                        </div>
+                    ) : (
+                        filteredTasks.map((task) => (
+                            <div
+                                key={task.task_id}
+                                onClick={() => handleTaskClick(task)}
+                                className="group md:grid md:grid-cols-12 md:gap-4 p-4 md:px-6 md:py-3 bg-white dark:bg-[#1e293b] md:bg-transparent md:hover:bg-white md:dark:hover:bg-[#1e293b] border-b border-slate-200 dark:border-white/5 items-center cursor-pointer transition-colors relative"
+                            >
+                                {/* Title & Priority */}
+                                <div className="col-span-4 flex items-center gap-3 mb-2 md:mb-0">
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-red-500' :
+                                            task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                                        }`} title={`Priority: ${task.priority}`} />
+                                    <span className="font-medium text-slate-900 dark:text-white truncate pr-4">{task.title}</span>
+                                </div>
+
+                                {/* Owner */}
+                                <div className="col-span-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1 md:mb-0">
+                                    <span className="md:hidden text-xs font-bold w-20">Owner:</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold">
+                                            {getUserName(task.created_by).charAt(0)}
+                                        </div>
+                                        <span className="truncate max-w-[100px]">{getUserName(task.created_by)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Assignee */}
+                                <div className="col-span-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1 md:mb-0">
+                                    <span className="md:hidden text-xs font-bold w-20">Assignee:</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold">
+                                            {getUserName(task.user_id).charAt(0)}
+                                        </div>
+                                        <span className="truncate max-w-[100px]">{getUserName(task.user_id)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Due Date */}
+                                <div className="col-span-2 text-sm text-slate-500 dark:text-slate-400 mb-2 md:mb-0">
+                                    <span className="md:hidden text-xs font-bold w-20 inline-block">Due:</span>
+                                    <span className={`${task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-red-500 font-medium' : ''}`}>
+                                        {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
+                                    </span>
+                                </div>
+
+                                {/* Status & Actions */}
+                                <div className="col-span-2 flex items-center justify-end gap-2">
+                                    {/* Action Buttons based on state */}
+                                    {task.status === 'todo' && task.user_id === userId && (
+                                        <button
+                                            onClick={(e) => handleAction(e, task, 'start')}
+                                            className="hidden group-hover:block px-2 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-all"
+                                        >
+                                            Start
+                                        </button>
+                                    )}
+
+                                    {(task.status === 'in_progress' || task.status === 'todo') && task.user_id === userId && (
+                                        <button
+                                            onClick={(e) => handleAction(e, task, 'submit')}
+                                            className="hidden group-hover:block px-2 py-1 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-all"
+                                        >
+                                            Submit
+                                        </button>
+                                    )}
+
+                                    {task.status === 'in_review' && task.created_by === userId && (
+                                        <button
+                                            onClick={(e) => handleAction(e, task, 'review')}
+                                            className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold rounded shadow-lg shadow-purple-500/30 transition-all animate-pulse"
+                                        >
+                                            Review
+                                        </button>
+                                    )}
+
+                                    {/* Status Badge */}
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                                            task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
+                                                task.status === 'in_review' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
+                                                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
+                                        }`}>
+                                        {task.status.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* Modals */}
             {showCreateModal && (
                 <CreateTaskModal
-                    userId={userId}
+                    userId={userId!}
                     onClose={() => setShowCreateModal(false)}
                     onTaskCreated={() => fetchTasks(userId!)}
                 />
             )}
 
-            {/* Submission Modal (For Assignee to submit work) */}
             {selectedTask && activeModal === 'submission' && (
                 <TaskSubmissionModal
                     taskId={selectedTask.task_id}
@@ -220,36 +304,20 @@ export default function TasksPage() {
                     description={selectedTask.description}
                     priority={selectedTask.priority}
                     dueDate={selectedTask.due_date}
-                    onClose={() => {
-                        setActiveModal(null);
-                        setSelectedTask(null);
-                    }}
-                    onSubmitSuccess={() => {
-                        setActiveModal(null);
-                        setSelectedTask(null);
-                        fetchTasks(userId!);
-                    }}
+                    onClose={() => { setActiveModal(null); setSelectedTask(null); }}
+                    onSubmitSuccess={() => { setActiveModal(null); setSelectedTask(null); fetchTasks(userId!); }}
                 />
             )}
 
-            {/* Review Modal (For Owner to review work) */}
             {selectedTask && activeModal === 'review' && (
                 <TaskReviewModal
                     taskId={selectedTask.task_id}
                     taskTitle={selectedTask.title}
-                    onClose={() => {
-                        setActiveModal(null);
-                        setSelectedTask(null);
-                    }}
-                    onReviewComplete={() => {
-                        setActiveModal(null);
-                        setSelectedTask(null);
-                        fetchTasks(userId!);
-                    }}
+                    onClose={() => { setActiveModal(null); setSelectedTask(null); }}
+                    onReviewComplete={() => { setActiveModal(null); setSelectedTask(null); fetchTasks(userId!); }}
                 />
             )}
 
-            {/* Standard Detail Modal (View Only) */}
             {selectedTask && activeModal === 'detail' && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-[#1e293b] w-full max-w-lg rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl p-8 scale-100 animate-in zoom-in-95 duration-200">
@@ -259,36 +327,17 @@ export default function TasksPage() {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-
                         <div className="prose dark:prose-invert prose-sm max-w-none mb-8 bg-slate-50 dark:bg-black/20 p-4 rounded-xl border border-slate-100 dark:border-white/5">
                             <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{selectedTask.description || 'No description provided.'}</p>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Status</p>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${selectedTask.status === 'done' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                                    selectedTask.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400' :
-                                        'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'
-                                    }`}>
-                                    {selectedTask.status.replace('_', ' ')}
-                                </span>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="bg-slate-50 dark:bg-white/5 p-3 rounded-lg">
+                                <span className="text-xs text-slate-500 uppercase font-bold">Owner</span>
+                                <p className="font-medium text-slate-900 dark:text-white">{getUserName(selectedTask.created_by)}</p>
                             </div>
-                            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Priority</p>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${selectedTask.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400' :
-                                    selectedTask.priority === 'medium' ? 'bg-amber-100 text-amber-800 dark:bg-yellow-500/20 dark:text-yellow-400' :
-                                        'bg-green-100 text-green-800 dark:bg-emerald-500/20 dark:text-emerald-400'
-                                    }`}>
-                                    {selectedTask.priority}
-                                </span>
-                            </div>
-                            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 col-span-2">
-                                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Due Date</p>
-                                <p className="text-slate-900 dark:text-white font-medium flex items-center gap-2">
-                                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    {selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'No Deadline'}
-                                </p>
+                            <div className="bg-slate-50 dark:bg-white/5 p-3 rounded-lg">
+                                <span className="text-xs text-slate-500 uppercase font-bold">Assignee</span>
+                                <p className="font-medium text-slate-900 dark:text-white">{getUserName(selectedTask.user_id)}</p>
                             </div>
                         </div>
                     </div>

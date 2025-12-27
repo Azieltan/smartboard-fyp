@@ -24,6 +24,10 @@
 
 ### 1. Group Management Enhancements
 - **UI Update**: Replaced standard join code view with a "3-dot" menu in Group Detail header.
+- **Task Board Redesign**: Switched from Kanban to a high-density List View ("Lark-style").
+    - **Sidebar Filters**: "All Tasks", "On Going", "In Review", "Completed".
+    - **Columns**: Task Name, Owner, Assignee, Due Date, Status.
+    - **User Names**: Implemented client-side name resolution for Owners and Assignees.
 - **Menu Options**: Added "Group Settings" (for admins/owners) and "View Members".
 - **Settings Modal**: Created a dedicated modal for managing group settings like Join Code regeneration and Danger Zone (Delete Group).
 - **Role Permissions**: Refined the UI to show specific actions (Promote/Demote/Remove) only to authorized roles (Owner/Admin).
@@ -38,6 +42,8 @@
     - **Task List**: Added "Submit Work" button for assignees and "Review Submission" button for task owners.
     - **Submission Modal**: Form to upload files and write completion notes.
     - **Review Modal**: detailed view for owners to see submission content/files and Approve (-> Done) or Reject (-> In Progress) with feedback.
+    - **Visual Polish**: Added explicit "Review" call-to-action button on Task Board cards for owners when status is In Review.
+    - **Logic Refinement**: Enforced strict visibility rules so only the Task Creator/Owner can see approval controls.
 
 ### Code Status Summary
 | Component | Backend | Frontend | Database |
