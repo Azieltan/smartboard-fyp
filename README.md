@@ -1,5 +1,9 @@
 # SmartBoard FYP
 
+## Canonical Plan
+
+The canonical, up-to-date implementation plan lives in `AI_AGENT_IMPLEMENTATION_PLAN.md`.
+
 ## Getting Started
 
 Follow these steps to set up the project locally.
@@ -52,3 +56,34 @@ npm run dev
 ```
 
 The frontend will be available at `http://localhost:3000` and the backend at `http://localhost:3001`.
+
+## Typecheck / Build
+
+Run these before demo to catch TypeScript issues early.
+
+```bash
+# Backend build (tsc)
+npm -w apps/backend run build
+
+# Frontend typecheck (no emit)
+npx tsc -p apps/frontend/tsconfig.json --noEmit
+```
+
+## E2E Smoke Test (PowerShell)
+
+There is a small end-to-end smoke test script that validates core flows (auth, friend request, DM, task submission/review, notifications).
+
+Prereqs:
+
+- Backend running on `http://localhost:3001`
+- Demo login exists:
+	- Email: `test_theme@example.com`
+	- Password: `123456`
+
+Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\selftest.ps1
+```
+
+The script creates a temporary second user automatically and prints a compact JSON summary (no JWTs).
