@@ -975,6 +975,38 @@ document.addEventListener('touchend', handleMouseUp);
 
 ### Features to Add
 
+#### 6.0: Create Group — Add Members During Creation (Missing)
+**Currently**: Create group flow creates an empty group or requires adding members after creation.
+**Need**: Allow owners to select/add members at group creation time so the group is ready to use immediately.
+
+##### Step 6.0.1: Update CreateGroupModal (Frontend)
+**File**: `apps/frontend/src/components/CreateGroupModal.tsx` (edit)
+
+- Add a multi-select or searchable user picker (reusing `InviteToGroupModal` search logic) to choose members while creating a group.
+- Include an option to send invites (pending) vs. immediate add for existing users.
+- Submit payload shape: `{ name, description, initial_member_ids?: string[], send_invites?: boolean }`.
+
+##### Step 6.0.2: Update GroupService (Backend)
+**File**: `apps/backend/src/services/group.ts`
+
+- Add `createGroupWithMembers(createPayload)` method that performs a transaction:
+  1. Create group record.
+  2. Insert member records (or pending invites) using `initial_member_ids`.
+  3. If `send_invites` is true, create notifications for those users.
+- Ensure permission checks and error handling.
+
+##### Step 6.0.3: API Endpoint
+**File**: `apps/backend/src/index.ts`
+
+- Add route: `POST /groups` to accept the extended payload, call `GroupService.createGroupWithMembers` and return group + added member summary.
+- Add unit/integration tests for the endpoint.
+
+##### Step 6.0.4: Testing
+- [ ] Create group with members -> verify group membership immediately reflects on both creator and invitees.
+- [ ] Create group with `send_invites=true` -> verify notifications are created and pending state for invitees.
+- [ ] Edge cases: non-existent user ids, duplicate user ids, permission denied.
+
+
 #### 6.1: Add User to Group (Invite by Username/Email)
 **Currently**: Only join by code
 **Need**: Owner/Admin can invite users directly
@@ -990,7 +1022,6 @@ interface InviteToGroupModalProps {
     onInvited: () => void;
 }
 ```
-
 Features:
 - Search users by email/username
 - Send invite (creates pending member or notification)
@@ -1123,6 +1154,38 @@ Working via:
 - `GroupService.getOrCreateDirectChat()` creates DM "group"
 - Chat page shows DM conversations
 - `handleConversationClick()` handles DM selection
+
+#### 7.0: Friend Request Flow (Accept / Reject) (Missing)
+**Problem**: The high-level `implementation_plan.md` explicitly called out accept/reject logic for friend requests — ensure this flow is implemented and visible in UI.
+
+##### Step 7.0.1: Backend — Friend Service / DB
+**File**: `apps/backend/src/services/friend.ts` and migrations
+
+- Ensure `friend_requests` table has a `status` column (enum: `pending`, `accepted`, `rejected`) and `created_at`.
+- Add methods:
+  - `sendFriendRequest(fromUserId, toUserId)` -> creates `pending` request
+  - `acceptFriendRequest(requestId, actorId)` -> set `status='accepted'`, create friendship record if separate, notify both users
+  - `rejectFriendRequest(requestId, actorId)` -> set `status='rejected'` and optionally notify
+- Add endpoints:
+  - `POST /friends` -> send request
+  - `PUT /friends/:requestId/accept` -> accept
+  - `PUT /friends/:requestId/reject` -> reject
+- Add unit tests for each action and authorization checks.
+
+##### Step 7.0.2: Frontend — Friend Requests UI
+**Files**: `apps/frontend/src/components/FriendList.tsx`, `AddFriendModal.tsx`
+
+- Display incoming pending requests in a `Pending` tab or badge count.
+- For each pending request show `Accept` and `Reject` buttons that call the new endpoints via `api.post` / `api.put`.
+- On accept: update local state, create DM or friend entry, and show success toast.
+- On reject: remove request from pending list and show feedback.
+- Trigger notifications via NotificationService (Task 1).
+
+##### Step 7.0.3: Testing
+- [ ] Send friend request -> recipient sees pending request in UI
+- [ ] Accept request -> both users see friendship in their lists and can DM
+- [ ] Reject request -> requester sees rejection notification (optional)
+- [ ] Endpoint authorization prevents unrelated users from acting on requests
 
 #### 7.4: Remove Friend Feature
 **Current**: Can add friends, accept requests
