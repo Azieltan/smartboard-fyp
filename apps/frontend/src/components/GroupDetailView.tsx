@@ -507,9 +507,8 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                                                             {task.status.replace('_', ' ').toUpperCase()}
                                                         </span>
                                                         <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                                            Due: {new Date(task.due_date).toLocaleDateString()}
+                                                            Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}
                                                         </span>
-                                                    )}
                                                         {task.user_id && (
                                                             <span className="text-[10px] bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-300">
                                                                 👤 {members.find(m => m.user_id === task.user_id)?.user_name || 'Member'}
@@ -518,13 +517,13 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                ))}
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
-                    );
-                        })()}
-                </div>
                     )}
+                </div>
             </div>
 
             {/* Task Modal */}
@@ -625,6 +624,5 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                 />
             )}
         </div>
-        </div >
     );
 }

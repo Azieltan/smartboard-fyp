@@ -17,7 +17,8 @@
 7. [Task 7: User Enhancements](#7-task-7-user-enhancements)
 8. [Task 8: Dashboard UI Implementation](#8-task-8-dashboard-ui-implementation)
 9. [Task Logic Behind Tasks](#9-task-logic-behind-tasks-ownerassigneeadmin)
-10. [Full Function Double-Check Checklist](#10-full-function-double-check-checklist-before-demo--merge)
+11. [Full Function Double-Check Checklist](#11-full-function-double-check-checklist-before-demo--merge)
+12. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
 
 ---
 
@@ -1538,6 +1539,85 @@ Your app has **two different role concepts**:
 
 ## 11. Full Function Double-Check Checklist (Before Demo / Merge)
 
+### Pre-flight (before any testing)
+
+- [ ] ✅ Backend `.env` exists and includes: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`
+- [ ] ✅ Frontend `.env.local` exists and includes `NEXT_PUBLIC_API_URL` (and Supabase keys if used)
+- [ ] ✅ Install deps at repo root: `npm install`
+- [ ] ✅ Build/typecheck before running:
+  - Backend: `npm -w apps/backend run build`
+  - Frontend: `npx tsc -p apps/frontend/tsconfig.json --noEmit`
+- [ ] ✅ Start dev servers (2 terminals):
+  - Backend: `cd apps/backend && npm run dev` (http://localhost:3001)
+  - Frontend: `cd apps/frontend && npm run dev` (http://localhost:3000)
+
+### Automated API Smoke-Test (PowerShell)
+
+Use this to validate end-to-end flows quickly with **2 accounts** (creates a temporary user automatically):
+
+```powershell
+$ErrorActionPreference = 'Stop'
+
+# 1) Login primary demo user
+$u1 = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/auth/login' -ContentType 'application/json' -Body (@{ email='test_theme@example.com'; password='123456' } | ConvertTo-Json)
+$u1Id = $u1.user.user_id
+$u1Headers = @{ Authorization = "Bearer $($u1.token)" }
+
+# 2) Register + login a second temporary user
+$suffix = Get-Date -Format 'yyyyMMdd_HHmmss'
+$u2Email = "test_theme2_$suffix@example.com"
+$u2Username = "testuser_theme2_$suffix"
+
+Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/auth/register' -ContentType 'application/json' -Body (@{ username=$u2Username; email=$u2Email; password='123456' } | ConvertTo-Json) | Out-Null
+$u2 = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/auth/login' -ContentType 'application/json' -Body (@{ email=$u2Email; password='123456' } | ConvertTo-Json)
+$u2Id = $u2.user.user_id
+$u2Headers = @{ Authorization = "Bearer $($u2.token)" }
+
+# 3) Friend request u1 -> u2, then accept as u2
+Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/friends' -Headers $u1Headers -ContentType 'application/json' -Body (@{ userId=$u1Id; friendIdentifier=$u2Email } | ConvertTo-Json) | Out-Null
+$u2Friends = Invoke-RestMethod -Method Get -Uri "http://localhost:3001/friends/$u2Id" -Headers $u2Headers
+$pending = $u2Friends | Where-Object { $_.status -eq 'pending' } | Select-Object -First 1
+Invoke-RestMethod -Method Put -Uri "http://localhost:3001/friends/$($pending.id)/accept" -Headers $u2Headers | Out-Null
+
+# 4) DM chat create + send/fetch 1 message
+$dm = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/chats/dm' -Headers $u1Headers -ContentType 'application/json' -Body (@{ user1Id=$u1Id; user2Id=$u2Id } | ConvertTo-Json)
+Invoke-RestMethod -Method Post -Uri "http://localhost:3001/chats/$($dm.groupId)/messages" -Headers $u1Headers -ContentType 'application/json' -Body (@{ userId=$u1Id; content="hello ($suffix)" } | ConvertTo-Json) | Out-Null
+$msgs = Invoke-RestMethod -Method Get -Uri "http://localhost:3001/chats/$($dm.groupId)/messages" -Headers $u1Headers
+
+# 5) Task create -> submit -> review (checks task submission workflow)
+$task = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/tasks' -Headers $u1Headers -ContentType 'application/json' -Body (@{ title="E2E Task $suffix"; description='self-test'; due_date=(Get-Date).AddDays(3).ToString('o'); status='todo'; priority='low'; created_by=$u1Id; user_id=$u2Id } | ConvertTo-Json)
+$submission = Invoke-RestMethod -Method Post -Uri "http://localhost:3001/tasks/$($task.task_id)/submit" -Headers $u2Headers -ContentType 'application/json' -Body (@{ userId=$u2Id; content='submitted via API self-test'; attachments=@() } | ConvertTo-Json)
+Invoke-RestMethod -Method Put -Uri "http://localhost:3001/tasks/submissions/$($submission.submission_id)/review" -Headers $u1Headers -ContentType 'application/json' -Body (@{ status='approved'; feedback='looks good' } | ConvertTo-Json) | Out-Null
+
+# 6) Notifications sanity check
+$u1Notifs = Invoke-RestMethod -Method Get -Uri "http://localhost:3001/notifications/$u1Id" -Headers $u1Headers
+$u2Notifs = Invoke-RestMethod -Method Get -Uri "http://localhost:3001/notifications/$u2Id" -Headers $u2Headers
+
+[PSCustomObject]@{
+  createdUser2Email = $u2Email
+  dmMessagesCount = @($msgs).Count
+  u1UnreadNotifsCount = @($u1Notifs).Count
+  u2UnreadNotifsCount = @($u2Notifs).Count
+} | ConvertTo-Json
+```
+
+Expected:
+- `dmMessagesCount` >= 1
+- `u2UnreadNotifsCount` >= 1 after friend request
+- `u1UnreadNotifsCount` increases after task submission
+
+### UI Walkthrough (manual)
+
+- [ ] ✅ Login page works: http://localhost:3000/login
+- [ ] ✅ Dashboard loads after login: http://localhost:3000/dashboard
+- [ ] ✅ Chat page loads, list renders, no console errors: http://localhost:3000/dashboard/chat
+- [ ] ✅ Send a DM and see it persist after refresh
+- [ ] ✅ Trigger a notification (friend request / task submission) and confirm:
+  - Popup shows (3s auto-dismiss + X close)
+  - Notification bell red dot clears after viewing
+- [ ] ✅ Tasks page: create task, submit work, approve/reject, confirm status updates
+- [ ] ✅ Calendar: create event and see it appear in unified list
+
 **Rule**: Only mark ✅ after testing end-to-end (frontend UI + backend API + database changes) with at least 2 different user accounts.
 
 ### Auth
@@ -1635,8 +1715,36 @@ cd apps/backend
 npm run dev
 
 # Check types
-npm run typecheck
+npx tsc -p apps/frontend/tsconfig.json --noEmit
+npm -w apps/backend run build
 ```
+
+---
+
+## 12. Optional Add-ons (Post-MVP)
+
+Keep these as **optional** (only do if time allows / after demo stability):
+
+### Dev Experience
+
+- Fix Next.js monorepo root warning by setting `turbopack.root` (or removing extra lockfiles so Next uses repo root reliably).
+- Add root-level scripts for common tasks (e.g. `dev:frontend`, `dev:backend`, `typecheck`, `lint`) to reduce setup friction.
+- Add a single `scripts/selftest.ps1` that runs the smoke-test and prints a clean pass/fail summary.
+
+### Security (Minimal Hardening)
+
+- Derive `userId` from JWT on protected endpoints (avoid trusting client-provided `userId` in request bodies/params).
+- Enforce owner-only access to `/admin` routes on the backend (not just frontend checks).
+- Add basic rate limiting on auth endpoints to reduce brute-force risk.
+
+### Reliability
+
+- Add a `/health` endpoint for quick “is backend alive?” checks.
+- Add an API endpoint to dismiss/delete notifications (not just mark-as-read) to support the UI “close/remove from list” behavior.
+
+### Testing
+
+- Add a minimal Playwright smoke test: login -> dashboard -> chat page renders.
 
 ---
 
