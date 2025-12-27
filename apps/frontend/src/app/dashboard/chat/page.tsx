@@ -13,7 +13,6 @@ interface Conversation {
     type: 'group' | 'dm';
     lastMessage?: string;
     time?: string;
-    status?: 'online' | 'offline';
     avatar?: string;
     role?: string;
 }
@@ -31,41 +30,39 @@ interface Friend {
     is_receiver: boolean;
 }
 
-export default function ChatPage() {
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'friends'>('all');
+import { NotificationManager } from '../../../components/NotificationManager';
 
-    // Modal & UI states
-    const [showAddFriend, setShowAddFriend] = useState(false);
+export default function ChatPage() {
+    const [userId, setUserId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showJoinGroup, setShowJoinGroup] = useState(false);
-    const [showDropdown, setShowDropdown] = useState(false);
+    const [showAddFriend, setShowAddFriend] = useState(false);
+    const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'friends'>('all');
+    const [isLoading, setIsLoading] = useState(true);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedType, setSelectedType] = useState<'group' | 'dm' | null>(null);
     const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
-            const user = JSON.parse(userStr);
-            setUserId(user.user_id);
-            fetchData(user.user_id);
+            try {
+                const user = JSON.parse(userStr);
+                setUserId(user.user_id);
+            } catch (e) {
+                console.error("Failed to parse user", e);
+            }
         }
     }, []);
 
     const fetchData = async (uid: string) => {
         setIsLoading(true);
         try {
-            const [groupRes, friendRes] = await Promise.all([
-                api.get(`/groups/${uid}`),
-                api.get(`/friends/${uid}`)
-            ]);
-
-            const groups = Array.isArray(groupRes) ? groupRes : [];
-            const friends = Array.isArray(friendRes) ? friendRes : [];
+            const groups = await api.get(`/groups/${uid}`);
+            const friends = await api.get(`/friends/${uid}`);
 
             const groupConvs: Conversation[] = groups.map((g: any) => ({
                 id: g.group_id,
@@ -74,69 +71,68 @@ export default function ChatPage() {
                 role: g.role
             }));
 
-            // Process friends: filter accepted for the chat list, and separate pending for requests
-            const acceptedFriends: Conversation[] = friends
+            const friendConvs: Conversation[] = friends
                 .filter((f: any) => f.status === 'accepted')
                 .map((f: any) => ({
-                    id: f.friend_details.user_id,
-                    name: f.friend_details.user_name || f.friend_details.username || 'User',
+                    id: f.friend_details?.user_id || f.friend_id,
+                    name: f.friend_details?.user_name || 'Unknown User',
                     type: 'dm'
                 }));
 
             const pending = friends
                 .filter((f: any) => f.status === 'pending' && f.friend_id === uid)
                 .map((f: any) => ({
-                    relationship_id: f.relationship_id,
-                    friend_id: f.user_id, // The person who sent it
-                    friend_name: f.friend_details.user_name || f.friend_details.username || 'User',
-                    status: 'pending' as const,
-                    is_receiver: true
+                    ...f,
+                    friend_name: f.friend_details?.user_name || 'Unknown User'
                 }));
-
             setPendingRequests(pending);
 
-            let combined = [...groupConvs, ...acceptedFriends];
-            setConversations(combined);
+            setConversations([...groupConvs, ...friendConvs]);
         } catch (error) {
-            console.error('Failed to fetch data:', error);
-            setConversations([]);
+            console.error('Failed to fetch chats:', error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleAcceptFriend = async (relId: string) => {
+    useEffect(() => {
+        if (userId) {
+            fetchData(userId);
+        }
+    }, [userId]);
+
+    const handleAcceptFriend = async (relationshipId: string) => {
         try {
-            await api.put(`/friends/${relId}/accept`, {});
+            await api.put(`/friends/${relationshipId}/accept`, {});
             if (userId) fetchData(userId);
         } catch (error) {
             console.error('Failed to accept friend:', error);
-            alert('Failed to accept friend request');
         }
     };
 
-    const handleConversationClick = async (conv: Conversation) => {
-        setSelectedConversation(conv);
-        if (conv.type === 'dm') {
-            try {
-                const res = await api.post('/chats/dm', { user1Id: userId, user2Id: conv.id });
-                setSelectedId(res.groupId);
-            } catch (e) {
-                console.error(e);
-                alert('Failed to open DM');
-            }
-        } else {
-            setSelectedId(conv.id);
+    const handleRejectFriend = async (relationshipId: string) => {
+        try {
+            await api.put(`/friends/${relationshipId}/reject`, {});
+            setPendingRequests(prev => prev.filter(req => req.relationship_id !== relationshipId));
+        } catch (error) {
+            console.error('Failed to reject friend:', error);
         }
     };
 
-    const filteredConversations = conversations.filter((c: Conversation) => {
-        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-        if (activeTab === 'all') return matchesSearch;
-        if (activeTab === 'groups') return matchesSearch && c.type === 'group';
-        if (activeTab === 'friends') return matchesSearch && c.type === 'dm';
-        return matchesSearch;
+    const handleConversationClick = (conv: Conversation) => {
+        setSelectedId(conv.id);
+        setSelectedType(conv.type);
+    };
+
+    const filteredConversations = conversations.filter(conv => {
+        const matchesSearch = (conv.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesTab = activeTab === 'all' ||
+            (activeTab === 'groups' && conv.type === 'group') ||
+            (activeTab === 'friends' && conv.type === 'dm');
+        return matchesSearch && matchesTab;
     });
+
+    const selectedConversation = conversations.find(c => c.id === selectedId);
 
     if (!userId) {
         return <div className="p-8 text-center text-slate-400">Please login to view chats.</div>;
@@ -144,6 +140,7 @@ export default function ChatPage() {
 
     return (
         <div className="flex h-screen bg-[#0f172a] text-white overflow-hidden">
+            <NotificationManager userId={userId as string} />
             {/* Conversation List */}
             <div className="w-[350px] bg-[#0f172a] border-r border-white/5 flex flex-col shrink-0 overflow-hidden">
                 <div className="p-5 space-y-4">
@@ -222,12 +219,20 @@ export default function ChatPage() {
                                         </div>
                                         <span className="text-sm font-medium text-slate-200 truncate max-w-[120px]">{req.friend_name}</span>
                                     </div>
-                                    <button
-                                        onClick={() => handleAcceptFriend(req.relationship_id)}
-                                        className="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold rounded-lg transition-colors shadow-lg shadow-pink-600/20"
-                                    >
-                                        Accept
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleRejectFriend(req.relationship_id)}
+                                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-bold rounded-lg transition-colors"
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={() => handleAcceptFriend(req.relationship_id)}
+                                            className="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold rounded-lg transition-colors shadow-lg shadow-pink-600/20"
+                                        >
+                                            Accept
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -247,34 +252,52 @@ export default function ChatPage() {
                             <p className="text-sm">No chats found</p>
                         </div>
                     ) : (
-                        filteredConversations.map((conv: Conversation) => (
-                            <button
-                                key={conv.id}
-                                onClick={() => handleConversationClick(conv)}
-                                className={`w-full p-3 rounded-2xl flex items-center gap-4 transition-all duration-200 group relative ${selectedId === conv.id ? 'bg-blue-600/20 border-white/5' : 'hover:bg-white/5 border-transparent'} border`}
-                            >
-                                <div className="relative shrink-0">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-lg transition-transform group-hover:scale-105 ${conv.type === 'group' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-teal-500 to-emerald-600'}`}>
-                                        {conv.name[0]}
-                                    </div>
+                        <>
+                            {activeTab === 'all' ? (
+                                <>
+                                    {/* Groups Section */}
+                                    {filteredConversations.some(c => c.type === 'group') && (
+                                        <div className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                            <span>Groups</span>
+                                            <div className="h-px bg-white/5 flex-1" />
+                                        </div>
+                                    )}
+                                    {filteredConversations.filter(c => c.type === 'group').map((conv) => (
+                                        <ConversationItem
+                                            key={conv.id}
+                                            conv={conv}
+                                            selectedId={selectedId}
+                                            onClick={() => handleConversationClick(conv)}
+                                        />
+                                    ))}
 
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <div className="flex justify-between items-start mb-0.5">
-                                        <h3 className={`font-semibold truncate transition-colors ${selectedId === conv.id ? 'text-blue-400' : 'text-slate-100 group-hover:text-white'}`}>
-                                            {conv.name}
-                                        </h3>
-                                        <span className="text-[9px] text-slate-500">12:45 PM</span>
-                                    </div>
-                                    <p className="text-xs text-slate-400 truncate leading-tight opacity-70">
-                                        {conv.type === 'group' ? 'Tap to view group...' : 'Say hello!'}
-                                    </p>
-                                </div>
-                                {selectedId === conv.id && (
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-l-full shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
-                                )}
-                            </button>
-                        ))
+                                    {/* Friends Section */}
+                                    {filteredConversations.some(c => c.type === 'dm') && (
+                                        <div className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mt-2">
+                                            <span>Friends</span>
+                                            <div className="h-px bg-white/5 flex-1" />
+                                        </div>
+                                    )}
+                                    {filteredConversations.filter(c => c.type === 'dm').map((conv) => (
+                                        <ConversationItem
+                                            key={conv.id}
+                                            conv={conv}
+                                            selectedId={selectedId}
+                                            onClick={() => handleConversationClick(conv)}
+                                        />
+                                    ))}
+                                </>
+                            ) : (
+                                filteredConversations.map((conv: Conversation) => (
+                                    <ConversationItem
+                                        key={conv.id}
+                                        conv={conv}
+                                        selectedId={selectedId}
+                                        onClick={() => handleConversationClick(conv)}
+                                    />
+                                ))
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -311,17 +334,18 @@ export default function ChatPage() {
 
             {/* Modals */}
             {showAddFriend && (
-                <AddFriendModal userId={userId} onClose={() => setShowAddFriend(false)} />
+                <AddFriendModal userId={userId as string} onClose={() => setShowAddFriend(false)} />
             )}
             {showCreateGroup && (
-                <CreateGroupModal userId={userId} onClose={() => setShowCreateGroup(false)} onGroupCreated={() => fetchData(userId)} />
+                <CreateGroupModal userId={userId as string} onClose={() => setShowCreateGroup(false)} onGroupCreated={() => fetchData(userId as string)} />
             )}
             {showJoinGroup && (
-                <JoinGroupModal userId={userId} onClose={() => setShowJoinGroup(false)} onGroupJoined={() => fetchData(userId)} />
+                <JoinGroupModal userId={userId as string} onClose={() => setShowJoinGroup(false)} onGroupJoined={() => fetchData(userId as string)} />
             )}
         </div>
     );
 }
+
 
 function TabButton({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) {
     return (
@@ -330,6 +354,35 @@ function TabButton({ label, active, onClick }: { label: string, active: boolean,
             className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
         >
             {label}
+        </button>
+    );
+}
+
+function ConversationItem({ conv, selectedId, onClick }: { conv: Conversation, selectedId: string | null, onClick: () => void }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full p-3 rounded-2xl flex items-center gap-4 transition-all duration-200 group relative ${selectedId === conv.id ? 'bg-blue-600/20 border-white/5' : 'hover:bg-white/5 border-transparent'} border`}
+        >
+            <div className="relative shrink-0">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-lg transition-transform group-hover:scale-105 ${conv.type === 'group' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-teal-500 to-emerald-600'}`}>
+                    {conv.name[0]}
+                </div>
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+                <div className="flex justify-between items-start mb-0.5">
+                    <h3 className={`font-semibold truncate transition-colors ${selectedId === conv.id ? 'text-blue-400' : 'text-slate-100 group-hover:text-white'}`}>
+                        {conv.name}
+                    </h3>
+                    <span className="text-[9px] text-slate-500">12:45 PM</span>
+                </div>
+                <p className="text-xs text-slate-400 truncate leading-tight opacity-70">
+                    {conv.type === 'group' ? 'Tap to view group...' : 'Say hello!'}
+                </p>
+            </div>
+            {selectedId === conv.id && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-l-full shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
+            )}
         </button>
     );
 }

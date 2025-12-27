@@ -1,73 +1,68 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-
-interface FAQItem {
-  id: string;
-  question: string;
-  answer: string;
-}
+import { FAQ_DATA } from '../../config/faq';
+import Link from 'next/link';
 
 export default function FAQPage() {
-  const [faqs, setFaqs] = useState<FAQItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchFAQs() {
-      try {
-        const { data, error } = await supabase
-          .from('faq')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching FAQs:', error);
-        } else {
-          setFaqs(data || []);
-        }
-      } catch (error) {
-        console.error('Unexpected error:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchFAQs();
-  }, []);
-
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
-          Frequently Asked Questions
-        </h1>
+    <div className="min-h-screen flex flex-col items-center py-20 px-4 sm:px-6 lg:px-8 bg-[#0f172a] text-white">
+      <div className="max-w-4xl w-full">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent">
+            Frequently Asked Questions
+          </h1>
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+            Everything you need to know about SmartBoard. Can't find the answer you're looking for? Feel free to contact our support.
+          </p>
+        </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {faqs.length === 0 ? (
-              <p className="text-center text-slate-400">No questions found.</p>
-            ) : (
-              faqs.map((faq) => (
-                <div
-                  key={faq.id}
-                  className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:bg-slate-800/80 transition-all duration-300 shadow-lg hover:shadow-blue-500/10"
-                >
-                  <h3 className="text-xl font-semibold mb-3 text-blue-300">
-                    {faq.question}
-                  </h3>
-                  <p className="text-slate-300 leading-relaxed">
-                    {faq.answer}
-                  </p>
+        {/* FAQ List */}
+        <div className="space-y-4">
+          {FAQ_DATA.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors duration-300"
+            >
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer p-6 list-none [&::-webkit-details-marker]:hidden">
+                  <span className="text-lg font-semibold text-slate-100 group-open:text-blue-400 transition-colors">
+                    {item.q}
+                  </span>
+                  <span className="ml-6 flex-shrink-0 transition-transform duration-300 group-open:rotate-180">
+                    <svg className="w-5 h-5 text-slate-500 group-open:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </summary>
+                <div className="px-6 pb-6 text-slate-400 leading-relaxed animate-in slide-in-from-top-2 duration-200">
+                  {item.a}
                 </div>
-              ))
-            )}
+              </details>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer/Contact */}
+        <div className="mt-16 text-center pt-8 border-t border-white/10">
+          <p className="text-slate-400 mb-6">
+            Still have questions? We're here to help.
+          </p>
+          <div className="flex justify-center gap-4">
+            <Link
+              href="/"
+              className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium transition-all"
+            >
+              Back to Home
+            </Link>
+            <Link
+              href="/dashboard/chat"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-all shadow-lg shadow-blue-600/20"
+            >
+              Contact Support
+            </Link>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

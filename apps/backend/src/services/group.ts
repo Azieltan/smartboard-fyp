@@ -123,9 +123,11 @@ export class GroupService {
                         await NotificationService.createNotification(
                             member.user_id,
                             'group_invite',
-                            'Added to Group',
-                            `You have been added to the group "${name}"`,
-                            { groupId: groupData.group_id }
+                            {
+                                title: 'Added to Group',
+                                message: `You have been added to the group "${name}"`,
+                                groupId: groupData.group_id
+                            }
                         );
                     } catch (e) {
                         console.error('Failed to notify friend', e);
@@ -215,9 +217,11 @@ export class GroupService {
                 await NotificationService.createNotification(
                     userId,
                     'group_invite',
-                    status === 'pending' ? 'Group Invitation' : 'Added to Group',
-                    status === 'pending' ? `You have been invited to join "${groupName}"` : `You have been added to "${groupName}"`,
-                    { groupId }
+                    {
+                        title: status === 'pending' ? 'Group Invitation' : 'Added to Group',
+                        message: status === 'pending' ? `You have been invited to join "${groupName}"` : `You have been added to "${groupName}"`,
+                        groupId
+                    }
                 );
             } catch (e) {
                 console.error('Failed to notify member', e);
@@ -401,9 +405,12 @@ export class GroupService {
                         await NotificationService.createNotification(
                             admin.user_id,
                             'join_request',
-                            'New Join Request',
-                            `${joinerName} has requested to join "${group.name}".`,
-                            { groupId: group.group_id, joinerId: userId }
+                            {
+                                title: 'New Join Request',
+                                message: `${joinerName} has requested to join "${group.name}".`,
+                                groupId: group.group_id,
+                                joinerId: userId
+                            }
                         );
                     }
                 }
@@ -475,13 +482,41 @@ export class GroupService {
                 await NotificationService.createNotification(
                     userId,
                     'group_approval',
-                    'Request Approved',
-                    `Your request to join "${groupName}" has been approved!`,
-                    { groupId }
+                    {
+                        title: 'Request Approved',
+                        message: `Your request to join "${groupName}" has been approved!`,
+                        groupId
+                    }
                 );
             } catch (e) {
                 console.error('Failed to notify approved member', e);
             }
         }
+    }
+    static async inviteUser(groupId: string, targetUserId: string, requesterId: string): Promise<void> {
+        // 1. Check requester permissions
+        const requester = await this.getMemberRole(groupId, requesterId);
+        const canInvite = requester?.role === 'owner' || requester?.role === 'admin' || requester?.can_manage_members;
+
+        if (!canInvite) {
+            // Also allow if it's a DM? No, DMs don't have invites usually.
+            // Check if group allows members to invite? For now restrict to admins/owners
+            throw new Error('You do not have permission to invite members');
+        }
+
+        // 2. Check if target exists
+        const { data: targetUser } = await supabase.from('users').select('user_id').eq('user_id', targetUserId).single();
+        if (!targetUser) {
+            throw new Error('User not found');
+        }
+
+        // 3. Check if already member
+        const existing = await this.getMemberRole(groupId, targetUserId);
+        if (existing) {
+            throw new Error('User is already a member of this group');
+        }
+
+        // 4. Add member (Direct add as active for now)
+        await this.addMember(groupId, targetUserId, 'member', 'active');
     }
 }

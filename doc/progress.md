@@ -10,7 +10,7 @@
 - **[Phase 5] Notification System**: NotificationBell with Supabase Realtime, backend triggers for friend/group events. **Updated to notify admins on Request-to-Join.**
 - **[Phase 6] Admin Dashboard**: Full CRUD with user management (ban/unban), group oversight, and live stats.
 - **[Phase 7] AI & Automation**: Voice-to-text temporarily disabled (service pending), N8N webhook integration, FAQ system.
-- **[Phase 8] Theming & Tasks**: Full Light/Dark mode support, robust task/calendar sharing logic. **Now includes Task Submissions & Review Workflow.**
+- **[Phase 8] Tasks & Workflow**: Robust task/calendar sharing logic. **Now includes Task Submissions & Review Workflow.** (Light/Dark Mode cancelled per user request).
 
 ### General Refinements Completed
 - Skeleton loaders for Chat component
@@ -20,7 +20,65 @@
 
 ---
 
-## Latest Updates (2025-12-27 - Session 2)
+## Latest Updates (2025-12-27 - Session 4)
+
+### Completed Features & Refinements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Group Invite** | ✅ Done | Invite users by email/name via new Modal. Backend: `POST /groups/:groupId/invite`. |
+| **Friend Management** | ✅ Done | Added "Reject" button for pending requests and "Remove" for existing friends. |
+| **Task Logic** | ✅ Done | **Subtasks** (Add/Toggle), **Filters** (Status), **Sorting** (Date/Priority). |
+| **Admin Security** | ✅ Done | `/admin` route now strictly enforces `admin` role or username. |
+| **UI Polish** | ✅ Done | Removed "Online" state from Chat Header/SmartyBubble. Fixed Chat background. |
+| **Smarty Quick Actions** | ✅ Done | Updated questions text, added drag-to-scroll, populates input first (no auto-send). |
+| **UI/Dashboard Refactor** | ✅ Done | Restructured Dashboard (Mini Calendar, Widget Styles), Grouped Chats, Notification Tooltip. |
+
+**New Components:**
+- `InviteToGroupModal.tsx`: Search and invite users.
+- `TaskDetailModal.tsx`: Manage task details and subtasks.
+- `/app/faq/page.tsx`: Full public FAQ page.
+
+**Code Changes:**
+- `GroupDetailView.tsx`: Integrated new modals, added task filters/sorting.
+- `TaskService.ts`: Added `getTaskWithSubtasks`, `addSubtask`, `toggleSubtask`.
+- `FriendList.tsx`: Added Reject/Remove logic.
+- `admin/page.tsx`: Activated role-based security check.
+
+---
+
+## Previous Updates (2025-12-27 - Session 3)
+
+### SmartBoard Enhancement Implementation (From AI_AGENT_IMPLEMENTATION_PLAN.md)
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Notification Pop-out | ✅ Done | Real-time toast with 3s auto-dismiss, socket integration |
+| Dashboard Widgets | ✅ Done | Upcoming Events + Pending Tasks widgets in 2-column grid |
+| SmartyBubble Options | ✅ Done | Options menu (Ask/Let Smarty Do) + 10s auto-hide |
+| Friend Reject | ✅ Done | Backend endpoint + UI button |
+| Admin Page Fix | ✅ Done | Fixed corrupted syntax in admin/page.tsx |
+
+**New Files Created:**
+- `src/types/notification.ts` - Notification type interface
+- `src/components/NotificationPopup.tsx` - Pop-out toast component
+- `src/components/NotificationManager.tsx` - Socket listener + queue
+- `src/components/UpcomingEventsWidget.tsx` - Events widget
+- `src/components/PendingTasksWidget.tsx` - Tasks widget
+
+**Files Modified:**
+- `apps/frontend/src/app/dashboard/layout.tsx` - Added NotificationManager
+- `apps/frontend/src/app/dashboard/page.tsx` - 2-column widget layout
+- `apps/frontend/src/components/SmartyBubble.tsx` - Options menu + auto-hide
+- `apps/frontend/src/app/dashboard/chat/page.tsx` - Reject button UI
+- `apps/backend/src/services/notification.ts` - Socket emit on create
+- `apps/backend/src/services/friend.ts` - rejectFriend method
+- `apps/backend/src/index.ts` - NotificationService.setIO + reject endpoint
+
+**Verification:** TypeScript checks ✅ (frontend + backend)
+
+---
+
+## Previous Updates (2025-12-27 - Session 2)
 
 ### 1. Group Management Enhancements
 - **UI Update**: Replaced standard join code view with a "3-dot" menu in Group Detail header.
@@ -55,7 +113,7 @@
 | Chat/Socket | ✅ Ready | ✅ Ready | ✅ Ready |
 | Calendar | ✅ Ready | ✅ Ready | ✅ Ready |
 | **Task Submissions**| ✅ Ready | ✅ Ready | ✅ Ready |
-| Theming | N/A | ✅ Ready | N/A |
+| Theming (Cancelled) | N/A | N/A | N/A |
 
 ---
 

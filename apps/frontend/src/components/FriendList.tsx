@@ -48,6 +48,15 @@ export default function FriendList({ userId }: { userId: string }) {
         }
     };
 
+    const handleReject = async (id: string) => {
+        try {
+            await api.put(`/friends/${id}/reject`, {});
+            fetchFriends();
+        } catch (error) {
+            alert('Failed to reject friend request');
+        }
+    };
+
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to remove this friend?')) return;
         try {
@@ -82,12 +91,20 @@ export default function FriendList({ userId }: { userId: string }) {
                                     <p className="text-white font-medium">{friend.friend_details.user_name}</p>
                                     <p className="text-xs text-slate-400">{friend.friend_details.email}</p>
                                 </div>
-                                <button
-                                    onClick={() => handleAccept((friend as any).relationship_id)}
-                                    className="px-4 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-pink-500/20"
-                                >
-                                    Accept
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleAccept((friend as any).relationship_id)}
+                                        className="px-4 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-pink-500/20"
+                                    >
+                                        Accept
+                                    </button>
+                                    <button
+                                        onClick={() => handleReject((friend as any).relationship_id)}
+                                        className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>

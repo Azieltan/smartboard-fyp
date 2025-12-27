@@ -64,7 +64,14 @@ export class TaskService {
         try {
             const { ChatService } = require('./chat');
             const { GroupService } = require('./group');
-            const messageContent = `📋 New Task Assigned: **${insertPayload.title}**\nDue: ${insertPayload.due_date ? new Date(insertPayload.due_date).toLocaleDateString() : 'No Date'}`;
+
+            let assigneeName = '';
+            if (insertPayload.user_id && insertPayload.user_id !== insertPayload.created_by) {
+                const { data: user } = await supabase.from('users').select('user_name').eq('user_id', insertPayload.user_id).single();
+                if (user) assigneeName = ` (Assigned to: ${user.user_name})`;
+            }
+
+            const messageContent = `📋 New Task Created: **${insertPayload.title}**${assigneeName}\nDue: ${insertPayload.due_date ? new Date(insertPayload.due_date).toLocaleDateString() : 'No Date'}`;
 
             // 1. Group Notification
             if (insertPayload.group_id) {
@@ -177,9 +184,12 @@ export class TaskService {
                 await NotificationService.createNotification(
                     task.created_by,
                     'task_submission',
-                    'Task Submitted',
-                    `Task "${task.title}" has been submitted for review.`,
-                    { taskId, submissionId: submission.submission_id }
+                    {
+                        title: 'Task Submitted',
+                        message: `Task "${task.title}" has been submitted for review.`,
+                        taskId,
+                        submissionId: submission.submission_id
+                    }
                 );
             }
         } catch (e) {
@@ -212,9 +222,11 @@ export class TaskService {
                 await NotificationService.createNotification(
                     submission.user_id,
                     'task_review',
-                    `Task ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-                    `Your submission for "${task.title}" was ${status}.${feedback ? ` Feedback: ${feedback}` : ''}`,
-                    { taskId: task.task_id }
+                    {
+                        title: `Task ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+                        message: `Your submission for "${task.title}" was ${status}.${feedback ? ` Feedback: ${feedback}` : ''}`,
+                        taskId: task.task_id
+                    }
                 );
             } catch (e) {
                 console.error('Failed to notify submitter', e);
@@ -236,4 +248,17 @@ export class TaskService {
         if (error) throw new Error(error.message);
         return data;
     }
+
+    static async getTaskWithSubtasks(taskId: string): Promise<any> {
+        const { data: task, error } = await supabase
+            .from('tasks')
+            .select('*, subtasks(*)')
+            .eq('task_id', taskId)
+            .single();
+
+        if (error) throw new Error(error.message);
+        return task;
+    }
 }
+
+

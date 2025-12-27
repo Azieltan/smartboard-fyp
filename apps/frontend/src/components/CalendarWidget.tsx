@@ -58,35 +58,41 @@ export default function CalendarWidget({ userId }: CalendarWidgetProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Upcoming Events Column */}
-                <div className="glass-panel p-6 h-[400px] flex flex-col bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 shadow-sm">
-                    <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <div className="relative overflow-hidden rounded-2xl p-6 h-[400px] flex flex-col bg-[#1e293b] border border-white/10 shadow-xl group">
+                    {/* Background Illustration */}
+                    <div className="absolute -right-6 -bottom-6 text-blue-500/5 transform rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
+                        <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z" />
                         </svg>
+                    </div>
+
+                    <h4 className="relative z-10 text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
                         Upcoming Events
                     </h4>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                    <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                         {isLoading ? (
-                            [1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-white/5 rounded-xl animate-pulse"></div>)
+                            [1, 2, 3].map(i => <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse"></div>)
                         ) : events.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 space-y-3">
-                                <svg className="w-12 h-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-3">
                                 <p className="text-sm font-medium">No upcoming events</p>
                             </div>
                         ) : (
                             events.map(event => (
-                                <div key={event.id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all group">
+                                <div key={event.id} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group/item">
                                     <div className="flex items-start gap-3">
-                                        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+                                        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/20 group-hover/item:scale-105 transition-transform">
                                             <span className="text-[10px] uppercase font-bold">{new Date(event.start).toLocaleString('default', { month: 'short' })}</span>
                                             <span className="text-lg font-bold leading-none">{new Date(event.start).getDate()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <h4 className="font-semibold text-slate-800 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                <h4 className="font-semibold text-white truncate group-hover/item:text-blue-400 transition-colors">
                                                     {event.title}
                                                 </h4>
                                                 {event.isShared && (
@@ -98,7 +104,7 @@ export default function CalendarWidget({ userId }: CalendarWidgetProps) {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                                <span className="text-xs text-slate-400 flex items-center gap-1">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
@@ -114,40 +120,46 @@ export default function CalendarWidget({ userId }: CalendarWidgetProps) {
                 </div>
 
                 {/* My Tasks Column */}
-                <div className="glass-panel p-6 h-[400px] flex flex-col bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 shadow-sm">
-                    <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                <div className="relative overflow-hidden rounded-2xl p-6 h-[400px] flex flex-col bg-[#1e293b] border border-white/10 shadow-xl group">
+                    {/* Background Illustration */}
+                    <div className="absolute -right-6 -bottom-6 text-emerald-500/5 transform -rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
+                        <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                         </svg>
+                    </div>
+
+                    <h4 className="relative z-10 text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                        </div>
                         My Pending Tasks
                     </h4>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                    <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                         {isLoading ? (
-                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-white/5 rounded-xl animate-pulse"></div>)
+                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse"></div>)
                         ) : tasks.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 space-y-3">
-                                <svg className="w-12 h-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-3">
                                 <p className="text-sm font-medium">No pending tasks</p>
                             </div>
                         ) : (
                             tasks.map(task => (
-                                <div key={task.id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all group">
+                                <div key={task.id} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group/item">
                                     <div className="flex justify-between items-start">
                                         <div className="flex-1 min-w-0 mr-2">
-                                            <p className="font-semibold text-slate-800 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                            <p className="font-semibold text-white truncate group-hover/item:text-emerald-400 transition-colors">
                                                 {task.title.replace('Task: ', '')}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${task.priority === 'high' ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' :
-                                                    task.priority === 'medium' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' :
-                                                        'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${task.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                                                    task.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-blue-500/20 text-blue-400'
                                                     }`}>
                                                     {task.priority || 'NORMAL'}
                                                 </span>
-                                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                <span className="text-xs text-slate-400">
                                                     Due: {new Date(task.start).toLocaleDateString()}
                                                 </span>
                                             </div>

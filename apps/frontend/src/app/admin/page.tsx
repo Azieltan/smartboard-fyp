@@ -2,28 +2,57 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '../../lib/api';
 
 export default function AdminPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeTasks: 0,
+    systemStatus: 'Checking...',
+    recentActivity: [] as any[]
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simple role check (mock for now, replace with real auth check)
+    // 1. Auth Check
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      // In a real app, you'd check user.role === 'admin'
-      // For now, we'll allow access if the user exists, but normally we'd redirect
-      // if (user.role !== 'admin') {
-      //     router.push('/dashboard');
-      // } else {
-      //     setAuthorized(true);
-      // }
-      setAuthorized(true); // Allowing all logged-in users for testing purposes as requested
+      if (user.role !== 'admin' && user.user_name !== 'admin') {
+        router.push('/dashboard');
+      } else {
+        setAuthorized(true);
+        fetchStats();
+      }
     } else {
       router.push('/login');
     }
   }, [router]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/admin/stats');
+      setStats(res);
+    } catch (error) {
+      console.error('Failed to fetch admin stats:', error);
+      setStats(prev => ({ ...prev, systemStatus: 'Error' }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
 
   if (!authorized) return null;
 
@@ -37,31 +66,41 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-panel p-6 border-l-4 border-blue-500">
           <h3 className="text-lg font-bold text-white mb-2">Total Users</h3>
-          <p className="text-3xl font-bold text-blue-400">1,234</p>
+          <p className="text-3xl font-bold text-blue-400">
+            {loading ? <span className="animate-pulse">...</span> : stats.totalUsers}
+          </p>
         </div>
         <div className="glass-panel p-6 border-l-4 border-green-500">
           <h3 className="text-lg font-bold text-white mb-2">Active Tasks</h3>
-          <p className="text-3xl font-bold text-green-400">856</p>
+          <p className="text-3xl font-bold text-green-400">
+            {loading ? <span className="animate-pulse">...</span> : stats.activeTasks}
+          </p>
         </div>
         <div className="glass-panel p-6 border-l-4 border-purple-500">
           <h3 className="text-lg font-bold text-white mb-2">System Status</h3>
-          <p className="text-3xl font-bold text-purple-400">Healthy</p>
+          <p className="text-3xl font-bold text-purple-400">{stats.systemStatus}</p>
         </div>
       </div>
 
       <div className="glass-panel p-6">
         <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <div className="flex-1">
-                <p className="text-white font-medium">User registration</p>
-                <p className="text-sm text-slate-400">New user joined the platform</p>
+          {loading ? (
+            <div className="text-slate-500 italic">Loading activity...</div>
+          ) : stats.recentActivity.length > 0 ? (
+            stats.recentActivity.map((activity, i) => (
+              <div key={i} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg transition-colors hover:bg-white/10">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <div className="flex-1">
+                  <p className="text-white font-medium">{activity.type}</p>
+                  <p className="text-sm text-slate-400">{activity.description}</p>
+                </div>
+                <span className="text-xs text-slate-500">{formatTimeAgo(activity.timestamp)}</span>
               </div>
-              <span className="text-xs text-slate-500">2 mins ago</span>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="text-slate-500 italic">No recent activity.</div>
+          )}
         </div>
       </div>
     </div>

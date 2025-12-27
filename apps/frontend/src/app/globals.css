@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
-:root,
-.dark {
-  --background: #0f172a;
-  /* Slate 900 */
+:root {
+  --background: #020617;
+  /* Slate 950 - Deeper premium dark */
   --foreground: #f8fafc;
   /* Slate 50 */
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --border-color: rgba(255, 255, 255, 0.1);
-  --text-primary: #ffffff;
+  --card-bg: rgba(30, 41, 59, 0.5);
+  /* Slate 800 with opacity for glassmorphism */
+  --border-color: rgba(148, 163, 184, 0.1);
+  /* Slate 400 with low opacity */
+  --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --primary: #3b82f6;
@@ -22,21 +23,6 @@
   --amber: #f59e0b;
 }
 
-.light {
-  --background: #f8fafc;
-  /* Slate 50 */
-  --foreground: #0f172a;
-  /* Slate 900 */
-  --card-bg: rgba(0, 0, 0, 0.03);
-  --border-color: rgba(0, 0, 0, 0.1);
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --primary: #3b82f6;
-  --secondary: #64748b;
-  --accent: #8b5cf6;
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
@@ -45,8 +31,10 @@ body {
 }
 
 .chat-bg-pattern {
-  background-image: url('/chat-pattern.svg');
-  background-size: 24px 24px;
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.03) 0px, transparent 50%);
 }
 
 /* Animations */
@@ -322,5 +310,16 @@ body {
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(139, 92, 246, 0.7);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }

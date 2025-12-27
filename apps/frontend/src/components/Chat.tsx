@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
 import AddMemberModal from './AddMemberModal';
 import CreateGroupModal from './CreateGroupModal';
@@ -8,6 +8,7 @@ import JoinGroupModal from './JoinGroupModal';
 import AddFriendModal from './AddFriendModal';
 import GroupInfoModal from './GroupInfoModal';
 import { socket } from '../lib/socket';
+import Image from 'next/image';
 
 interface Message {
     message_id: string;
@@ -27,12 +28,13 @@ interface ChatProps {
     role?: string;
 }
 
-export default function Chat({ groupId, userId, title = 'Conversation', type = 'group', role }: ChatProps) {
+export default function Chat({ groupId, userId, title = 'Conversation', type = 'group' }: ChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [chatId, setChatId] = useState<string | null>(null);
+    const [effectiveGroupId, setEffectiveGroupId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const lastSentRef = useRef<{ content: string, time: number }>({ content: '', time: 0 });
     const [showMenu, setShowMenu] = useState(false);
@@ -42,39 +44,69 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     const [showGroupInfo, setShowGroupInfo] = useState(false);
 
     // Header Menu & Modals
-    const [showHeaderMenu, setShowHeaderMenu] = useState(false);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showJoinGroup, setShowJoinGroup] = useState(false);
     const [showAddFriend, setShowAddFriend] = useState(false);
 
-    // 1. Get Chat Details (ID) for Socket Room
+    // 1. Resolve the effective groupId for this conversation.
+    // - For group chats: groupId is already a real group_id.
+    // - For DMs: groupId is the friend user_id; we must call /chats/dm to get/create the underlying direct-chat group.
     useEffect(() => {
-        if (groupId) {
-            fetchChatDetails();
-            fetchMessages(); // Initial fetch
-        }
-    }, [groupId]);
+        let cancelled = false;
 
-    const fetchChatDetails = async () => {
-        try {
-            const chat = await api.get(`/chats/group/${groupId}`);
-            if (chat && chat.chat_id) {
-                setChatId(chat.chat_id);
+        const initConversation = async () => {
+            if (!groupId || !userId) return;
+
+            // Reset state when switching conversations
+            setMessages([]);
+            setChatId(null);
+            setEffectiveGroupId(null);
+
+            if (type === 'dm') {
+                try {
+                    const dm = await api.post('/chats/dm', { user1Id: userId, user2Id: groupId });
+                    if (cancelled) return;
+                    if (dm?.groupId) setEffectiveGroupId(dm.groupId);
+                    if (dm?.chatId) setChatId(dm.chatId);
+                } catch (error: unknown) {
+                    console.error('Failed to init DM chat', error);
+                }
+                return;
             }
-        } catch (error) {
-            console.error('Failed to get chat details', error);
-        }
-    };
+
+            // Group chat
+            setEffectiveGroupId(groupId);
+
+            try {
+                const chat = await api.get(`/chats/group/${groupId}`);
+                if (cancelled) return;
+                if (chat && chat.chat_id) {
+                    setChatId(chat.chat_id);
+                }
+            } catch (error: unknown) {
+                // Ignore 404s as it just means the chat hasn't been created yet (will be created on first message)
+                const err = error as { response?: { status?: number } };
+                if (err?.response?.status !== 404) {
+                    console.error('Failed to get chat details', error);
+                }
+            }
+        };
+
+        initConversation();
+        return () => {
+            cancelled = true;
+        };
+    }, [groupId, userId, type]);
 
     // 2. Socket Connection Logic
     useEffect(() => {
-        if (!groupId) return;
+        if (!effectiveGroupId) return;
 
-        console.log('Connecting socket for chat group:', groupId);
+        console.log('Connecting socket for chat group:', effectiveGroupId);
         socket.connect();
 
         // Ensure we are in the correct room
-        socket.emit('join_room', groupId);
+        socket.emit('join_room', effectiveGroupId);
 
         const handleNewMessage = (msg: Message) => {
             console.log('Received socket message:', msg);
@@ -91,27 +123,36 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         socket.on('new_message', handleNewMessage);
 
         return () => {
-            console.log('Cleaning up socket for group:', groupId);
-            socket.emit('leave_room', groupId);
+            console.log('Cleaning up socket for group:', effectiveGroupId);
+            socket.emit('leave_room', effectiveGroupId);
             socket.off('new_message', handleNewMessage);
         };
-    }, [groupId]); // Depend directly on groupId for stability
+    }, [effectiveGroupId]);
 
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async (targetGroupId?: string | null) => {
+        const gid = targetGroupId ?? effectiveGroupId;
+        if (!gid) return;
         try {
-            const data = await api.get(`/chats/${groupId}/messages`);
+            const data = await api.get(`/chats/${gid}/messages`);
             if (Array.isArray(data)) {
                 setMessages(data);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Failed to fetch messages:', error);
         }
-    };
+    }, [effectiveGroupId]);
+
+    useEffect(() => {
+        if (effectiveGroupId) {
+            fetchMessages(effectiveGroupId);
+        }
+    }, [effectiveGroupId, fetchMessages]);
 
     const sendMessage = async (e?: React.FormEvent, contentOverride?: string) => {
         if (e) e.preventDefault();
         const content = contentOverride || newMessage;
         if (!content.trim() || isLoading) return;
+        if (!effectiveGroupId) return;
 
         // Rate limiting: Prevent sending the exact same message twice within 1 second
         const now = Date.now();
@@ -123,7 +164,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
 
         const tempMessage: Message = {
             message_id: `temp-${Date.now()}`,
-            chat_id: chatId || groupId, // Fallback
+            chat_id: chatId || effectiveGroupId, // Fallback
             user_id: userId,
             content,
             send_time: new Date().toISOString()
@@ -135,7 +176,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         setIsLoading(true);
 
         try {
-            const savedMessage = await api.post(`/chats/${groupId}/messages`, {
+            const savedMessage = await api.post(`/chats/${effectiveGroupId}/messages`, {
                 userId,
                 content
             });
@@ -148,9 +189,11 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 }
                 return [...withoutTemp, savedMessage];
             });
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            alert('Failed to send message');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { error?: string } }, message?: string };
+            const errorMessage = err?.response?.data?.error || err?.message || 'Failed to send message';
+            console.error('Failed to send message:', errorMessage);
+            alert(`Failed to send message: ${errorMessage}`);
             setMessages(prev => prev.filter(msg => msg.message_id !== tempMessage.message_id));
         } finally {
             setIsLoading(false);
@@ -194,9 +237,10 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 : `[${file.name}](${data.url})`;
 
             await sendMessage(undefined, messageContent);
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const err = error as { message?: string };
             console.error('Upload error:', error);
-            alert(`Failed to upload file: ${error.message}`);
+            alert(`Failed to upload file: ${err?.message || 'Upload failed'}`);
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -210,9 +254,11 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         if (imageMatch) {
             return (
                 <div className="space-y-2">
-                    <img
+                    <Image
                         src={imageMatch[1]}
                         alt="Attachment"
+                        width={800}
+                        height={600}
                         className="max-w-full rounded-lg border border-white/10 max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                         loading="lazy"
                         onClick={() => window.open(imageMatch[1], '_blank')}
@@ -259,9 +305,9 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     }
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-[#0f172a]">
+        <div className="flex flex-col h-full overflow-hidden bg-[#0f172a]">
             {/* WhatsApp Style Header */}
-            <div className="h-16 border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-[#1e293b]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
+            <div className="h-16 border-b border-white/5 bg-[#1e293b]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${type === 'group' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-teal-500 to-emerald-600'}`}>
                         {title.slice(0, 1).toUpperCase()}
@@ -316,7 +362,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar chat-bg-pattern bg-slate-50/50 dark:bg-transparent bg-blend-soft-light">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar chat-bg-pattern">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 space-y-2 opacity-50">
                         <span className="text-4xl">✨</span>
@@ -357,7 +403,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-white/80 dark:bg-[#1e293b]/80 backdrop-blur-md border-t border-slate-200 dark:border-white/5">
+            <div className="p-4 bg-[#1e293b]/80 backdrop-blur-md border-t border-white/5">
                 <form onSubmit={sendMessage} className="max-w-4xl mx-auto flex gap-3 items-center">
                     <input
                         type="file"
@@ -387,11 +433,8 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Type a message..."
-                            className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm shadow-inner"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm shadow-inner"
                         />
-                        <button className="absolute right-3 text-2xl hover:scale-110 transition-transform">
-                            😊
-                        </button>
                     </div>
 
                     <button
@@ -399,7 +442,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                         disabled={isLoading || !newMessage.trim()}
                         className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all shadow-lg ${!newMessage.trim() ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-blue-600/20'}`}
                     >
-                        <svg className="w-6 h-6 rotate-90 fill-current" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 ml-1 fill-current" viewBox="0 0 24 24">
                             <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" />
                         </svg>
                     </button>

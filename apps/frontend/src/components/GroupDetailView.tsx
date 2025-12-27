@@ -6,6 +6,8 @@ import Chat from './Chat';
 import TaskSubmissionModal from './TaskSubmissionModal';
 import TaskReviewModal from './TaskReviewModal';
 import CreateTaskModal from './CreateTaskModal';
+import InviteToGroupModal from './InviteToGroupModal';
+import TaskDetailModal from './TaskDetailModal';
 
 interface GroupMember {
     group_id: string;
@@ -61,6 +63,12 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [showTaskDetailModal, setShowTaskDetailModal] = useState(false);
+
+    // Filters & Sorting
+    const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [sortBy, setSortBy] = useState<'date' | 'priority'>('date');
 
     useEffect(() => {
         fetchGroupDetails();
@@ -226,6 +234,13 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                         {/* 3-Dot Menu */}
                         <div className="relative">
                             <button
+                                onClick={() => setShowInviteModal(true)}
+                                className="mr-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-500/20"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                Invite
+                            </button>
+                            <button
                                 onClick={() => setShowMenu(!showMenu)}
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-600 dark:text-slate-200 transition-all shadow-sm"
                             >
@@ -377,175 +392,239 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                     {/* Tasks Tab */}
                     {activeTab === 'tasks' && (
                         <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-slate-900 dark:text-white">Group Tasks</h3>
-                                {(isOwner || myRole?.role === 'admin') && (
-                                    <button
-                                        onClick={() => setShowTaskModal(true)}
-                                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-all"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                        Assign Task
-                                    </button>
-                                )}
-                            </div>
-
-                            {tasks.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-                                        <svg className="w-8 h-8 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                        </svg>
-                                    </div>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm">No tasks assigned to this group</p>
+                            <div className="flex flex-col gap-4 mb-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-900 dark:text-white">Group Tasks</h3>
                                     {(isOwner || myRole?.role === 'admin') && (
                                         <button
                                             onClick={() => setShowTaskModal(true)}
-                                            className="mt-3 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-all"
                                         >
-                                            Create the first task
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                            Assign Task
                                         </button>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {tasks.map(task => (
-                                        <div key={task.task_id} className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <p className="font-medium text-slate-900 dark:text-white">{task.title}</p>
-                                                    {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{task.description}</p>}
 
-                                                    {/* Task Actions */}
-                                                    <div className="flex items-center gap-2 mt-3">
-                                                        {/* Submit Button */}
-                                                        {task.status !== 'done' && task.status !== 'in_review' && (
-                                                            <button
-                                                                onClick={() => { setSelectedTask(task); setShowSubmitModal(true); }}
-                                                                className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all"
-                                                            >
-                                                                Submit Work
-                                                            </button>
-                                                        )}
+                                {/* Filters & Sort Controls */}
+                                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                    <select
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs px-2 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="todo">To Do</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="in_review">In Review</option>
+                                        <option value="done">Done</option>
+                                    </select>
 
-                                                        {/* Review Button */}
-                                                        {task.status === 'in_review' && (isOwner || myRole?.role === 'admin' || task.created_by === userId) && (
-                                                            <button
-                                                                onClick={() => { setSelectedTask(task); setShowReviewModal(true); }}
-                                                                className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all"
-                                                            >
-                                                                Review Submission
-                                                            </button>
-                                                        )}
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value as any)}
+                                        className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs px-2 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="date">Sort by Date</option>
+                                        <option value="priority">Sort by Priority</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Filtered List Logic */}
+                            {(() => {
+                                let filteredTasks = tasks.filter(t => filterStatus === 'all' || t.status === filterStatus);
+                                filteredTasks.sort((a, b) => {
+                                    if (sortBy === 'date') {
+                                        if (!a.due_date) return 1;
+                                        if (!b.due_date) return -1;
+                                        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                                    } else {
+                                        // Priority: High > Medium > Low
+                                        const pMap: any = { high: 3, medium: 2, low: 1 };
+                                        return (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+                                    }
+                                });
+
+                                if (filteredTasks.length === 0) {
+                                    return (
+                                        <div className="text-center py-12">
+                                            <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                                                <svg className="w-8 h-8 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-slate-500 dark:text-slate-400 text-sm">No tasks found</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-2">
+                                        {filteredTasks.map(task => (
+                                            <div
+                                                key={task.task_id}
+                                                className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer group"
+                                                onClick={() => { setSelectedTask(task); setShowTaskDetailModal(true); }}
+                                            >
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-medium text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">{task.title}</p>
+                                                            {task.priority === 'high' && <span className="w-2 h-2 rounded-full bg-red-500"></span>}
+                                                        </div>
+                                                        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{task.description}</p>}
+
+                                                        {/* Task Actions */}
+                                                        <div className="flex items-center gap-2 mt-3" onClick={e => e.stopPropagation()}>
+                                                            {/* Submit Button */}
+                                                            {task.status !== 'done' && task.status !== 'in_review' && (
+                                                                <button
+                                                                    onClick={() => { setSelectedTask(task); setShowSubmitModal(true); }}
+                                                                    className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all"
+                                                                >
+                                                                    Submit Work
+                                                                </button>
+                                                            )}
+
+                                                            {/* Review Button */}
+                                                            {task.status === 'in_review' && (isOwner || myRole?.role === 'admin' || task.created_by === userId) && (
+                                                                <button
+                                                                    onClick={() => { setSelectedTask(task); setShowReviewModal(true); }}
+                                                                    className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all"
+                                                                >
+                                                                    Review Submission
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-1">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
-                                                        task.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' :
-                                                            task.status === 'in_review' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' :
-                                                                'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400'
-                                                        }`}>
-                                                        {task.status.replace('_', ' ').toUpperCase()}
-                                                    </span>
-                                                    {task.due_date && (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                                            task.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' :
+                                                                task.status === 'in_review' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                                                                    'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400'
+                                                            }`}>
+                                                            {task.status.replace('_', ' ').toUpperCase()}
+                                                        </span>
                                                         <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                                             Due: {new Date(task.due_date).toLocaleDateString()}
                                                         </span>
                                                     )}
+                                                        {task.user_id && (
+                                                            <span className="text-[10px] bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-300">
+                                                                👤 {members.find(m => m.user_id === task.user_id)?.user_name || 'Member'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
+                                ))}
+                        </div>
+                    );
+                        })()}
+                </div>
+                    )}
+            </div>
+
+            {/* Task Modal */}
+            {showTaskModal && (
+                <CreateTaskModal
+                    userId={userId}
+                    groupId={groupId}
+                    onClose={() => setShowTaskModal(false)}
+                    onTaskCreated={() => {
+                        setShowTaskModal(false);
+                        fetchTasks();
+                    }}
+                />
+            )}
+
+            {/* Group Settings Modal */}
+            {showSettingsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Group Settings</h3>
+                            <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Option: Join Code */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Join Code</label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-center tracking-widest">
+                                        {group?.join_code}
+                                    </div>
+                                    <button
+                                        onClick={regenerateCode}
+                                        className="px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-xl font-medium transition-colors"
+                                    >
+                                        Regenerate
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Share this code with people you want to add to the group.</p>
+                            </div>
+
+                            <div className="border-t border-slate-100 dark:border-white/5"></div>
+
+                            {/* Option: Danger Zone */}
+                            {myRole?.role === 'owner' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
+                                    <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
+                                        Delete Group
+                                    </button>
                                 </div>
                             )}
                         </div>
-                    )}
-                </div>
-
-                {/* Task Modal */}
-                {showTaskModal && (
-                    <CreateTaskModal
-                        userId={userId}
-                        groupId={groupId}
-                        onClose={() => setShowTaskModal(false)}
-                        onTaskCreated={() => {
-                            setShowTaskModal(false);
-                            fetchTasks();
-                        }}
-                    />
-                )}
-
-                {/* Group Settings Modal */}
-                {showSettingsModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Group Settings</h3>
-                                <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-
-                            <div className="space-y-6">
-                                {/* Option: Join Code */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Join Code</label>
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-center tracking-widest">
-                                            {group?.join_code}
-                                        </div>
-                                        <button
-                                            onClick={regenerateCode}
-                                            className="px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-xl font-medium transition-colors"
-                                        >
-                                            Regenerate
-                                        </button>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-2">Share this code with people you want to add to the group.</p>
-                                </div>
-
-                                <div className="border-t border-slate-100 dark:border-white/5"></div>
-
-                                {/* Option: Danger Zone */}
-                                {myRole?.role === 'owner' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
-                                        <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
-                                            Delete Group
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* Task Modals */}
-                {showSubmitModal && selectedTask && (
-                    <TaskSubmissionModal
-                        taskId={selectedTask.task_id}
-                        userId={userId}
-                        taskTitle={selectedTask.title}
-                        onClose={() => setShowSubmitModal(false)}
-                        onSubmitSuccess={() => {
-                            setShowSubmitModal(false);
-                            fetchTasks();
-                        }}
-                    />
-                )}
+            {/* Task Modals */}
+            {showSubmitModal && selectedTask && (
+                <TaskSubmissionModal
+                    taskId={selectedTask.task_id}
+                    userId={userId}
+                    taskTitle={selectedTask.title}
+                    onClose={() => setShowSubmitModal(false)}
+                    onSubmitSuccess={() => {
+                        setShowSubmitModal(false);
+                        fetchTasks();
+                    }}
+                />
+            )}
 
-                {showReviewModal && selectedTask && (
-                    <TaskReviewModal
-                        taskId={selectedTask.task_id}
-                        taskTitle={selectedTask.title}
-                        onClose={() => setShowReviewModal(false)}
-                        onReviewComplete={() => {
-                            setShowReviewModal(false);
-                            fetchTasks();
-                        }}
-                    />
-                )}
-            </div>
+            {showReviewModal && selectedTask && (
+                <TaskReviewModal
+                    taskId={selectedTask.task_id}
+                    taskTitle={selectedTask.title}
+                    onClose={() => setShowReviewModal(false)}
+                    onReviewComplete={() => {
+                        setShowReviewModal(false);
+                        fetchTasks();
+                    }}
+                />
+            )}
+            {(showInviteModal) && (
+                <InviteToGroupModal
+                    groupId={groupId}
+                    userId={userId}
+                    onClose={() => setShowInviteModal(false)}
+                />
+            )}
+            {showTaskDetailModal && selectedTask && (
+                <TaskDetailModal
+                    task={selectedTask}
+                    onClose={() => setShowTaskDetailModal(false)}
+                    onUpdate={fetchTasks}
+                />
+            )}
         </div>
+        </div >
     );
 }

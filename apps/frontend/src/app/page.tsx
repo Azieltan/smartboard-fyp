@@ -213,7 +213,7 @@ export default function Home() {
                 <h2 className="text-2xl sm:text-3xl font-bold">FAQ</h2>
                 <p className="text-slate-400 mt-2">Quick answers to common SmartBoard questions.</p>
               </div>
-              <Link href="/dashboard/faq" className="text-sm text-violet-300 hover:text-violet-200 transition-colors whitespace-nowrap">
+              <Link href="/faq" className="text-sm text-violet-300 hover:text-violet-200 transition-colors whitespace-nowrap">
                 View all FAQs
               </Link>
             </div>

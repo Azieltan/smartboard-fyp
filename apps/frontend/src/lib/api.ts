@@ -9,13 +9,28 @@ const getHeaders = () => {
 };
 
 const handleResponse = async (res: Response) => {
-    const data = await res.json();
-    if (!res.ok) {
-        throw {
-            response: { data }
-        };
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            console.error("Failed to parse JSON response:", e);
+            throw new Error(`Failed to parse JSON response from ${res.url}`);
+        }
+
+        if (!res.ok) {
+            throw {
+                response: { data, status: res.status, url: res.url }
+            };
+        }
+        return data;
+    } else {
+        // Not JSON (likely HTML error page)
+        const text = await res.text();
+        console.error(`API Error (${res.status}) at ${res.url}:`, text.substring(0, 200)); // Log first 200 chars
+        throw new Error(`API returned non-JSON response (${res.status}) from ${res.url}`);
     }
-    return data;
 };
 
 export const api = {

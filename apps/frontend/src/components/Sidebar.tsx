@@ -3,16 +3,16 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { ThemeToggle } from './ThemeToggle';
 import { NotificationBell } from './NotificationBell';
 
 interface User {
     user_id: string;
     username: string;
     email: string;
+    role?: string;
 }
 
-const navigation = [
+const staticNavigation = [
     {
         name: 'Dashboard',
         href: '/dashboard',
@@ -70,7 +70,7 @@ const navigation = [
 export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [user, setUser] = useState<{ user_id: string; username?: string; email?: string } | null>(null);
+    const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -84,6 +84,19 @@ export function Sidebar() {
         }
     }, []);
 
+    const navigation = [...staticNavigation];
+    if (user?.role === 'admin') {
+        navigation.splice(4, 0, { // Insert before Settings
+            name: 'Admin Panel',
+            href: '/admin',
+            icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+            ),
+            gradient: 'from-orange-500 to-red-500'
+        });
+    }
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -96,7 +109,7 @@ export function Sidebar() {
     };
 
     return (
-        <div className="w-72 bg-[var(--background)] border-r border-[var(--border-color)] flex flex-col h-screen sticky top-0 transition-colors duration-300">
+        <div className="w-72 bg-[var(--background)] border-r border-[var(--border-color)] flex flex-col h-screen sticky top-0 transition-colors duration-300 z-50">
             {/* Logo */}
             <div className="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-white/10">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-violet-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/30 animate-bounce-subtle">
@@ -147,11 +160,15 @@ export function Sidebar() {
                         <div className="flex-1 min-w-0 text-left">
                             <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.username || 'User'}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
+                            {user?.role && (
+                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ml-[-2px] mt-1 inline-block ${user.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
+                                    {user.role}
+                                </span>
+                            )}
                         </div>
                     </Link>
                     <div className="flex items-center gap-1">
                         {user && <NotificationBell userId={user.user_id} />}
-                        <ThemeToggle />
                         <button
                             onClick={handleLogout}
                             className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-lg transition-colors"

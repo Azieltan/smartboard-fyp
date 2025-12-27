@@ -25,6 +25,7 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
     const [friends, setFriends] = useState<any[]>([]);
 
     useEffect(() => {
+        if (!userId) return;
         // Fetch sharing options
         const fetchOptions = async () => {
             try {

@@ -78,7 +78,7 @@ export default function SettingsPage() {
   if (!user) return <div className="text-slate-400 p-8">Loading...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto w-full p-8 py-12 space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Settings</h1>
         <button

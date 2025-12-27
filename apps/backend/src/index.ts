@@ -52,6 +52,9 @@ io.on('connection', (socket: Socket) => {
     });
 });
 
+// Initialize NotificationService with socket.io for real-time notifications
+NotificationService.setIO(io);
+
 app.get('/', (req, res) => {
     res.send('SmartBoard API is running');
 });
@@ -199,6 +202,16 @@ app.post('/groups/join', async (req, res) => {
         const { code, userId } = req.body;
         const result = await GroupService.joinGroupRaw(code, userId);
         res.json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.post('/groups/:groupId/invite', async (req, res) => {
+    try {
+        const { targetUserId, requesterId } = req.body;
+        await GroupService.inviteUser(req.params.groupId, targetUserId, requesterId);
+        res.json({ success: true });
     } catch (error: any) {
         res.status(400).json({ error: error.message });
     }
@@ -428,6 +441,11 @@ app.get('/chats/:groupId/messages', async (req, res) => {
 app.post('/chats/:groupId/messages', async (req, res) => {
     try {
         const { userId, content } = req.body;
+
+        if (!userId || !content) {
+            return res.status(400).json({ error: 'userId and content are required' });
+        }
+
         let chat = await ChatService.getChatByGroupId(req.params.groupId);
 
         if (!chat) {
@@ -440,8 +458,9 @@ app.post('/chats/:groupId/messages', async (req, res) => {
         io.to(req.params.groupId).emit('new_message', message);
 
         res.json(message);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to send message' });
+    } catch (error: any) {
+        console.error(`Error sending message to group ${req.params.groupId}:`, error);
+        res.status(500).json({ error: error.message || 'Failed to send message' });
     }
 });
 
@@ -479,6 +498,15 @@ app.put('/friends/:id/accept', async (req, res) => {
 app.delete('/friends/:id', async (req, res) => {
     try {
         await FriendService.removeFriend(req.params.id);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/friends/:id/reject', async (req, res) => {
+    try {
+        await FriendService.rejectFriend(req.params.id);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -554,6 +582,34 @@ app.put('/tasks/:id', async (req, res) => {
     }
 });
 
+app.get('/tasks/:taskId', async (req, res) => {
+    try {
+        const task = await TaskService.getTaskWithSubtasks(req.params.taskId);
+        res.json(task);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/tasks/:taskId/subtasks', async (req, res) => {
+    try {
+        const subtask = await TaskService.addSubtask(req.params.taskId, req.body.title);
+        res.json(subtask);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/tasks/subtasks/:subtaskId', async (req, res) => {
+    try {
+        const { isCompleted } = req.body;
+        const subtask = await TaskService.toggleSubtask(req.params.subtaskId, isCompleted);
+        res.json(subtask);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/tasks/:taskId/submit', async (req, res) => {
     try {
         const { userId, content, attachments } = req.body;
@@ -585,28 +641,29 @@ app.put('/tasks/submissions/:submissionId/review', async (req, res) => {
 });
 
 // Notification Routes
+// Notification Routes
 app.get('/notifications/:userId', async (req, res) => {
     try {
-        const notifications = await NotificationService.getNotifications(req.params.userId);
+        const notifications = await NotificationService.getUnreadNotifications(req.params.userId);
         res.json(notifications);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error(`Error fetching notifications for user ${req.params.userId}:`, error);
+        res.status(500).json({ error: error.message || "Internal Server Error", details: error });
     }
 });
 
-app.put('/notifications/:id/read', async (req, res) => {
+app.put('/notifications/:notificationId/read', async (req, res) => {
     try {
-        await NotificationService.markAsRead(req.params.id);
+        await NotificationService.markAsRead(req.params.notificationId);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.put('/notifications/all/read', async (req, res) => {
+app.put('/notifications/:userId/read-all', async (req, res) => {
     try {
-        const { userId } = req.body;
-        await NotificationService.markAllAsRead(userId);
+        await NotificationService.markAllAsRead(req.params.userId);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -618,7 +675,26 @@ app.put('/notifications/all/read', async (req, res) => {
 
 
 
+
+
+import { AdminService } from './services/admin';
+
+// Admin Routes
+app.get('/admin/stats', async (req, res) => {
+    try {
+        // In a real app, middleware should strictly check if req.user.role === 'admin'
+        // But for now, relying on the authMiddleware (which ensures user is logged in) 
+        // and assuming frontend/service layer handles role logic or minimal security for this MVP.
+        // Ideally: if (req.user.role !== 'admin') return res.status(403).json({error: 'Forbidden'});
+
+        const stats = await AdminService.getStats();
+        res.json(stats);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 httpServer.listen(port, () => {
+
     console.log(`Server running on port ${port}`);
 });

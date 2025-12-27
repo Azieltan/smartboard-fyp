@@ -36,7 +36,7 @@ export class ChatService {
     static async sendMessage(chatId: string, userId: string, content: string): Promise<any> {
         const { data, error } = await supabase
             .from('messages')
-            .insert([{ chat_id: chatId, user_id: userId, content }])
+            .insert([{ chat_id: chatId, user_id: userId, content, send_time: new Date().toISOString() }])
             .select('*, users(user_name, email)')
             .single();
 

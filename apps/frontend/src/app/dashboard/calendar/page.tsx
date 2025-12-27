@@ -75,7 +75,7 @@ export default function CalendarPage() {
     if (!userId) return <div className="p-8 text-center text-slate-400">Please login to view calendar.</div>;
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col max-w-7xl mx-auto w-full p-6">
             <header className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-white">Calendar</h1>

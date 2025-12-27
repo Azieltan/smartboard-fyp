@@ -23,6 +23,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
     const [assigneeId, setAssigneeId] = useState(presetGroupId || '');
     const [friends, setFriends] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
+    const [groupMembers, setGroupMembers] = useState<any[]>([]);
+    const [specificAssigneeId, setSpecificAssigneeId] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -39,6 +41,23 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
         };
         fetchData();
     }, [userId]);
+
+    useEffect(() => {
+        if (assignType === 'group' && assigneeId) {
+            // Fetch group members when group is selected
+            const fetchMembers = async () => {
+                try {
+                    const data = await api.get(`/groups/${assigneeId}/members`);
+                    if (Array.isArray(data)) setGroupMembers(data);
+                } catch (e) {
+                    console.error("Failed to fetch group members", e);
+                }
+            };
+            fetchMembers();
+        } else {
+            setGroupMembers([]);
+        }
+    }, [assignType, assigneeId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,6 +80,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                 taskData.user_id = assigneeId;
             } else if (assignType === 'group') {
                 taskData.group_id = assigneeId;
+                if (specificAssigneeId) taskData.user_id = specificAssigneeId;
             }
 
             await api.post('/tasks', taskData);
@@ -248,19 +268,37 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                         )}
 
                         {assignType === 'group' && (
-                            <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                            <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
                                 {groups.length > 0 ? (
-                                    <select
-                                        value={assigneeId}
-                                        onChange={(e) => setAssigneeId(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-amber-500 outline-none transition-all"
-                                        required
-                                    >
-                                        <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Select a group...</option>
-                                        {groups.map(g => (
-                                            <option key={g.group_id} value={g.group_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">{g.name}</option>
-                                        ))}
-                                    </select>
+                                    <>
+                                        <select
+                                            value={assigneeId}
+                                            onChange={(e) => setAssigneeId(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-amber-500 outline-none transition-all"
+                                            required
+                                        >
+                                            <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Select a group...</option>
+                                            {groups.map(g => (
+                                                <option key={g.group_id} value={g.group_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">{g.name}</option>
+                                            ))}
+                                        </select>
+
+                                        {/* Optional Specific Member Assignment */}
+                                        {assigneeId && (
+                                            <select
+                                                value={specificAssigneeId}
+                                                onChange={(e) => setSpecificAssigneeId(e.target.value)}
+                                                className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-amber-500 outline-none transition-all text-sm"
+                                            >
+                                                <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Assign to entire group (Anyone can pick)</option>
+                                                {groupMembers.map(m => (
+                                                    <option key={m.user_id} value={m.user_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">
+                                                        Assign to: {m.user_name || m.email}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </>
                                 ) : (
                                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-200 text-xs text-center">
                                         You haven't joined any groups yet.

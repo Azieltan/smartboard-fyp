@@ -48,9 +48,11 @@ export class FriendService {
             await NotificationService.createNotification(
                 targetFriendId,
                 'friend_request',
-                'New Friend Request',
-                'You have a pending friend request',
-                { fromUserId: userId }
+                {
+                    title: 'New Friend Request',
+                    message: 'You have a pending friend request',
+                    sender_id: userId
+                }
             );
         } catch (e) {
             console.error('Failed to send notification', e);
@@ -116,6 +118,15 @@ export class FriendService {
             .from('friend_requests') // Assuming requests table holds relationship also
             .delete()
             .eq('request_id', relationshipId); // And 'request_id' is the PK
+
+        if (error) throw new Error(error.message);
+    }
+
+    static async rejectFriend(relationshipId: string): Promise<void> {
+        const { error } = await supabase
+            .from('friend_requests')
+            .update({ status: 'rejected' })
+            .eq('request_id', relationshipId);
 
         if (error) throw new Error(error.message);
     }
