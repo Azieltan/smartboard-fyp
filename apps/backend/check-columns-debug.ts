@@ -1,9 +1,16 @@
+import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://hwqykcvqbrqcsdmqrfci.supabase.co';
-const serviceKey = 'sb_secret_7hABIeqnFqzDFNdHHZ55uw_0RyKQAHU';
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
 
-const supabase = createClient(supabaseUrl, serviceKey);
+if (!supabaseUrl || !serviceKey) {
+    console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env file');
+    process.exit(1);
+}
+
+// Type assertion: we've validated these are defined above
+const supabase = createClient(supabaseUrl as string, serviceKey as string);
 
 async function checkColumns() {
     console.log('Checking columns for [groups] and [group_members]...');

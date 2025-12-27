@@ -1,5 +1,18 @@
 # SmartBoard FYP
 
+## 🔒 Security Notice
+
+**IMPORTANT**: This repository previously had sensitive credentials committed to git history. If you cloned this repository before December 26, 2024, please:
+
+1. **Delete your local clone and re-clone the repository** after the git history has been cleaned
+2. **Do not use any old credentials** - all credentials have been rotated
+3. **Read `SECURITY_REPORT.md`** for full details
+
+For more information:
+- 📋 `QUICK_REFERENCE.md` - Quick summary of findings and actions
+- 🔐 `SECURITY_REPORT.md` - Detailed security report
+- 🧹 `GIT_HISTORY_CLEANUP_GUIDE.md` - Guide for removing secrets from git history
+
 ## Getting Started
 
 Follow these steps to set up the project locally.
