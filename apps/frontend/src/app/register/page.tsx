@@ -256,10 +256,10 @@ export default function RegisterPage() {
                     {/* Benefits */}
                     <div className="space-y-4 text-left">
                         {[
-                            { icon: '✨', text: 'AI-powered task automation' },
-                            { icon: '📅', text: 'Smart calendar scheduling' },
+                            { icon: '✨', text: 'AI assistance with Ask Smarty' },
+                            { icon: '📅', text: 'Shared calendar scheduling' },
                             { icon: '💬', text: 'Real-time team collaboration' },
-                            { icon: '🔔', text: 'Intelligent reminders' }
+                            { icon: '🔔', text: 'In-app notifications & due dates' }
                         ].map((benefit, i) => (
                             <div
                                 key={i}
