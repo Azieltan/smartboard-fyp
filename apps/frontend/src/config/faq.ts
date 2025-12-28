@@ -8,7 +8,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-what-is-smartboard',
     q: 'What is SmartBoard?',
-    a: 'SmartBoard is a unified platform for academic and professional teams to manage calendars, tasks, and automated workflows with AI-powered assistance.',
+    a: 'SmartBoard is a unified platform for academic and professional teams to manage calendars, tasks, and collaboration in one place, with AI assistance (Ask Smarty).',
   },
 
   // Feature-specific (used by homepage “Learn more” anchors)
@@ -19,8 +19,8 @@ export const FAQ_DATA: FaqItem[] = [
   },
   {
     id: 'faq-smart-reminders',
-    q: 'How do Smart Reminders work?',
-    a: 'Smart Reminders notify you about upcoming deadlines and important status changes. Create tasks/events with due dates, and SmartBoard will surface reminders based on time and activity.',
+    q: 'How do notifications work?',
+    a: 'SmartBoard helps you stay on track with due dates and in-app notifications for important workflow updates. Scheduled reminder delivery is planned as a future enhancement.',
   },
   {
     id: 'faq-real-time-chat',
@@ -42,7 +42,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-task-reminders',
     q: 'Can I set reminders for my tasks?',
-    a: 'Yes. SmartBoard supports smart reminders for deadlines and status changes.',
+    a: 'SmartBoard currently supports due dates and in-app notifications for workflow updates. Scheduled reminders are planned as a future enhancement.',
   },
   {
     id: 'faq-join-group',
@@ -62,22 +62,22 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-upload-files',
     q: 'How do I upload files?',
-    a: 'Go to the File Submission page and use the upload button.',
+    a: 'Files are uploaded when you submit a task for review: go to Dashboard → Tasks, open a task, click “Submit”, then attach files in the submission form.',
   },
   {
     id: 'faq-automate',
     q: 'Can I automate repetitive tasks?',
-    a: 'Yes. Use the “Let Smarty Do” feature to automate workflows.',
+    a: 'Not yet. “Let Smarty Do” is planned as a future feature; currently, you can use “Ask Smarty” for guidance and help using the platform.',
   },
   {
     id: 'faq-reset-password',
     q: 'How do I reset my password?',
-    a: 'Click “Forgot Password” on the login page and follow the instructions.',
+    a: 'You can change your password in Dashboard → Settings → Security & Password. Email-based “forgot password” reset is not available yet.',
   },
   {
     id: 'faq-free',
     q: 'Is SmartBoard free to use?',
-    a: 'SmartBoard offers both free and premium plans.',
+    a: 'SmartBoard is currently an MVP/demo app and is free to use (no premium plan features are implemented).',
   },
   {
     id: 'faq-view-all-tasks',
@@ -87,12 +87,12 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-google-calendar',
     q: 'Can I integrate SmartBoard with Google Calendar?',
-    a: 'Integration options are available in the settings page.',
+    a: 'Not yet. External calendar integrations (Google Calendar/Outlook) are planned as future enhancements.',
   },
   {
     id: 'faq-delete-group',
     q: 'How do I delete a group?',
-    a: 'Only group admins can delete a group from the Groups page.',
+    a: 'Group deletion is not fully supported yet. Currently, group owners can manage members/roles and regenerate the join code in Group Settings.',
   },
   {
     id: 'faq-ask-smarty',
@@ -102,22 +102,22 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-profile-picture',
     q: 'How do I change my profile picture?',
-    a: 'Go to your account settings and upload a new profile image.',
+    a: 'Profile photo upload is not available yet. The app currently uses your initials as the default avatar (see Dashboard → Settings).',
   },
   {
     id: 'faq-assign-multiple',
     q: 'Can I assign tasks to multiple users?',
-    a: 'Yes. You can assign tasks to one or more group members.',
+    a: 'Not currently. A task can be assigned to one user, or assigned to a group (optionally targeting a specific member). Multi-user assignment is not implemented yet.',
   },
   {
     id: 'faq-complete-task',
     q: 'How do I mark a task as complete?',
-    a: 'Click on the task and select “Mark as Complete.”',
+    a: 'Tasks follow a simple workflow: the assignee can “Start” a task and “Submit” it for review. The task owner reviews the submission and approves it to close the task (Done).',
   },
   {
     id: 'faq-export-calendar',
     q: 'Can I export my calendar?',
-    a: 'Yes. Export options are available in the Calendar page.',
+    a: 'Not yet. Calendar export (e.g., iCal/ICS) is not implemented in the current version.',
   },
   {
     id: 'faq-logout',
@@ -127,7 +127,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-notifications',
     q: 'Can I customize notification settings?',
-    a: 'Yes. Manage notifications in your account settings.',
+    a: 'Not yet. The current version supports in-app notifications (view/read) but does not include notification preference settings.',
   },
   {
     id: 'faq-view-members',
@@ -137,17 +137,17 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-recurring-events',
     q: 'Can I create recurring events?',
-    a: 'Yes. When creating an event, select the recurrence option.',
+    a: 'Not yet. The current calendar supports creating one-time events; recurring events are a planned enhancement.',
   },
   {
     id: 'faq-support',
     q: 'How do I contact support?',
-    a: 'Use the “Contact Support” link in the app menu.',
+    a: 'Use Dashboard → Settings → Help & Support to access the FAQ. A dedicated “Contact Support” flow is not implemented yet.',
   },
   {
     id: 'faq-security',
     q: 'Is my data secure on SmartBoard?',
-    a: 'Yes. SmartBoard uses industry-standard security practices.',
+    a: 'SmartBoard uses authenticated access (Supabase Auth) and server APIs, but it is still an MVP. Use a strong password and avoid storing highly sensitive data.',
   },
   {
     id: 'faq-mobile',
@@ -157,7 +157,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-switch-workspaces',
     q: 'How do I switch between workspaces?',
-    a: 'Use the workspace switcher in the sidebar.',
+    a: 'Workspaces are not implemented. SmartBoard currently organizes collaboration through Groups.',
   },
   {
     id: 'faq-task-deadlines-in-calendar',
@@ -172,27 +172,27 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-search-files',
     q: 'Can I search for files?',
-    a: 'Yes. Use the search bar in the File Submission page.',
+    a: 'Not yet. File search is not implemented. Attachments are managed within task submissions.',
   },
   {
     id: 'faq-edit-task',
     q: 'How do I edit a task?',
-    a: 'Click on the task and select “Edit Task.”',
+    a: 'Task editing (title/description) is limited in the current version. You can update task status (Start/Submit) and manage subtasks from the task details view.',
   },
   {
     id: 'faq-email-notifications',
     q: 'Can I get email notifications?',
-    a: 'Yes. Enable email notifications in your settings.',
+    a: 'Not yet. Notifications are currently delivered inside the app only (in-app notifications).',
   },
   {
     id: 'faq-archive-group',
     q: 'How do I archive a group?',
-    a: 'Group admins can archive groups from the group settings.',
+    a: 'Not yet. Group archiving is not implemented in the current version.',
   },
   {
     id: 'faq-restore-tasks',
     q: 'Can I restore deleted tasks?',
-    a: 'Deleted tasks can be restored from the task archive.',
+    a: 'Not yet. Task archive/restore is not implemented in the current version.',
   },
   {
     id: 'faq-task-priorities',
@@ -207,12 +207,12 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-view-completed',
     q: 'How do I view completed tasks?',
-    a: 'Use the filter options on the Task Board to show completed tasks.',
+    a: 'Go to Dashboard → Tasks and open the “Completed” tab.',
   },
   {
     id: 'faq-mentions',
     q: 'Can I mention users in chat?',
-    a: 'Yes. Use @username to mention users in chat.',
+    a: 'Not yet. @mentions are not implemented in the current chat UI.',
   },
   {
     id: 'faq-create-group',
@@ -227,7 +227,7 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-upcoming-deadlines',
     q: 'How do I see upcoming deadlines?',
-    a: 'Check the Reminders section or your calendar.',
+    a: 'Check your Calendar and Task Board (due dates), and watch in-app notifications for updates.',
   },
   {
     id: 'faq-roles',
@@ -237,17 +237,17 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-delete-file',
     q: 'How do I delete a file?',
-    a: 'Select the file and click the delete icon.',
+    a: 'Not yet. Deleting uploaded attachments is not implemented in the current version.',
   },
   {
     id: 'faq-pin-messages',
     q: 'Can I pin important messages in chat?',
-    a: 'Yes. Use the pin option on any message.',
+    a: 'Not yet. Pinning messages is not implemented in the current chat UI.',
   },
   {
     id: 'faq-invite',
     q: 'How do I invite someone to SmartBoard?',
-    a: 'Use the invite link in your group or workspace.',
+    a: 'Invite someone to your group using the group join code or the group invite flow (Groups → Invite/Add Member).',
   },
   {
     id: 'faq-offline',
@@ -257,21 +257,21 @@ export const FAQ_DATA: FaqItem[] = [
   {
     id: 'faq-change-email',
     q: 'How do I change my email address?',
-    a: 'Update your email in account settings.',
+    a: 'Email changes are not supported in the current version (Dashboard → Settings shows email as read-only).',
   },
   {
     id: 'faq-task-history',
     q: 'Can I see who completed a task?',
-    a: 'Yes. Task history shows who completed it.',
+    a: 'Partially. Task submissions show who submitted work, and owners can review/approve submissions. A full audit history view is not implemented yet.',
   },
   {
     id: 'faq-leave-group',
     q: 'How do I leave a group?',
-    a: 'Go to group settings and select “Leave Group.”',
+    a: 'Not yet. Leaving a group from the UI is not implemented in the current version.',
   },
   {
     id: 'faq-customize-dashboard',
     q: 'Can I customize my dashboard?',
-    a: 'Yes. Drag and drop widgets to personalize your dashboard.',
+    a: 'Not yet. Drag-and-drop dashboard customization is not implemented in the current version.',
   },
 ];

@@ -77,8 +77,8 @@ export default function Home() {
 
             <p className="max-w-xl text-lg sm:text-xl text-slate-400 leading-relaxed">
               The <span className="text-violet-400 font-medium">unified platform</span> for academic and professional teams.
-              Seamlessly integrate calendar, tasks, and automated workflows with{' '}
-              <span className="text-pink-400 font-medium">AI-powered assistance</span>.
+              Seamlessly integrate calendar, tasks, and real-time collaboration with{' '}
+              <span className="text-pink-400 font-medium">AI assistance</span>.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
@@ -160,8 +160,8 @@ export default function Home() {
               learnMoreHref: "#faq-smart-calendar"
             },
             {
-              title: "Smart Reminders",
-              desc: "Automated notifications for deadlines & status changes powered by AI.",
+              title: "Notifications",
+              desc: "In-app notifications for important workflow updates and deadlines.",
               icon: "/reminder-icon.svg",
               gradient: "from-amber-500 to-pink-500",
               learnMoreHref: "#faq-smart-reminders"

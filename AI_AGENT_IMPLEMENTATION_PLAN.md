@@ -997,7 +997,70 @@ document.addEventListener("touchend", handleMouseUp);
 
 ---
 
+## 6.1 Task 5 (Phase 2): Enable “Let Smarty Do” (Automation)
+
+### Current State
+
+- Frontend shows “Let Smarty Do” as **disabled / Coming Soon**.
+- Backend route exists: `POST /smarty/automate`.
+- n8n automation hook exists in backend (`smarty-automate` webhook trigger).
+
+### Goal
+
+Enable “Let Smarty Do” so users can trigger safe, supported automation actions (e.g., create/update tasks, create calendar events) through the existing Smarty bubble UI.
+
+### Implementation Steps
+
+#### Step A: Define Allowed Actions (Backend)
+
+**File**: `apps/backend/src/services/smarty.ts`
+
+- Define an allowlist of supported actions and a strict input schema.
+- Enforce auth and derive `userId` from JWT (do not trust client-provided IDs).
+- Return a deterministic response shape: `{ ok: boolean, message: string, data?: any }`.
+
+#### Step B: Wire Frontend to `/smarty/automate`
+
+**File**: `apps/frontend/src/components/SmartyBubble.tsx`
+
+- Replace “Coming Soon” alert with a real call to backend `/smarty/automate`.
+- Keep UX minimal: reuse the existing chat input panel to submit an “automation request” and display the result.
+- Add loading + error states consistent with the existing “Ask Smarty” flow.
+
+#### Step C: n8n Workflow Contract
+
+- Define a stable payload contract for the `smarty-automate` workflow.
+- Ensure n8n returns a short, user-friendly summary string and (optionally) structured fields used by the app.
+
+### Testing Checklist
+
+- [ ] “Let Smarty Do” no longer disabled
+- [ ] Requests are rejected if user is unauthenticated
+- [ ] Only allowlisted actions execute
+- [ ] Successful automation returns a clear summary in the UI
+- [ ] Errors/timeouts show a friendly failure message
+
 ## 7. Task 6: Group Enhancements
+
+---
+
+## Optional (Post-MVP): Reminders End-to-End
+
+### Current State
+
+- Reminders are referenced in UI copy/FAQ.
+- Backend has partial scaffolding (DB insert + n8n reminder trigger), but reminders are not clearly surfaced via UI/API end-to-end.
+
+### Goal
+
+Support creating reminders for tasks/events and delivering them as in-app notifications (with optional n8n scheduling).
+
+### Implementation Steps
+
+- Backend: add minimal reminders API (create/list) and integrate with `NotificationService` when triggered.
+- Calendar aggregation: decide whether reminders appear in calendar items or only as notifications.
+- Frontend: add a minimal reminder field (date/time) in task create/edit flow and show pending reminders.
+- Docs/UI text: ensure marketing/FAQ text matches actual reminder behavior.
 
 ### Current State Review
 

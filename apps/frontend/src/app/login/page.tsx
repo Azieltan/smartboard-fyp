@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,8 +31,9 @@ export default function LoginPage() {
 
             // Force redirect to ensure state is picked up
             window.location.href = '/dashboard';
-        } catch (error: any) {
-            alert(error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Login failed';
+            alert(message);
         } finally {
             setIsLoading(false);
         }
@@ -82,7 +81,7 @@ export default function LoginPage() {
 
                     {/* Feature pills */}
                     <div className="flex flex-wrap justify-center gap-3">
-                        {['📅 Smart Calendar', '🔔 Auto Reminders', '💬 Team Chat', '🤖 AI Assistant'].map((feature, i) => (
+                        {['📅 Smart Calendar', '🔔 In-app Notifications', '💬 Team Chat', '🤖 AI Assistant'].map((feature, i) => (
                             <span
                                 key={i}
                                 className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-slate-300"
@@ -218,7 +217,7 @@ export default function LoginPage() {
 
                         <div className="mt-8 text-center">
                             <p className="text-slate-400">
-                                Don't have an account?{' '}
+                                Don&apos;t have an account?{' '}
                                 <Link href="/register" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
                                     Create Account ✨
                                 </Link>
