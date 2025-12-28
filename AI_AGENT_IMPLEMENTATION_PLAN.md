@@ -17,8 +17,8 @@
 7. [Task 7: User Enhancements](#7-task-7-user-enhancements)
 8. [Task 8: Dashboard UI Implementation](#8-task-8-dashboard-ui-implementation)
 9. [Task Logic Behind Tasks](#9-task-logic-behind-tasks-ownerassigneeadmin)
-11. [Full Function Double-Check Checklist](#11-full-function-double-check-checklist-before-demo--merge)
-12. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
+10. [Full Function Double-Check Checklist](#11-full-function-double-check-checklist-before-demo--merge)
+11. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
 
 ---
 
@@ -1665,6 +1665,7 @@ $u2Notifs = Invoke-RestMethod -Method Get -Uri "http://localhost:3001/notificati
 ```
 
 Expected:
+
 - `dmMessagesCount` >= 1
 - `u2UnreadNotifsCount` >= 1 after friend request
 - `u1UnreadNotifsCount` increases after task submission
