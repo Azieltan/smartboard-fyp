@@ -26,6 +26,21 @@ export default function TasksPage() {
             setUserId(user.user_id);
             fetchTasks(user.user_id);
             fetchUserMap(user.user_id);
+
+            // Real-time listener
+            import('../../../lib/socket').then(({ socket }) => {
+                const onNotification = (data: any) => {
+                    // If we receive a notification related to tasks, refresh.
+                    // Start simple: refresh on ANY notification to catch task submissions/reviews
+                    console.log('Received notification, refreshing tasks...', data);
+                    fetchTasks(user.user_id);
+                };
+
+                socket.on('notification:new', onNotification);
+                return () => {
+                    socket.off('notification:new', onNotification);
+                }
+            });
         }
     }, []);
 
