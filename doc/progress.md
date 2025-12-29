@@ -26,6 +26,7 @@
 | Task | Status | Details |
 |------|--------|---------|
 | **API Smoke Test** | ✅ Passed | Executed `smoke_test_run.ps1` with primary demo user (`abc1@gmail.com`) and a temporary user. Verified Auth, Friends, DMs, Tasks, and Notifications flows. |
+| **API Smoke Test (Rerun)** | ✅ Passed | Second verification run successful. No login issues encountered for `abc1@gmail.com`. |
 | **Git Push** | ✅ Done | Pushed all changes, including the smoke test script and documentation updates, to the `main` branch. |
 
 ---
