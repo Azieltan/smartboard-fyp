@@ -20,7 +20,17 @@
 
 ---
 
-## Latest Updates (2025-12-29 - Session 6)
+## Latest Updates (2025-12-30 - Session 7)
+
+### Automated Verification & Deployment
+| Task | Status | Details |
+|------|--------|---------|
+| **API Smoke Test** | ✅ Passed | Executed `smoke_test_run.ps1` with primary demo user (`abc1@gmail.com`) and a temporary user. Verified Auth, Friends, DMs, Tasks, and Notifications flows. |
+| **Git Push** | ✅ Done | Pushed all changes, including the smoke test script and documentation updates, to the `main` branch. |
+
+---
+
+## Previous Updates (2025-12-29 - Session 6)
 
 ### Synchronization & Verification
 | Task | Status | Details |
