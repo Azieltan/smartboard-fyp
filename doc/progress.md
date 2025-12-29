@@ -20,7 +20,20 @@
 
 ---
 
-## Latest Updates (2025-12-27 - Session 4)
+## Latest Updates (2025-12-29 - Session 5)
+
+### Completed Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **User Logic** | ✅ Fixed | **Login Name**: Correctly falls back to metadata name instead of default 'User'. |
+| **Data Integrity** | ✅ Fixed | **Task Names**: Backend now returns joined Owner/Assignee objects (names) instead of just IDs. Fixes display where names were missing for non-friends. |
+| **Notifications** | ✅ Fixed | **Deduplication**: Removed redundant event listeners in Frontend that caused spam/loops. |
+| **Task UI** | ✅ Refined | **Start Button**: Removed as requested. |
+| **Task Workflow** | ✅ Refined | **Assigned Tab**: Added "Assigned by Me" view. **Submit Logic**: Verified visibility for 'Todo'/'In Progress' states. |
+
+---
+
+## Previous Updates (2025-12-27 - Session 4)
 
 ### Completed Features & Refinements
 | Feature | Status | Details |

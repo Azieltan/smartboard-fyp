@@ -29,9 +29,10 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const timestamp = new Date().getTime();
                 const [friendsData, groupsData] = await Promise.all([
-                    api.get(`/friends/${userId}`),
-                    api.get(`/groups/${userId}`)
+                    api.get(`/friends/${userId}?t=${timestamp}`),
+                    api.get(`/groups/${userId}?t=${timestamp}`)
                 ]);
                 if (Array.isArray(friendsData)) setFriends(friendsData);
                 if (Array.isArray(groupsData)) setGroups(groupsData);
@@ -47,7 +48,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
             // Fetch group members when group is selected
             const fetchMembers = async () => {
                 try {
-                    const data = await api.get(`/groups/${assigneeId}/members`);
+                    const timestamp = new Date().getTime();
+                    const data = await api.get(`/groups/${assigneeId}/members?t=${timestamp}`);
                     if (Array.isArray(data)) setGroupMembers(data);
                 } catch (e) {
                     console.error("Failed to fetch group members", e);
@@ -57,6 +59,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
         } else {
             setGroupMembers([]);
         }
+        // Reset specific assignee when group changes to prevent "Wrong Assignee" bug
+        setSpecificAssigneeId('');
     }, [assignType, assigneeId]);
 
     const handleSubmit = async (e: React.FormEvent) => {

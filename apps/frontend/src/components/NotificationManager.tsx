@@ -70,17 +70,9 @@ export function NotificationManager({ userId }: NotificationManagerProps) {
     };
 
     socket.on('notification:new', handleNewNotification);
-    socket.on('notification:friend_request', handleNewNotification);
-    socket.on('notification:group_invite', handleNewNotification);
-    socket.on('notification:chat_message', handleNewNotification);
-    socket.on('notification:task_assigned', handleNewNotification);
 
     return () => {
       socket.off('notification:new', handleNewNotification);
-      socket.off('notification:friend_request', handleNewNotification);
-      socket.off('notification:group_invite', handleNewNotification);
-      socket.off('notification:chat_message', handleNewNotification);
-      socket.off('notification:task_assigned', handleNewNotification);
     };
   }, [userId, addNotification]);
 

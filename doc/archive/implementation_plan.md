@@ -33,7 +33,17 @@ This mission aims to transform the current prototype into a fully functioning so
 - [ ] **Event Creation**:
     - Add "Assign to Group" dropdown in `CreateEventModal`.
 
-## Phase 4: User Polish
+## Phase 5: Admin Panel
+**Objective**: Comprehensive user and system management.
+- [ ] **User Management**:
+    - **View Users**: List all registered users with details (Name, Email, Role, Joined Date).
+    - **Delete User**: Allow admins to remove users from the system (Auth & DB).
+    - **Add User**: Admin-triggered account creation (or clear call-to-action to register).
+    - **Role Management**: Promote/Demote users (Member <-> Admin).
+- [ ] **System Status**:
+    - Display clear indicators of system health (e.g., Database connection).
+
+## Phase 6: User Polish
 **Objective**: Secure and personalize.
 - [ ] **Profile Settings**:
     - Allow password change.

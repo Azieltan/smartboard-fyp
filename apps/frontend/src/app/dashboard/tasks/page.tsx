@@ -16,7 +16,7 @@ export default function TasksPage() {
     const [userMap, setUserMap] = useState<Record<string, string>>({});
 
     // Sidebar Navigation
-    type NavTab = 'overall' | 'ongoing' | 'in_review' | 'completed';
+    type NavTab = 'overall' | 'ongoing' | 'in_review' | 'completed' | 'assigned';
     const [activeTab, setActiveTab] = useState<NavTab>('overall');
 
     useEffect(() => {
@@ -86,6 +86,9 @@ export default function TasksPage() {
             case 'completed':
                 result = tasks.filter(t => t.status === 'done');
                 break;
+            case 'assigned':
+                result = tasks.filter(t => t.created_by === userId && t.user_id !== userId);
+                break;
             default:
                 result = tasks;
         }
@@ -138,6 +141,7 @@ export default function TasksPage() {
         { id: 'ongoing', label: 'On Going', count: tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').length },
         { id: 'in_review', label: 'In Review', count: tasks.filter(t => t.status === 'in_review').length },
         { id: 'completed', label: 'Completed', count: tasks.filter(t => t.status === 'done').length },
+        { id: 'assigned', label: 'Assigned by Me', count: tasks.filter(t => t.created_by === userId && t.user_id !== userId).length },
     ];
 
     return (
@@ -161,14 +165,14 @@ export default function TasksPage() {
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`w-full flex justify-between items-center px-4 py-3 text-sm font-medium rounded-xl transition-all ${activeTab === item.id
-                                    ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                                ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
                                 }`}
                         >
                             <span>{item.label}</span>
                             <span className={`px-2 py-0.5 rounded text-xs ${activeTab === item.id
-                                    ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
-                                    : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
+                                ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                                : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
                                 }`}>
                                 {item.count}
                             </span>
@@ -207,7 +211,7 @@ export default function TasksPage() {
                                 {/* Title & Priority */}
                                 <div className="col-span-4 flex items-center gap-3 mb-2 md:mb-0">
                                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-red-500' :
-                                            task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                                        task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
                                         }`} title={`Priority: ${task.priority}`} />
                                     <span className="font-medium text-slate-900 dark:text-white truncate pr-4">{task.title}</span>
                                 </div>
@@ -217,9 +221,9 @@ export default function TasksPage() {
                                     <span className="md:hidden text-xs font-bold w-20">Owner:</span>
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold">
-                                            {getUserName(task.created_by).charAt(0)}
+                                            {(task.created_by === userId ? 'Me' : (task.owner?.user_name || 'U')).charAt(0)}
                                         </div>
-                                        <span className="truncate max-w-[100px]">{getUserName(task.created_by)}</span>
+                                        <span className="truncate max-w-[100px]">{task.created_by === userId ? 'Me' : (task.owner?.user_name || getUserName(task.created_by))}</span>
                                     </div>
                                 </div>
 
@@ -228,9 +232,9 @@ export default function TasksPage() {
                                     <span className="md:hidden text-xs font-bold w-20">Assignee:</span>
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold">
-                                            {getUserName(task.user_id).charAt(0)}
+                                            {(task.user_id === userId ? 'Me' : (task.assignee?.user_name || 'U')).charAt(0)}
                                         </div>
-                                        <span className="truncate max-w-[100px]">{getUserName(task.user_id)}</span>
+                                        <span className="truncate max-w-[100px]">{task.user_id === userId ? 'Me' : (task.assignee?.user_name || getUserName(task.user_id))}</span>
                                     </div>
                                 </div>
 
@@ -245,14 +249,7 @@ export default function TasksPage() {
                                 {/* Status & Actions */}
                                 <div className="col-span-2 flex items-center justify-end gap-2">
                                     {/* Action Buttons based on state */}
-                                    {task.status === 'todo' && task.user_id === userId && (
-                                        <button
-                                            onClick={(e) => handleAction(e, task, 'start')}
-                                            className="hidden group-hover:block px-2 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-all"
-                                        >
-                                            Start
-                                        </button>
-                                    )}
+
 
                                     {(task.status === 'in_progress' || task.status === 'todo') && task.user_id === userId && (
                                         <button
@@ -274,9 +271,9 @@ export default function TasksPage() {
 
                                     {/* Status Badge */}
                                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                                            task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                                                task.status === 'in_review' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
-                                                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
+                                        task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
+                                            task.status === 'in_review' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
+                                                'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
                                         }`}>
                                         {task.status.replace('_', ' ')}
                                     </span>
@@ -333,11 +330,11 @@ export default function TasksPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="bg-slate-50 dark:bg-white/5 p-3 rounded-lg">
                                 <span className="text-xs text-slate-500 uppercase font-bold">Owner</span>
-                                <p className="font-medium text-slate-900 dark:text-white">{getUserName(selectedTask.created_by)}</p>
+                                <p className="font-medium text-slate-900 dark:text-white">{selectedTask.created_by === userId ? 'Me' : (selectedTask.owner?.user_name || getUserName(selectedTask.created_by))}</p>
                             </div>
                             <div className="bg-slate-50 dark:bg-white/5 p-3 rounded-lg">
                                 <span className="text-xs text-slate-500 uppercase font-bold">Assignee</span>
-                                <p className="font-medium text-slate-900 dark:text-white">{getUserName(selectedTask.user_id)}</p>
+                                <p className="font-medium text-slate-900 dark:text-white">{selectedTask.user_id === userId ? 'Me' : (selectedTask.assignee?.user_name || getUserName(selectedTask.user_id))}</p>
                             </div>
                         </div>
                     </div>

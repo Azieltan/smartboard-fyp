@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { NotificationService } from './notification';
 
 export interface Friend {
-    id: string; // Map request_id to id for frontend compatibility
+    id: string; // This helps the screen understand which friend request is which by giving it a clear ID.
     from_user_id: string;
     to_user_id: string;
     status: 'pending' | 'accepted' | 'rejected';
@@ -12,7 +12,7 @@ export interface Friend {
 
 export class FriendService {
     static async addFriend(userId: string, identifier: string): Promise<any> {
-        // Find target user
+        // Search for the person you are trying to add in our system.
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('user_id')
@@ -26,7 +26,7 @@ export class FriendService {
         const targetFriendId = userData.user_id;
         if (targetFriendId === userId) throw new Error('Cannot add yourself');
 
-        // Check existing
+        // Check if you have already sent a request to this person to avoid duplicates.
         const { data: existing } = await supabase
             .from('friend_requests')
             .select('*')
@@ -43,7 +43,7 @@ export class FriendService {
 
         if (error) throw new Error(error.message);
 
-        // Notify target user
+        // Send a notification to let the other person know you want to connect.
         try {
             await NotificationService.createNotification(
                 targetFriendId,
@@ -71,7 +71,7 @@ export class FriendService {
     }
 
     static async getFriends(userId: string): Promise<any[]> {
-        // Fetch friend requests
+        // Get a list of all your friend requests and connections from the database.
         const { data: requests, error } = await supabase
             .from('friend_requests')
             .select('*')
@@ -80,14 +80,14 @@ export class FriendService {
         if (error) throw new Error(error.message);
         if (!requests || requests.length === 0) return [];
 
-        // Collect all related user IDs
+        // Make a list of all the people involved in these requests so we can identify them.
         const userIds = new Set<string>();
         requests.forEach(r => {
             userIds.add(r.from_user_id);
             userIds.add(r.to_user_id);
         });
 
-        // Fetch user details for all related users
+        // specific details (like name and email) for everyone on that list.
         const { data: users, error: userErr } = await supabase
             .from('users')
             .select('user_id, user_name, email')
@@ -97,7 +97,7 @@ export class FriendService {
 
         const userMap = new Map(users?.map(u => [u.user_id, u]));
 
-        // Format for frontend
+        // Organize the information so it looks good when displayed on your screen.
         return requests.map(r => {
             const isSender = r.from_user_id === userId;
             const otherUserId = isSender ? r.to_user_id : r.from_user_id;
@@ -115,9 +115,9 @@ export class FriendService {
     }
     static async removeFriend(relationshipId: string): Promise<void> {
         const { error } = await supabase
-            .from('friend_requests') // Assuming requests table holds relationship also
+            .from('friend_requests') // We look at the friend list table to find the connection to remove.
             .delete()
-            .eq('request_id', relationshipId); // And 'request_id' is the PK
+            .eq('request_id', relationshipId); // We match the exact ID to ensure we remove the correct friend.
 
         if (error) throw new Error(error.message);
     }

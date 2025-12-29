@@ -4,7 +4,7 @@ import { Task } from '@smartboard/home';
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
         if (!userId) {
-            const { data, error } = await supabase.from('tasks').select('*');
+            const { data, error } = await supabase.from('tasks').select('*, owner:users!created_by(user_name), assignee:users!user_id(user_name)');
             if (error) throw new Error(error.message);
             return data as Task[];
         }
@@ -33,7 +33,7 @@ export class TaskService {
 
         const { data, error } = await supabase
             .from('tasks')
-            .select('*')
+            .select('*, owner:users!created_by(user_name), assignee:users!user_id(user_name)')
             .or(orCondition);
 
         if (error) {
@@ -252,7 +252,7 @@ export class TaskService {
     static async getTaskWithSubtasks(taskId: string): Promise<any> {
         const { data: task, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*)')
+            .select('*, subtasks(*), owner:users!created_by(user_name), assignee:users!user_id(user_name)')
             .eq('task_id', taskId)
             .single();
 

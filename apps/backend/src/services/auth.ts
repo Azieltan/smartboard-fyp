@@ -82,7 +82,7 @@ export class AuthService {
                 .upsert(
                     {
                         user_id: signInData.user.id,
-                        user_name: signInData.user.email?.split('@')[0] || 'User',
+                        user_name: signInData.user.user_metadata?.user_name || signInData.user.user_metadata?.full_name || signInData.user.user_metadata?.name || signInData.user.email?.split('@')[0] || 'User',
                         email: signInData.user.email,
                         role: 'member'
                     },
