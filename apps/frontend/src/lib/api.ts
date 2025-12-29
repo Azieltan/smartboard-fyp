@@ -37,6 +37,7 @@ export const api = {
     get: async (endpoint: string) => {
         const res = await fetch(`${API_URL}${endpoint}`, {
             headers: getHeaders(),
+            cache: 'no-store'
         });
         return handleResponse(res);
     },

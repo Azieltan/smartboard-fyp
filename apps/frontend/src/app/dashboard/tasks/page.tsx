@@ -35,7 +35,8 @@ export default function TasksPage() {
 
     const fetchTasks = async (uid: string) => {
         try {
-            const data = await api.get(`/tasks?userId=${uid}`);
+            const timestamp = new Date().getTime();
+            const data = await api.get(`/tasks?userId=${uid}&t=${timestamp}`);
             if (Array.isArray(data)) {
                 setTasks(data);
             }
