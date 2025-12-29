@@ -36,9 +36,13 @@ export default function TasksPage() {
     const fetchTasks = async (uid: string) => {
         try {
             const timestamp = new Date().getTime();
+            console.log('Fetching tasks for user:', uid, 'timestamp:', timestamp);
             const data = await api.get(`/tasks?userId=${uid}&t=${timestamp}`);
             if (Array.isArray(data)) {
+                console.log('Fetched tasks count:', data.length);
                 setTasks(data);
+            } else {
+                console.warn('Fetched data is not an array:', data);
             }
         } catch (error) {
             console.error('Failed to fetch tasks:', error);

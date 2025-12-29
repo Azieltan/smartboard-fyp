@@ -4,7 +4,7 @@ import { Task } from '@smartboard/home';
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
         if (!userId) {
-            const { data, error } = await supabase.from('tasks').select('*, owner:users!created_by(user_name), assignee:users!user_id(user_name)');
+            const { data, error } = await supabase.from('tasks').select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)');
             if (error) throw new Error(error.message);
             return data as Task[];
         }
@@ -20,20 +20,16 @@ export class TaskService {
 
         const myGroupIds = (groupMembers || []).map(g => g.group_id);
 
-        // 2. Build Query: user_id is me OR group_id is in my groups
-        // Supabase 'or' syntax: "user_id.eq.uid,group_id.in.(g1,g2)"
-
+        // 2. Build Query
         let orCondition = `user_id.eq.${userId},created_by.eq.${userId}`;
         if (myGroupIds.length > 0) {
             const groupsStr = `(${myGroupIds.map(id => `"${id}"`).join(',')})`;
             orCondition += `,group_id.in.${groupsStr}`;
         }
 
-        // Also include tasks created_by me? Maybe not, stick to assignee/owner context.
-
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, owner:users!created_by(user_name), assignee:users!user_id(user_name)')
+            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
             .or(orCondition);
 
         if (error) {
@@ -252,7 +248,7 @@ export class TaskService {
     static async getTaskWithSubtasks(taskId: string): Promise<any> {
         const { data: task, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*), owner:users!created_by(user_name), assignee:users!user_id(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
             .eq('task_id', taskId)
             .single();
 
