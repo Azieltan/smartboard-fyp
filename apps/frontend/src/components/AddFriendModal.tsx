@@ -98,7 +98,7 @@ export default function AddFriendModal({ userId, onClose }: AddFriendModalProps)
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all placeholder-slate-500"
-                                    placeholder="Search by name or email..."
+                                    placeholder="Search by name, email, or ID..."
                                     autoFocus
                                 />
                             </div>
@@ -112,12 +112,12 @@ export default function AddFriendModal({ userId, onClose }: AddFriendModalProps)
                                         onClick={() => setSelectedUser(user)}
                                         className="w-full p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 flex items-center gap-3 transition-all"
                                     >
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center font-bold text-white">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center font-bold text-white shrink-0">
                                             {user.user_name[0].toUpperCase()}
                                         </div>
                                         <div className="text-left flex-1 min-w-0">
                                             <p className="text-sm font-semibold text-white truncate">{user.user_name}</p>
-                                            <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                            <p className="text-xs text-slate-400 truncate tracking-tight">{user.user_id}</p>
                                         </div>
                                         <div className="text-pink-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>

@@ -75,14 +75,16 @@ export class AuthService {
             .eq('user_id', signInData.user.id)
             .maybeSingle();
 
-        // If profile missing, create it (happens when auth user existed but profile row didn't)
+        // If profile missing, create it. Or if name is generic/default, try to update it from metadata.
+        const metaName = signInData.user.user_metadata?.user_name || signInData.user.user_metadata?.full_name || signInData.user.user_metadata?.name;
+
         if (!user) {
             const { data: inserted, error: insertErr } = await supabase
                 .from('users')
                 .upsert(
                     {
                         user_id: signInData.user.id,
-                        user_name: signInData.user.user_metadata?.user_name || signInData.user.user_metadata?.full_name || signInData.user.user_metadata?.name || signInData.user.email?.split('@')[0] || 'User',
+                        user_name: metaName || signInData.user.email?.split('@')[0] || 'User',
                         email: signInData.user.email,
                         role: 'member'
                     },
@@ -93,6 +95,18 @@ export class AuthService {
 
             if (insertErr) throw new Error(insertErr.message);
             user = inserted;
+        } else if (metaName && (user.user_name === 'User' || user.user_name === 'user' || user.user_name === 'Users')) {
+            // Update the existing generic name to the one from metadata if available
+            const { data: updated, error: updateErr } = await supabase
+                .from('users')
+                .update({ user_name: metaName })
+                .eq('user_id', user.user_id)
+                .select('user_id, user_name, email, role, created_at')
+                .single();
+
+            if (!updateErr && updated) {
+                user = updated;
+            }
         }
 
         // Keep your existing backend JWT so the current frontend keeps working
