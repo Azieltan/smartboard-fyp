@@ -146,6 +146,7 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                                 type="button"
                                 onClick={() => {
                                     setShareType('group');
+                                    setSelectedTargetId('');
                                 }}
                                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${shareType === 'group'
                                     ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 transform scale-105'
@@ -158,6 +159,7 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                                 type="button"
                                 onClick={() => {
                                     setShareType('friend');
+                                    setSelectedTargetId('');
                                 }}
                                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${shareType === 'friend'
                                     ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 transform scale-105'

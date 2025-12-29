@@ -236,7 +236,11 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                                 <button
                                     key={item.type}
                                     type="button"
-                                    onClick={() => setAssignType(item.type)}
+                                    onClick={() => {
+                                        setAssignType(item.type);
+                                        setAssigneeId('');
+                                        setSpecificAssigneeId('');
+                                    }}
                                     className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 border ${assignType === item.type
                                         ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg border-transparent`
                                         : 'bg-slate-100 dark:bg-white/5 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
