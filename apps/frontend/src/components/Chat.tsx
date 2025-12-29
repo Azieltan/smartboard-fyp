@@ -7,6 +7,7 @@ import CreateGroupModal from './CreateGroupModal';
 import JoinGroupModal from './JoinGroupModal';
 import AddFriendModal from './AddFriendModal';
 import GroupInfoModal from './GroupInfoModal';
+import CreateTaskModal from './CreateTaskModal';
 import { socket } from '../lib/socket';
 import Image from 'next/image';
 
@@ -47,6 +48,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showJoinGroup, setShowJoinGroup] = useState(false);
     const [showAddFriend, setShowAddFriend] = useState(false);
+    const [showCreateTask, setShowCreateTask] = useState(false);
 
     // 1. Resolve the effective groupId for this conversation.
     // - For group chats: groupId is already a real group_id.
@@ -412,6 +414,18 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                         onChange={handleFileChange}
                         className="hidden"
                     />
+                    {/* Create Task Button */}
+                    <button
+                        type="button"
+                        onClick={() => setShowCreateTask(true)}
+                        className="p-2.5 text-emerald-400 hover:text-emerald-300 transition-all rounded-xl hover:bg-emerald-500/10"
+                        title="Create Task"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
+
                     <button
                         type="button"
                         onClick={handleAttach}
@@ -492,6 +506,15 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 <AddFriendModal
                     userId={userId}
                     onClose={() => setShowAddFriend(false)}
+                />
+            )}
+
+            {showCreateTask && (
+                <CreateTaskModal
+                    userId={userId}
+                    groupId={type === 'group' ? groupId : undefined}
+                    onClose={() => setShowCreateTask(false)}
+                    onTaskCreated={() => setShowCreateTask(false)}
                 />
             )}
         </div >

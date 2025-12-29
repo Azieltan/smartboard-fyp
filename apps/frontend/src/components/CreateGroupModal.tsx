@@ -31,6 +31,7 @@ export default function CreateGroupModal({ userId, onClose, onGroupCreated }: Cr
     const [errorMsg, setErrorMsg] = useState('');
     const [createdGroup, setCreatedGroup] = useState<any>(null);
     const [codeCopied, setCodeCopied] = useState(false);
+    const [requiresApproval, setRequiresApproval] = useState(true); // Default to true for better security
 
     useEffect(() => {
         fetchFriends();
@@ -74,7 +75,7 @@ export default function CreateGroupModal({ userId, onClose, onGroupCreated }: Cr
             const group = await api.post('/groups', {
                 name: name.trim(),
                 ownerId: userId,
-                requiresApproval: false,
+                requiresApproval: requiresApproval,
                 friendIds,
                 friendRoles
             });
@@ -158,6 +159,7 @@ export default function CreateGroupModal({ userId, onClose, onGroupCreated }: Cr
                                     autoFocus
                                 />
                             </div>
+
                             <p className="text-xs text-slate-500">Choose a memorable name for your group. You can change it later.</p>
                         </div>
                     )}

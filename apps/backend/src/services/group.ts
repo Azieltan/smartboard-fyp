@@ -149,6 +149,29 @@ export class GroupService {
         return groupData as Group;
     }
 
+    static async updateGroup(groupId: string, updates: { name?: string; description?: string; requires_approval?: boolean; requesterId: string }): Promise<Group> {
+        // Only owner can update group
+        const requester = await this.getMemberRole(groupId, updates.requesterId);
+        if (!requester || requester.role !== 'owner') {
+            throw new Error('Only the owner can update group settings');
+        }
+
+        const toUpdate: any = {};
+        if (updates.name !== undefined) toUpdate.name = updates.name;
+        if (updates.description !== undefined) toUpdate.description = updates.description;
+        if (updates.requires_approval !== undefined) toUpdate.requires_approval = updates.requires_approval;
+
+        const { data, error } = await supabase
+            .from('groups')
+            .update(toUpdate)
+            .eq('group_id', groupId)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return data as Group;
+    }
+
     static async getGroup(groupId: string): Promise<Group> {
         const { data, error } = await supabase
             .from('groups')
@@ -281,9 +304,12 @@ export class GroupService {
         if (!requester) throw new Error('You are not a member of this group');
 
         // Check permissions
+        // Admins can remove members if they have permission, OR if we hardcode admins can remove members
+        // Plan says: "Admin: ... Add/Remove users (but not owner)."
+        // So Admins should be able to remove members.
         const canRemove =
             requester.role === 'owner' ||
-            (requester.role === 'admin' && requester.can_manage_members);
+            requester.role === 'admin';
 
         if (!canRemove) {
             throw new Error('You do not have permission to remove members');
@@ -291,12 +317,14 @@ export class GroupService {
 
         // Cannot remove the owner
         const target = await this.getMemberRole(groupId, targetUserId);
-        if (target?.role === 'owner') {
+        if (!target) throw new Error('Target user is not a member');
+
+        if (target.role === 'owner') {
             throw new Error('Cannot remove the group owner');
         }
 
         // Admin cannot remove other admins (only owner can)
-        if (requester.role === 'admin' && target?.role === 'admin') {
+        if (requester.role === 'admin' && target.role === 'admin') {
             throw new Error('Admins cannot remove other admins');
         }
 
@@ -474,7 +502,26 @@ export class GroupService {
                 .delete()
                 .eq('group_id', groupId)
                 .eq('user_id', userId);
+
             if (error) throw new Error(error.message);
+
+            // Notify user of rejection
+            try {
+                const { data: group } = await supabase.from('groups').select('name').eq('group_id', groupId).single();
+                const groupName = group?.name || 'Group';
+
+                await NotificationService.createNotification(
+                    userId,
+                    'group_approval', // Using same type for simplicity, or create 'group_rejection'
+                    {
+                        title: 'Join Request Rejected',
+                        message: `Your request to join "${groupName}" was declined.`,
+                        groupId
+                    }
+                );
+            } catch (e) {
+                console.error('Failed to notify rejection', e);
+            }
         } else {
             const { error } = await supabase
                 .from('group_members')
@@ -528,5 +575,59 @@ export class GroupService {
 
         // 4. Add member (Direct add as active for now)
         await this.addMember(groupId, targetUserId, 'member', 'active');
+    }
+    static async leaveGroup(groupId: string, userId: string): Promise<void> {
+        // 1. Check if member
+        const member = await this.getMemberRole(groupId, userId);
+        if (!member) {
+            throw new Error('You are not a member of this group');
+        }
+
+        // 2. Owner cannot leave
+        if (member.role === 'owner') {
+            throw new Error('The group owner cannot leave the group. You must delete the group instead.');
+        }
+
+        // 3. Delete member
+        const { error } = await supabase
+            .from('group_members')
+            .delete()
+            .eq('group_id', groupId)
+            .eq('user_id', userId);
+
+        if (error) throw new Error(error.message);
+
+        // 4. Notify Owner and Admins
+        try {
+            // Get user name for message
+            const { data: user } = await supabase.from('users').select('user_name').eq('user_id', userId).single();
+            const userName = user?.user_name || 'A user';
+
+            // Get group name
+            const { data: group } = await supabase.from('groups').select('name').eq('group_id', groupId).single();
+            const groupName = group?.name || 'the group';
+
+            const { data: recipients } = await supabase
+                .from('group_members')
+                .select('user_id')
+                .eq('group_id', groupId)
+                .in('role', ['owner', 'admin']);
+
+            if (recipients) {
+                for (const recipient of recipients) {
+                    await NotificationService.createNotification(
+                        recipient.user_id,
+                        'group_leave',
+                        {
+                            title: 'Member Left Group',
+                            message: `${userName} has left "${groupName}".`,
+                            groupId
+                        }
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('Failed to send leave notifications', e);
+        }
     }
 }

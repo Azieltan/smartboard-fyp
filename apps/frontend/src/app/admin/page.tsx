@@ -20,7 +20,8 @@ export default function AdminPage() {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      if (user.role !== 'admin' && user.user_name !== 'admin') {
+      // Strictly check for systemadmin role
+      if (user.role !== 'systemadmin') {
         router.push('/dashboard');
       } else {
         setAuthorized(true);

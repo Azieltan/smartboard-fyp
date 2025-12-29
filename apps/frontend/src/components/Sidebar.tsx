@@ -10,6 +10,8 @@ interface User {
     username: string;
     email: string;
     role?: string;
+    name?: string;
+    user_name?: string;
 }
 
 const staticNavigation = [
@@ -32,16 +34,6 @@ const staticNavigation = [
             </svg>
         ),
         gradient: 'from-cyan-500 to-blue-500'
-    },
-    {
-        name: 'Tasks',
-        href: '/dashboard/tasks',
-        icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-        ),
-        gradient: 'from-emerald-500 to-teal-500'
     },
     {
         name: 'Chat',
@@ -85,18 +77,18 @@ export function Sidebar() {
     }, []);
 
     const navigation = [...staticNavigation];
-    if (user?.role === 'admin') {
-        navigation.splice(4, 0, { // Insert before Settings
-            name: 'Admin Panel',
-            href: '/admin',
-            icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-            ),
-            gradient: 'from-orange-500 to-red-500'
-        });
-    }
+    // if (user?.role === 'admin') {
+    //     navigation.splice(4, 0, { // Insert before Settings
+    //         name: 'Admin Panel',
+    //         href: '/admin',
+    //         icon: (
+    //             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+    //             </svg>
+    //         ),
+    //         gradient: 'from-orange-500 to-red-500'
+    //     });
+    // }
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -155,16 +147,12 @@ export function Sidebar() {
                 <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors group">
                     <Link href="/dashboard/settings" className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-pink-500/30">
-                            {getInitials(user?.username)}
+                            {getInitials(user?.name || user?.user_name || user?.username)}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.username || 'User'}</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.name || user?.user_name || user?.username || 'User'}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
-                            {user?.role && (
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ml-[-2px] mt-1 inline-block ${user.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
-                                    {user.role}
-                                </span>
-                            )}
+
                         </div>
                     </Link>
                     <div className="flex items-center gap-1">

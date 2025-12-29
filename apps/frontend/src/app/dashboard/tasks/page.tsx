@@ -154,6 +154,16 @@ export default function TasksPage() {
         }
     };
 
+    const acceptTask = async (task: any) => {
+        try {
+            await api.put(`/tasks/${task.task_id}`, { user_id: userId, status: 'in_progress' });
+            fetchTasks(userId!);
+        } catch (e) {
+            console.error('Failed to accept task', e);
+            alert('Failed to accept task');
+        }
+    };
+
     if (!userId) return <div className="p-8 text-center text-slate-400">Please login to view tasks.</div>;
 
     const navItems: { id: NavTab; label: string; count: number }[] = [
@@ -277,6 +287,19 @@ export default function TasksPage() {
                                             className="hidden group-hover:block px-2 py-1 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-all"
                                         >
                                             Submit
+                                        </button>
+                                    )}
+
+                                    {/* Accept Button for Unassigned Tasks */}
+                                    {!task.user_id && task.status !== 'done' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                acceptTask(task);
+                                            }}
+                                            className="px-2 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-all"
+                                        >
+                                            Accept
                                         </button>
                                     )}
 

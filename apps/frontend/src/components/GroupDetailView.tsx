@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import Chat from './Chat';
 import TaskSubmissionModal from './TaskSubmissionModal';
@@ -51,6 +52,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [activeTab, setActiveTab] = useState<ViewTab>('chat');
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
+    const [pendingMembers, setPendingMembers] = useState<any[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [myRole, setMyRole] = useState<GroupMember | null>(null);
     const [loading, setLoading] = useState(true);
@@ -65,6 +67,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showTaskDetailModal, setShowTaskDetailModal] = useState(false);
+    const router = useRouter();
 
     // Filters & Sorting
     const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -93,6 +96,21 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                 const me = data.find((m: GroupMember) => m.user_id === userId);
                 setMyRole(me || null);
             }
+
+            // Also fetch pending members if you have update permissions
+            const me = (Array.isArray(data) ? data : []).find((m: GroupMember) => m.user_id === userId);
+            const canManage = me?.role === 'owner' || (me?.role === 'admin' && me?.can_manage_members);
+
+            if (canManage) {
+                try {
+                    const pending = await api.get(`/groups/${groupId}/pending-members`);
+                    setPendingMembers(Array.isArray(pending) ? pending : []);
+                } catch (err) {
+                    // Could fail if endpoint doesn't exist yet/permission issues, ignore silently or log
+                    console.log('No pending members or permission denied');
+                }
+            }
+
             setLoading(false);
         } catch (e) {
             console.error("Failed to fetch members", e);
@@ -153,6 +171,18 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
             fetchMembers();
         } catch (e: any) {
             alert(e.message || 'Failed to update role');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleMemberApproval = async (targetUserId: string, status: 'active' | 'rejected') => {
+        try {
+            setActionLoading(targetUserId);
+            await api.put(`/groups/${groupId}/members/${targetUserId}/status`, { status });
+            fetchMembers();
+        } catch (e: any) {
+            alert(e.message || 'Failed to update status');
         } finally {
             setActionLoading(null);
         }
@@ -275,6 +305,29 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                                             View Members
                                         </button>
                                     </div>
+                                    {/* Leave Group Option (For Non-Owners) */}
+                                    {!isOwner && (
+                                        <>
+                                            <div className="h-px bg-slate-100 dark:bg-white/5 mx-2"></div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm("Are you sure you want to leave this group?")) {
+                                                        try {
+                                                            await api.post(`/groups/${groupId}/leave`, { userId });
+                                                            alert("You have left the group.");
+                                                            router.push('/dashboard');
+                                                        } catch (e: any) {
+                                                            alert(e.message || "Failed to leave group");
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                                Leave Group
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -314,6 +367,48 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                     {/* Members Tab */}
                     {activeTab === 'members' && (
                         <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10">
+
+                            {/* Pending Approvals Section */}
+                            {pendingMembers.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Pending Requests</h3>
+                                    <div className="space-y-3">
+                                        {pendingMembers.map(member => (
+                                            <div key={member.user_id} className="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-800/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold">
+                                                            {member.users?.username?.charAt(0).toUpperCase() || '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-900 dark:text-white">{member.users?.username || 'Unknown User'}</p>
+                                                            <p className="text-xs text-slate-500">{member.users?.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleMemberApproval(member.user_id, 'active')}
+                                                            disabled={actionLoading === member.user_id}
+                                                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleMemberApproval(member.user_id, 'rejected')}
+                                                            disabled={actionLoading === member.user_id}
+                                                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded-lg transition-colors"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="my-6 border-b border-slate-200 dark:border-white/10"></div>
+                                </div>
+                            )}
+
                             <div className="space-y-3">
                                 {members.map(member => (
                                     <div key={member.user_id} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
@@ -571,14 +666,32 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                             <div className="border-t border-slate-100 dark:border-white/5"></div>
 
                             {/* Option: Danger Zone */}
-                            {myRole?.role === 'owner' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
+
+                                {myRole?.role === 'owner' ? (
                                     <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
                                         Delete Group
                                     </button>
-                                </div>
-                            )}
+                                ) : (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm("Are you sure you want to leave this group?")) {
+                                                try {
+                                                    await api.post(`/groups/${groupId}/leave`, { userId });
+                                                    alert("You have left the group.");
+                                                    router.push('/dashboard');
+                                                } catch (e: any) {
+                                                    alert(e.message || "Failed to leave group");
+                                                }
+                                            }
+                                        }}
+                                        className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                                    >
+                                        Leave Group
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -229,9 +229,9 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                         </label>
                         <div className="flex gap-2 mb-3">
                             {[
-                                { type: 'me' as const, label: '👤 Me', gradient: 'from-violet-500 to-purple-500' },
-                                { type: 'friend' as const, label: '👥 Friend', gradient: 'from-pink-500 to-rose-500' },
-                                { type: 'group' as const, label: '🏢 Group', gradient: 'from-amber-500 to-orange-500' }
+                                { type: 'me' as const, label: '🔒 Myself', gradient: 'from-violet-500 to-purple-500' },
+                                { type: 'friend' as const, label: '👤 Individual', gradient: 'from-pink-500 to-rose-500' },
+                                { type: 'group' as const, label: '👥 Group', gradient: 'from-amber-500 to-orange-500' }
                             ].map((item) => (
                                 <button
                                     key={item.type}

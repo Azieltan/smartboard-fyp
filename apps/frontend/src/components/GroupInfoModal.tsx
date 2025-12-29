@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import AddMemberModal from './AddMemberModal';
 
@@ -15,6 +16,7 @@ interface GroupInfo {
     description: string;
     join_code: string;
     created_at: string;
+    requires_approval: boolean;
 }
 
 interface GroupInfoModalProps {
@@ -24,6 +26,7 @@ interface GroupInfoModalProps {
 }
 
 export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoModalProps) {
+    const router = useRouter();
     const [group, setGroup] = useState<GroupInfo | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
     const [activeTab, setActiveTab] = useState<'info' | 'members'>('members');
@@ -35,6 +38,7 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState('');
     const [editDesc, setEditDesc] = useState('');
+    const [editRequiresApproval, setEditRequiresApproval] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -51,6 +55,7 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
             setGroup(groupRes);
             setEditName(groupRes.name);
             setEditDesc(groupRes.description || ''); // Handle null description
+            setEditRequiresApproval(groupRes.requires_approval || false);
 
             if (Array.isArray(membersRes)) {
                 setMembers(membersRes);
@@ -68,7 +73,8 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
         try {
             await api.put(`/groups/${groupId}`, {
                 name: editName,
-                description: editDesc
+                description: editDesc,
+                requires_approval: editRequiresApproval
             });
             setIsEditing(false);
             fetchData(); // Refresh
@@ -191,6 +197,7 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                                     )}
                                 </div>
 
+
                                 {canEdit && (
                                     <div className="pt-2">
                                         {isEditing ? (
@@ -221,6 +228,51 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                                 </div>
                                 <p className="text-xs text-slate-500 mt-2">Share this code with friends to let them join automatically.</p>
                             </div>
+
+                            <div className="border-t border-slate-200 dark:border-white/10 pt-6 mt-2">
+                                {isOwner ? (
+                                    <>
+                                        <h3 className="text-sm font-bold text-red-600 dark:text-red-400 mb-3">Danger Zone</h3>
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
+                                                    try {
+                                                        await api.delete(`/groups/${groupId}`);
+                                                        alert("Group deleted successfully");
+                                                        router.push('/dashboard');
+                                                        onClose();
+                                                    } catch (e) {
+                                                        alert("Failed to delete group");
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full py-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-900/30 font-medium transition-colors text-sm flex items-center justify-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            Delete Group
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm("Are you sure you want to leave this group?")) {
+                                                try {
+                                                    await api.post(`/groups/${groupId}/leave`, { userId });
+                                                    alert("You have left the group.");
+                                                    router.push('/dashboard');
+                                                    onClose();
+                                                } catch (e: any) {
+                                                    alert(e.message || "Failed to leave group");
+                                                }
+                                            }
+                                        }}
+                                        className="w-full py-3 bg-slate-100 hover:bg-red-50 dark:bg-white/5 dark:hover:bg-red-900/20 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 rounded-xl border border-slate-200 hover:border-red-200 dark:border-white/10 dark:hover:border-red-900/30 font-medium transition-colors text-sm flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                        Leave Group
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -242,8 +294,8 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                                     <div key={member.user_id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${member.role === 'owner' ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
-                                                    member.role === 'admin' ? 'bg-gradient-to-br from-blue-400 to-indigo-500' :
-                                                        'bg-gradient-to-br from-slate-400 to-slate-500'
+                                                member.role === 'admin' ? 'bg-gradient-to-br from-blue-400 to-indigo-500' :
+                                                    'bg-gradient-to-br from-slate-400 to-slate-500'
                                                 }`}>
                                                 {member.user_name?.[0]?.toUpperCase()}
                                             </div>

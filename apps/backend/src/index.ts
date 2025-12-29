@@ -217,6 +217,36 @@ app.post('/groups/:groupId/invite', async (req, res) => {
     }
 });
 
+app.put('/groups/:groupId', async (req, res) => {
+    try {
+        // Expecting requesterId in body (or from auth middleware if stricter)
+        // For now, assuming body contains it as passed by frontend api call wrapper
+        // But better to use req.user.userId if auth middleware populates it.
+        // Frontend currently passes data.
+        // Let's rely on body for now to match current pattern, or use req.user if available.
+        // The service requires requesterId to verify ownership.
+
+        // Frontend might not be sending requesterId in the body of the PUT for updateGroup yet?
+        // Let's check GroupInfoModal usage:
+        // await api.put(`/groups/${groupId}`, { name, description }); 
+        // It does NOT send requesterId explicitly in the body in the current code (I need to fix that in frontend too).
+        // However, authMiddleware populates req.user.
+
+        const requesterId = (req as any).user?.userId; // Assuming auth middleware
+        const { name, description, requires_approval } = req.body;
+
+        const group = await GroupService.updateGroup(req.params.groupId, {
+            name,
+            description,
+            requires_approval,
+            requesterId
+        });
+        res.json(group);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
 app.get('/groups/:userId', async (req, res) => {
     try {
         const groups = await GroupService.getUserGroups(req.params.userId);
@@ -292,6 +322,42 @@ app.put('/groups/:groupId/members/:adminUserId/permission', async (req, res) => 
     try {
         const { canManage, ownerId } = req.body;
         await GroupService.toggleAdminPermission(req.params.groupId, req.params.adminUserId, canManage, ownerId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Update member status (Approve/Reject)
+app.put('/groups/:groupId/members/:userId/status', async (req, res) => {
+    try {
+        const { status } = req.body; // 'active' or 'rejected'
+        if (status !== 'active' && status !== 'rejected') {
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+        await GroupService.updateMemberStatus(req.params.groupId, req.params.userId, status);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Join group via code
+app.post('/groups/join', async (req, res) => {
+    try {
+        const { code, userId } = req.body;
+        const result = await GroupService.joinGroupRaw(code, userId);
+        res.json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.post('/groups/:groupId/leave', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'UserID required' });
+        await GroupService.leaveGroup(req.params.groupId, userId);
         res.json({ success: true });
     } catch (error: any) {
         res.status(400).json({ error: error.message });
@@ -664,6 +730,15 @@ app.put('/notifications/:notificationId/read', async (req, res) => {
 app.put('/notifications/:userId/read-all', async (req, res) => {
     try {
         await NotificationService.markAllAsRead(req.params.userId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/notifications/:notificationId', async (req, res) => {
+    try {
+        await NotificationService.deleteNotification(req.params.notificationId);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
