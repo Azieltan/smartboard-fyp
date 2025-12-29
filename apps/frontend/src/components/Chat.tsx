@@ -70,6 +70,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                     if (dm?.chatId) setChatId(dm.chatId);
                 } catch (error: unknown) {
                     console.error('Failed to init DM chat', error);
+                    // Optionally set an error state here to show UI
                 }
                 return;
             }

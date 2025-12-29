@@ -36,12 +36,22 @@ export class GroupService {
             .select('group_id')
             .eq('name', dmGroupName)
             .eq('is_dm', true)
+            .limit(1)
             .maybeSingle();
 
         if (findError) console.error(`[GroupService] Find DM error:`, findError);
 
         if (existingGroup) {
             console.log(`[GroupService] Found existing DM group: ${existingGroup.group_id}`);
+            // Ensure members exist (in case of data issues)
+            try {
+                await Promise.all([
+                    this.addMember(existingGroup.group_id, user1Id, 'member', 'active'),
+                    this.addMember(existingGroup.group_id, user2Id, 'member', 'active')
+                ]);
+            } catch (memberErr) {
+                // Ignore errors (likely already members)
+            }
             return existingGroup.group_id;
         }
 
