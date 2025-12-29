@@ -1622,7 +1622,7 @@ Use this to validate end-to-end flows quickly with **2 accounts** (creates a tem
 $ErrorActionPreference = 'Stop'
 
 # 1) Login primary demo user
-$u1 = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/auth/login' -ContentType 'application/json' -Body (@{ email='test_theme@example.com'; password='123456' } | ConvertTo-Json)
+$u1 = Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/auth/login' -ContentType 'application/json' -Body (@{ email='abc1@gmail.com'; password='123456' } | ConvertTo-Json)
 $u1Id = $u1.user.user_id
 $u1Headers = @{ Authorization = "Bearer $($u1.token)" }
 
