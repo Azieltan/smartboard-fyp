@@ -28,6 +28,9 @@
 | **API Smoke Test** | ✅ Passed | Executed `smoke_test_run.ps1` with primary demo user (`abc1@gmail.com`) and a temporary user. Verified Auth, Friends, DMs, Tasks, and Notifications flows. |
 | **API Smoke Test (Rerun)** | ✅ Passed | Second verification run successful. No login issues encountered for `abc1@gmail.com`. |
 | **Git Push** | ✅ Done | Pushed all changes, including the smoke test script and documentation updates, to the `main` branch. |
+| **n8n Cleanup** | ✅ Done | Uninstalled global `n8n` package and updated backend `.env` to point `N8N_BASE_URL` to `https://n8n.h5preact.app/`. |
+| **Space Optimization** | ✅ Done | Cleared 3.5GB of `npm-cache` and removed 13 unused root-level debug scripts (`probe-*.js`, `test-*.js`). |
+| **Logic Cleanup** | ✅ Verified | Confirmed "Online State" removal from `Chat.tsx`, `page.tsx`, and `SmartyBubble.tsx` as per Task 2 of the implementation plan. |
 
 ---
 
