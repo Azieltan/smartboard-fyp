@@ -245,6 +245,18 @@ export class TaskService {
         return data;
     }
 
+    static async getTaskSubmissions(taskId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('task_submissions')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('submitted_at', { ascending: false });
+
+        if (error) throw new Error(error.message);
+        return data || [];
+    }
+
+
     static async getTaskWithSubtasks(taskId: string): Promise<any> {
         const { data: task, error } = await supabase
             .from('tasks')

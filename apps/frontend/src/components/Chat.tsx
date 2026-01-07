@@ -151,6 +151,17 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         }
     }, [effectiveGroupId, fetchMessages]);
 
+    // Auto-scroll to bottom ref
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const sendMessage = async (e?: React.FormEvent, contentOverride?: string) => {
         if (e) e.preventDefault();
         const content = contentOverride || newMessage;
@@ -403,6 +414,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                         </div>
                     ))
                 )}
+                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}

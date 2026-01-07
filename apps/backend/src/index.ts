@@ -696,6 +696,16 @@ app.get('/tasks/:taskId/submission', async (req, res) => {
     }
 });
 
+app.get('/tasks/:taskId/submissions', async (req, res) => {
+    try {
+        const submissions = await TaskService.getTaskSubmissions(req.params.taskId);
+        res.json(submissions);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 app.put('/tasks/submissions/:submissionId/review', async (req, res) => {
     try {
         const { status, feedback } = req.body;
