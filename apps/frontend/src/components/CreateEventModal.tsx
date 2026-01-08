@@ -13,6 +13,7 @@ interface CreateEventModalProps {
 
 export default function CreateEventModal({ userId, onClose, onEventCreated, selectedDate }: CreateEventModalProps) {
     const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
     const [date, setDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('10:00');
@@ -58,6 +59,7 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
 
             const payload: any = {
                 title,
+                description,
                 start_time: startDateTime,
                 end_time: endDateTime,
                 user_id: userId,
@@ -126,6 +128,16 @@ export default function CreateEventModal({ userId, onClose, onEventCreated, sele
                             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">End Time</label>
                             <TimeSelector value={endTime} onChange={setEndTime} />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Description / Remarks</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500 resize-none h-20"
+                            placeholder="Add details..."
+                        />
                     </div>
 
                     {/* Audience Selector Section */}

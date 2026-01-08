@@ -4,16 +4,27 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import TimeSelector from './TimeSelector';
 
+interface Subtask {
+    subtask_id: string;
+    task_id: string;
+    title: string;
+    is_completed: boolean;
+}
+
 interface EditTaskModalProps {
     task: any; // The task object to edit
     userId: string;
     onClose: () => void;
-    onTaskUpdated: () => void;
+    onTaskUpdated: (updatedTask?: any) => void;
 }
 
 export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: EditTaskModalProps) {
     const [title, setTitle] = useState(task.title);
     const [description, setDescription] = useState(task.description || '');
+
+    // Subtasks State
+    const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+    const [newSubtask, setNewSubtask] = useState('');
 
     // Parse initial date/time
     const initialDateObj = task.due_date ? new Date(task.due_date) : new Date();
@@ -56,12 +67,39 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                 ]);
                 if (Array.isArray(friendsData)) setFriends(friendsData);
                 if (Array.isArray(groupsData)) setGroups(groupsData);
+
+                // Fetch existing subtasks
+                const taskData = await api.get(`/tasks/${task.task_id}`);
+                if (taskData && taskData.subtasks) {
+                    setSubtasks(taskData.subtasks);
+                }
             } catch (error) {
-                console.error('Failed to fetch assignment data:', error);
+                console.error('Failed to fetch data:', error);
             }
         };
         fetchData();
-    }, [userId]);
+    }, [userId, task.task_id]);
+
+    const handleAddSubtask = async (e: React.MouseEvent) => {
+        e.preventDefault(); // Prevent form submission
+        if (!newSubtask.trim()) return;
+        try {
+            const result = await api.post(`/tasks/${task.task_id}/subtasks`, { title: newSubtask });
+            setSubtasks([...subtasks, result]);
+            setNewSubtask('');
+        } catch (e) {
+            console.error('Failed to add subtask', e);
+        }
+    };
+
+    const handleToggleSubtask = async (subtaskId: string, currentStatus: boolean) => {
+        try {
+            const updated = await api.put(`/tasks/subtasks/${subtaskId}`, { isCompleted: !currentStatus });
+            setSubtasks(subtasks.map(s => s.subtask_id === subtaskId ? updated : s));
+        } catch (e) {
+            console.error('Failed to update subtask', e);
+        }
+    };
 
     useEffect(() => {
         if (assignType === 'group' && assigneeId) {
@@ -103,8 +141,8 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                 updates.user_id = specificAssigneeId || null; // Null means "up for grabs" in group
             }
 
-            await api.put(`/tasks/${task.task_id}`, updates);
-            onTaskUpdated();
+            const updatedTask = await api.put(`/tasks/${task.task_id}`, updates);
+            onTaskUpdated(updatedTask);
             onClose();
         } catch (error) {
             console.error('Failed to update task:', error);
@@ -161,6 +199,60 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                             onChange={(e) => setDescription(e.target.value)}
                             className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all resize-none h-24"
                         />
+                    </div>
+
+                    {/* Subtasks Section */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Subtasks</label>
+                        <div className="bg-slate-50 dark:bg-black/20 rounded-xl p-4 border border-slate-200 dark:border-white/10 space-y-3">
+                            {/* Existing Subtasks */}
+                            <div className="space-y-2">
+                                {subtasks.map(subtask => (
+                                    <div key={subtask.subtask_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 group">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleSubtask(subtask.subtask_id, subtask.is_completed)}
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${subtask.is_completed
+                                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                : 'border-slate-300 dark:border-slate-500 hover:border-emerald-500'
+                                                }`}
+                                        >
+                                            {subtask.is_completed && (
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                            )}
+                                        </button>
+                                        <span className={`text-sm flex-1 ${subtask.is_completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                                            {subtask.title}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add New Subtask Input */}
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newSubtask}
+                                    onChange={(e) => setNewSubtask(e.target.value)}
+                                    placeholder="Add a new subtask..."
+                                    className="flex-1 px-3 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault(); // Prevent submitting main form
+                                            handleAddSubtask(e as any);
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddSubtask}
+                                    disabled={!newSubtask.trim()}
+                                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-blue-500"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Date/Time */}

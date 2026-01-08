@@ -26,6 +26,25 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
     const [groupMembers, setGroupMembers] = useState<any[]>([]);
     const [specificAssigneeId, setSpecificAssigneeId] = useState('');
 
+    // Subtasks State
+    const [subtasks, setSubtasks] = useState<{ title: string; description: string }[]>([{ title: '', description: '' }]);
+
+    const addSubtaskRow = () => {
+        setSubtasks([...subtasks, { title: '', description: '' }]);
+    };
+
+    const updateSubtask = (index: number, field: 'title' | 'description', value: string) => {
+        const newSubtasks = [...subtasks];
+        newSubtasks[index][field] = value;
+        setSubtasks(newSubtasks);
+    };
+
+    const removeSubtaskRow = (index: number) => {
+        if (subtasks.length > 1) {
+            setSubtasks(subtasks.filter((_, i) => i !== index));
+        }
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -75,7 +94,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                 due_date: dateTime,
                 priority,
                 created_by: userId,
-                status: 'todo'
+                status: 'todo',
+                subtasks: subtasks.filter(s => s.title.trim() !== '')
             };
 
             if (assignType === 'me') {
@@ -316,6 +336,54 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                         )}
                     </div>
 
+                    {/* Subtasks Section */}
+                    <div>
+                        <div className="flex justify-between items-end mb-2">
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Subtasks</label>
+                            <span className="text-xs text-slate-400">Required: Title</span>
+                        </div>
+                        <div className="space-y-3">
+                            {subtasks.map((subtask, index) => (
+                                <div key={index} className="flex gap-2 items-start animate-in fade-in slide-in-from-top-1">
+                                    <div className="flex-1 space-y-1">
+                                        <input
+                                            type="text"
+                                            value={subtask.title}
+                                            onChange={(e) => updateSubtask(index, 'title', e.target.value)}
+                                            placeholder="Subtask Title *"
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-sm focus:border-blue-500 outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={subtask.description}
+                                            onChange={(e) => updateSubtask(index, 'description', e.target.value)}
+                                            placeholder="Description (Optional)"
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-xs focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSubtaskRow(index)}
+                                        className="mt-1 p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                        title="Remove"
+                                        disabled={subtasks.length === 1 && index === 0}
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                            ))}
+
+                            <button
+                                type="button"
+                                onClick={addSubtaskRow}
+                                className="w-full py-2 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-xl text-slate-500 dark:text-slate-400 text-sm hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Add Subtask
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Action Buttons */}
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
                         <button
@@ -348,8 +416,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                             )}
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
+                </form >
+            </div >
+        </div >
     );
 }

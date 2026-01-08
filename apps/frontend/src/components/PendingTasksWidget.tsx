@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import TaskDetailModal from './TaskDetailModal';
+import EditTaskModal from './EditTaskModal';
 
 interface Task {
   task_id: string;
@@ -10,6 +12,8 @@ interface Task {
   status: 'todo' | 'in_progress' | 'done';
   priority?: 'low' | 'medium' | 'high';
   due_date?: string;
+  user_id?: string;
+  created_by?: string;
 }
 
 interface PendingTasksWidgetProps {
@@ -32,6 +36,24 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Modal State
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Sort Persistence
+  const [sortOption, setSortOption] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dashboard_task_sort') || 'dueDate_asc';
+    }
+    return 'dueDate_asc';
+  });
+
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVal = e.target.value;
+    setSortOption(newVal);
+    localStorage.setItem('dashboard_task_sort', newVal);
+  };
+
   useEffect(() => {
     if (!userId) return;
 
@@ -39,11 +61,33 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
       try {
         const data = await api.get(`/tasks?userId=${userId}`);
         if (Array.isArray(data)) {
-          // Filter pending tasks (not done)
-          const pending = data
-            .filter((t: Task) => t.status !== 'done')
-            .slice(0, 5);
-          setTasks(pending);
+          // Filter pending tasks (not done) AND Assigned to me
+          let pending = data.filter((t: Task) => t.status !== 'done' && t.user_id === userId);
+
+          // Apply sorting
+          pending.sort((a, b) => {
+            if (sortOption === 'dueDate_asc') { // Latest to New (Wait, default usually Oldest First for due date, but keeping logic consistent with user request "latest to new" -> maybe desc?)
+              // "Latest to New" usually means Future -> Past. 
+              // "New to Latest" is ambiguous. 
+              // Let's implement standard Time based:
+              // Ascending: Oldest due date top (Urgent)
+              // Descending: Furthest due date top
+              if (!a.due_date) return 1; if (!b.due_date) return -1;
+              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            } else if (sortOption === 'dueDate_desc') {
+              if (!a.due_date) return 1; if (!b.due_date) return -1;
+              return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
+            } else if (sortOption === 'priority_high') { // High to Low
+              const pMap = { high: 3, medium: 2, low: 1 };
+              return (pMap[b.priority || 'medium'] || 0) - (pMap[a.priority || 'medium'] || 0);
+            } else if (sortOption === 'priority_low') { // Low to High
+              const pMap = { high: 3, medium: 2, low: 1 };
+              return (pMap[a.priority || 'medium'] || 0) - (pMap[b.priority || 'medium'] || 0);
+            }
+            return 0;
+          });
+
+          setTasks(pending.slice(0, 5));
         }
       } catch (error) {
         console.error('Failed to fetch tasks:', error);
@@ -53,7 +97,7 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
     };
 
     fetchTasks();
-  }, [userId]);
+  }, [userId, sortOption]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return null;
@@ -83,11 +127,25 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
         </svg>
       </div>
 
-      <div className="relative z-10 flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
-          📋
+      <div className="relative z-10 flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+            📋
+          </div>
+          <h2 className="text-lg font-bold text-white">My Pending Tasks</h2>
         </div>
-        <h2 className="text-lg font-bold text-white">My Pending Tasks</h2>
+
+        {/* Sort Dropdown */}
+        <select
+          value={sortOption}
+          onChange={handleSortChange}
+          className="bg-black/30 text-white text-xs border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-emerald-500"
+        >
+          <option value="dueDate_asc">Date: Urgent First</option>
+          <option value="dueDate_desc">Date: Later First</option>
+          <option value="priority_high">Priority: High to Low</option>
+          <option value="priority_low">Priority: Low to High</option>
+        </select>
       </div>
 
       {tasks.length === 0 ? (
@@ -96,7 +154,7 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
           <p className="text-sm">All tasks completed!</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto custom-scrollbar pr-2">
           {tasks.map((task) => {
             const priority = task.priority || 'medium';
             const colors = priorityColors[priority];
@@ -105,7 +163,8 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
             return (
               <div
                 key={task.task_id}
-                className="relative flex items-center gap-4 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group overflow-hidden"
+                onClick={() => setSelectedTask(task)}
+                className="relative flex items-center gap-4 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group overflow-hidden cursor-pointer"
               >
                 {/* Status indicator bar */}
                 <div className={`absolute right-0 top-0 bottom-0 w-1 ${statusColors[task.status]}`}></div>
@@ -130,6 +189,26 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
             );
           })}
         </div>
+      )}
+      {selectedTask && !isEditing && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={() => setSelectedTask(null)}
+          onEdit={() => setIsEditing(true)}
+        />
+      )}
+
+      {selectedTask && isEditing && (
+        <EditTaskModal
+          task={selectedTask}
+          userId={userId}
+          onClose={() => setIsEditing(false)}
+          onTaskUpdated={(updatedTask) => {
+            setIsEditing(false);
+            if (updatedTask) setSelectedTask(updatedTask);
+          }}
+        />
       )}
     </div>
   );

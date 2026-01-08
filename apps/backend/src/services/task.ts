@@ -4,7 +4,7 @@ import { Task } from '@smartboard/home';
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
         if (!userId) {
-            const { data, error } = await supabase.from('tasks').select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)');
+            const { data, error } = await supabase.from('tasks').select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)');
             if (error) throw new Error(error.message);
             return data as Task[];
         }
@@ -29,7 +29,7 @@ export class TaskService {
 
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
             .or(orCondition);
 
         if (error) {
@@ -39,14 +39,15 @@ export class TaskService {
         return data as Task[];
     }
 
-    static async createTask(task: Partial<Task>): Promise<Task> {
-        // Use DB columns directly. Schema has user_id (Assignee) and created_by.
-        const insertPayload: any = { ...task };
+    static async createTask(task: Partial<Task> & { subtasks?: { title: string; description?: string }[] }): Promise<Task> {
+        // Extract subtasks from the typed object first
+        const { subtasks, ...taskData } = task;
 
-        // Remove edited_by if not in schema or handled elsewhere
+        // Use DB columns directly. Schema has user_id (Assignee) and created_by.
+        const insertPayload: any = { ...taskData };
         delete insertPayload.edited_by;
 
-        const { data, error } = await supabase
+        const { data: newTask, error } = await supabase
             .from('tasks')
             .insert([insertPayload])
             .select()
@@ -54,6 +55,22 @@ export class TaskService {
 
         if (error) {
             throw new Error(error.message);
+        }
+
+        // Handle Subtasks Creation
+        if (subtasks && subtasks.length > 0) {
+            const subtaskInserts = subtasks.map((s: { title: string; description?: string }) => ({
+                task_id: newTask.task_id,
+                title: s.title,
+                description: s.description,
+                is_completed: false
+            }));
+
+            const { error: subError } = await supabase
+                .from('subtasks')
+                .insert(subtaskInserts);
+
+            if (subError) console.error('Failed to create subtasks:', subError);
         }
 
         // Notification Logic
@@ -89,7 +106,7 @@ export class TaskService {
             // Don't fail the task creation just because notification failed
         }
 
-        return data as Task;
+        return newTask as Task;
     }
 
     static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
@@ -101,7 +118,7 @@ export class TaskService {
             .from('tasks')
             .update(updatePayload)
             .eq('task_id', taskId)
-            .select()
+            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
             .single();
 
         if (error) {
@@ -111,10 +128,10 @@ export class TaskService {
         return data as Task;
     }
 
-    static async addSubtask(taskId: string, title: string): Promise<any> {
+    static async addSubtask(taskId: string, title: string, description?: string): Promise<any> {
         const { data, error } = await supabase
             .from('subtasks')
-            .insert([{ task_id: taskId, title, is_completed: false }])
+            .insert([{ task_id: taskId, title, description, is_completed: false }])
             .select()
             .single();
 
@@ -137,6 +154,42 @@ export class TaskService {
             throw new Error(error.message);
         }
 
+        return data;
+    }
+
+    static async updateSubtaskTitle(subtaskId: string, title: string): Promise<any> {
+        const { data, error } = await supabase
+            .from('subtasks')
+            .update({ title })
+            .eq('subtask_id', subtaskId)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return data;
+    }
+
+    static async addSubtaskAttachment(subtaskId: string, fileUrl: string): Promise<any> {
+        // Query current attachments first
+        const { data: current, error: fetchError } = await supabase
+            .from('subtasks')
+            .select('attachments')
+            .eq('subtask_id', subtaskId)
+            .single();
+
+        if (fetchError) throw new Error(fetchError.message);
+
+        const currentAttachments = current.attachments || [];
+        const newAttachments = [...currentAttachments, fileUrl];
+
+        const { data, error } = await supabase
+            .from('subtasks')
+            .update({ attachments: newAttachments })
+            .eq('subtask_id', subtaskId)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
         return data;
     }
 

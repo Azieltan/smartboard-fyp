@@ -12,6 +12,7 @@ export interface CalendarEvent {
     // Note: To support 'shared_with_user_ids' properly in Supabase without a new table, we often use a JSONB column 'attendees' or similar.
     // For this implementation, we'll assume we add a 'shared_with' JSONB column to 'calendar_events'.
     shared_with?: string[];
+    description?: string;
 }
 
 export class CalendarService {
@@ -159,7 +160,8 @@ export class CalendarService {
             type: 'event',
             // Add metadata for frontend to show "Shared" icon
             isShared: e.user_id !== userId || (e.shared_with && e.shared_with.length > 0) || !!e.shared_with_group_id,
-            group_id: e.shared_with_group_id
+            group_id: e.shared_with_group_id,
+            description: e.description
         }));
 
         const formattedTasks = (tasks || []).map(t => ({

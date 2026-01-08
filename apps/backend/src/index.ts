@@ -659,7 +659,7 @@ app.get('/tasks/:taskId', async (req, res) => {
 
 app.post('/tasks/:taskId/subtasks', async (req, res) => {
     try {
-        const subtask = await TaskService.addSubtask(req.params.taskId, req.body.title);
+        const subtask = await TaskService.addSubtask(req.params.taskId, req.body.title, req.body.description);
         res.json(subtask);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
@@ -668,10 +668,49 @@ app.post('/tasks/:taskId/subtasks', async (req, res) => {
 
 app.put('/tasks/subtasks/:subtaskId', async (req, res) => {
     try {
-        const { isCompleted } = req.body;
-        const subtask = await TaskService.toggleSubtask(req.params.subtaskId, isCompleted);
+        const { isCompleted, title } = req.body;
+        // Check what we are updating
+        let subtask;
+        if (title !== undefined) {
+            subtask = await TaskService.updateSubtaskTitle(req.params.subtaskId, title);
+        } else if (isCompleted !== undefined) {
+            subtask = await TaskService.toggleSubtask(req.params.subtaskId, isCompleted);
+        } else {
+            return res.status(400).json({ error: "Nothing to update" });
+        }
         res.json(subtask);
     } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Multer already imported above
+
+app.post('/tasks/subtasks/:subtaskId/attachments', upload.single('file'), async (req: any, res) => {
+    try {
+        const file = req.file;
+        if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+        // Upload to Supabase Storage
+        const fileName = `${req.params.subtaskId}/${Date.now()}_${file.originalname}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('attachments') // Ensure this bucket exists
+            .upload(fileName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+            });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        // Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(fileName);
+
+        const subtask = await TaskService.addSubtaskAttachment(req.params.subtaskId, publicUrl);
+        res.json(subtask);
+    } catch (e: any) {
+        console.error("Subtask upload error:", e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -698,9 +737,12 @@ app.get('/tasks/:taskId/submission', async (req, res) => {
 
 app.get('/tasks/:taskId/submissions', async (req, res) => {
     try {
+        console.log(`Fetching submissions for task: ${req.params.taskId}`);
         const submissions = await TaskService.getTaskSubmissions(req.params.taskId);
+        console.log(`Found ${submissions.length} submissions`);
         res.json(submissions);
     } catch (e: any) {
+        console.error("Error in GET /tasks/:taskId/submissions:", e);
         res.status(500).json({ error: e.message });
     }
 });

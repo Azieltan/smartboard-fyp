@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import CreateEventModal from './CreateEventModal';
+import EventDetailModal from './EventDetailModal';
 
 interface CalendarEvent {
   event_id: string;
@@ -10,6 +11,7 @@ interface CalendarEvent {
   start_time: string;
   end_time?: string;
   description?: string;
+  type?: string;
 }
 
 interface UpcomingEventsWidgetProps {
@@ -20,6 +22,7 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const fetchEvents = async () => {
     if (!userId) {
@@ -119,7 +122,8 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
             return (
               <div
                 key={event.event_id}
-                className="flex items-center gap-4 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group"
+                onClick={() => setSelectedEvent(event)}
+                className="flex items-center gap-4 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group cursor-pointer"
               >
                 {/* Date Box */}
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex flex-col items-center justify-center text-white shadow-lg shrink-0">
@@ -157,6 +161,13 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
             setShowCreateModal(false);
             fetchEvents();
           }}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
         />
       )}
     </div>

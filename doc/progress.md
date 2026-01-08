@@ -20,7 +20,27 @@
 
 ---
 
-## Latest Updates (2025-12-30 - Session 7)
+
+## Latest Updates (2026-01-08)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Task UI** | ✅ Fixed | **Immediate Update**: Editing a task now correctly updates the local view immediately without requiring a page refresh. Fixed `selectedTask` stale state issue. |
+| **Backend Data** | ✅ Improved | `updateTask` now returns joined fields (owner, assignee names) to maintain consistency with list view and prevent potential UI partial-data issues. |
+
+### Dashboard & Calendar Overhaul (Session 8)
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Dashboard** | ✅ Enhanced | Added dynamic **Welcome Message** (Time-based + Username). |
+| **Widgets** | ✅ Enhanced | **Pending Tasks**: Added Sorting + **Click-to-view/edit**. Filtered to show only assigned tasks. **Weekly Schedule**: Now displays Tasks + Events, clickable for full details/edit. |
+| **Calendar** | ✅ Upgraded | **Task Integration**: Click tasks to view/edit details directly in Calendar. **Event Details**: New beautiful Modal with description support. |
+| **Event Data** | ✅ Updated | Added `description` field to Calendar Events (DB + Frontend). |
+| **Persistence** | ✅ Done | Task filters and sort preferences are now saved in `localStorage`. |
+
+---
+
+## Previous Updates (2025-12-30 - Session 7)
 
 ### Automated Verification & Deployment
 | Task | Status | Details |

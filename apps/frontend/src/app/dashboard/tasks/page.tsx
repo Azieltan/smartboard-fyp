@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { api } from '../../../lib/api';
 import CreateTaskModal from '../../../components/CreateTaskModal';
 import EditTaskModal from '../../../components/EditTaskModal';
@@ -21,10 +21,49 @@ export default function TasksPage() {
 
     // Filter & Sort States
     const [searchQuery, setSearchQuery] = useState('');
-    const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
-    const [sortBy, setSortBy] = useState<'dueDate_asc' | 'dueDate_desc'>('dueDate_asc');
+    const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('tasks_priority') as any || 'all';
+        return 'all';
+    });
+    const [sortBy, setSortBy] = useState<'dueDate_asc' | 'dueDate_desc'>(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('tasks_sort') as any || 'dueDate_asc';
+        return 'dueDate_asc';
+    });
+
+    // Save persistence
+    useEffect(() => {
+        localStorage.setItem('tasks_priority', priorityFilter);
+    }, [priorityFilter]);
+
+    useEffect(() => {
+        localStorage.setItem('tasks_sort', sortBy);
+    }, [sortBy]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const filterMenuRef = useRef<HTMLDivElement>(null);
+
+    const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (taskId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newExpanded = new Set(expandedTasks);
+        if (newExpanded.has(taskId)) {
+            newExpanded.delete(taskId);
+        } else {
+            newExpanded.add(taskId);
+        }
+        setExpandedTasks(newExpanded);
+    };
+
+    const handleSubtaskToggle = async (subtaskId: string, currentStatus: boolean, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await api.put(`/tasks/subtasks/${subtaskId}`, { isCompleted: !currentStatus });
+            // Refresh tasks to show updated status
+            if (userId) fetchTasks(userId);
+        } catch (error) {
+            console.error('Failed to toggle subtask', error);
+        }
+    };
 
     // Stats for sidebar
     const [stats, setStats] = useState({
@@ -146,6 +185,24 @@ export default function TasksPage() {
             setActiveModal('review');
         } else {
             setActiveModal('detail');
+        }
+    };
+
+    const handleSubtaskUpload = async (subtaskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        try {
+            const file = e.target.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            await api.post(`/tasks/subtasks/${subtaskId}/attachments`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (userId) fetchTasks(userId);
+        } catch (error) {
+            console.error('Failed to upload attachment', error);
+            alert('Failed to upload file');
         }
     };
 
@@ -310,8 +367,8 @@ export default function TasksPage() {
                             <button
                                 onClick={() => setShowFilterMenu(!showFilterMenu)}
                                 className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium transition-all ${showFilterMenu || priorityFilter !== 'all' || sortBy !== 'dueDate_asc'
-                                        ? 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10'
-                                        : 'text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'
+                                    ? 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10'
+                                    : 'text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'
                                     }`}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
@@ -332,8 +389,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setSortBy('dueDate_asc')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${sortBy === 'dueDate_asc'
-                                                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <span>First to Latest</span>
@@ -342,8 +399,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setSortBy('dueDate_desc')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${sortBy === 'dueDate_desc'
-                                                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <span>Latest to First</span>
@@ -362,8 +419,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setPriorityFilter('all')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'all'
-                                                            ? 'bg-slate-800 text-white shadow-md shadow-slate-500/20 dark:bg-white dark:text-slate-900'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-slate-800 text-white shadow-md shadow-slate-500/20 dark:bg-white dark:text-slate-900'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -377,8 +434,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setPriorityFilter('high')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'high'
-                                                            ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -392,8 +449,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setPriorityFilter('medium')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'medium'
-                                                            ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -407,8 +464,8 @@ export default function TasksPage() {
                                                 <button
                                                     onClick={() => setPriorityFilter('low')}
                                                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'low'
-                                                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -454,70 +511,179 @@ export default function TasksPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                                 {filteredTasks.map((task) => (
-                                    <tr
-                                        key={task.task_id}
-                                        onClick={() => handleTaskClick(task)}
-                                        className="group bg-white dark:bg-[#1e293b] hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer"
-                                    >
-                                        {/* Priority */}
-                                        <td className="px-6 py-4">
-                                            <div className={`w-3 h-3 rounded-full ${task.priority === 'high' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
+                                    <Fragment key={task.task_id}>
+                                        <tr
+                                            onClick={() => handleTaskClick(task)}
+                                            className="group bg-white dark:bg-[#1e293b] hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer"
+                                        >
+                                            {/* Priority */}
+                                            <td className="px-6 py-4">
+                                                <div className={`w-3 h-3 rounded-full ${task.priority === 'high' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
                                                     task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
-                                                }`} title={`Priority: ${task.priority}`}></div>
-                                        </td>
+                                                    }`} title={`Priority: ${task.priority}`}></div>
+                                            </td>
 
-                                        {/* Task Name */}
-                                        <td className="px-6 py-4">
-                                            <div>
-                                                <p className="font-semibold text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{task.title}</p>
-                                                {task.description && (
-                                                    <p className="text-xs text-slate-500 truncate max-w-[200px] mt-0.5">{task.description}</p>
-                                                )}
-                                            </div>
-                                        </td>
+                                            {/* Task Name with Expand */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-start gap-3">
+                                                    {task.subtasks && task.subtasks.length > 0 && (
+                                                        <button
+                                                            onClick={(e) => toggleExpand(task.task_id, e)}
+                                                            className="mt-0.5 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors"
+                                                        >
+                                                            <svg className={`w-4 h-4 transition-transform ${expandedTasks.has(task.task_id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-semibold text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{task.title}</p>
+                                                            {task.subtasks && task.subtasks.length > 0 && (
+                                                                <span className="text-[10px] bg-slate-100 dark:bg-white/5 text-slate-500 px-1.5 py-0.5 rounded-full">
+                                                                    {task.subtasks.filter((s: any) => s.is_completed).length}/{task.subtasks.length}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {task.description && (
+                                                            <p className="text-xs text-slate-500 truncate max-w-[200px] mt-0.5">{task.description}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
 
-                                        {/* Status */}
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${task.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                                            {/* Status */}
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${task.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
                                                     task.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
                                                         task.status === 'in_review' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
                                                             'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
-                                                }`}>
-                                                {task.status.replace('_', ' ')}
-                                            </span>
-                                        </td>
-
-                                        {/* Assignee */}
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-[#1e293b] ${task.user_id === userId ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                                     }`}>
-                                                    {task.user_id === userId ? 'Me' : getInitials(task.assignee?.user_name)}
-                                                </div>
-                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                    {task.user_id === userId ? 'Me' : (task.assignee?.user_name || 'Unassigned')}
+                                                    {task.status.replace('_', ' ')}
                                                 </span>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        {/* Owner */}
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 opacity-80">
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${task.created_by === userId ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                                    }`}>
-                                                    {task.created_by === userId ? 'Me' : getInitials(task.owner?.user_name)}
+                                            {/* Assignee */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-[#1e293b] ${task.user_id === userId ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                                        }`}>
+                                                        {task.user_id === userId ? 'Me' : getInitials(task.assignee?.user_name)}
+                                                    </div>
+                                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                        {task.user_id === userId ? 'Me' : (task.assignee?.user_name || 'Unassigned')}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-slate-600 dark:text-slate-400">
-                                                    {task.created_by === userId ? 'Me' : (task.owner?.user_name || 'Unknown')}
-                                                </span>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        {/* Due Date */}
-                                        <td className="px-6 py-4 text-right text-sm">
-                                            {formatDate(task.due_date)}
-                                        </td>
-                                    </tr>
+                                            {/* Owner */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2 opacity-80">
+                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${task.created_by === userId ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                                        }`}>
+                                                        {task.created_by === userId ? 'Me' : getInitials(task.owner?.user_name)}
+                                                    </div>
+                                                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                                                        {task.created_by === userId ? 'Me' : (task.owner?.user_name || 'Unknown')}
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            {/* Due Date */}
+                                            <td className="px-6 py-4 text-right text-sm">
+                                                {formatDate(task.due_date)}
+                                            </td>
+                                        </tr>
+                                        {/* Subtasks Expansion Row */}
+                                        {expandedTasks.has(task.task_id) && task.subtasks && (
+                                            <tr className="bg-slate-50/50 dark:bg-black/20 animate-in slide-in-from-top-2 duration-200">
+                                                <td colSpan={6} className="px-6 py-4 pl-16">
+                                                    <div className="bg-white dark:bg-[#1e293b] rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden">
+                                                        <div className="px-4 py-2 bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subtasks</span>
+                                                            {/* Optional: Add Subtask Button could go here */}
+                                                        </div>
+                                                        <div className="divide-y divide-slate-100 dark:divide-white/5">
+                                                            {task.subtasks.map((subtask: any) => (
+                                                                <div key={subtask.subtask_id} className="flex items-start gap-4 p-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
+                                                                    <button
+                                                                        onClick={(e) => handleSubtaskToggle(subtask.subtask_id, subtask.is_completed, e)}
+                                                                        disabled={task.status === 'done'}
+                                                                        className={`mt-1 w-5 h-5 rounded border flex items-center justify-center transition-all ${subtask.is_completed
+                                                                            ? 'bg-blue-500 border-blue-500 text-white'
+                                                                            : 'border-slate-300 dark:border-slate-600 hover:border-blue-500'
+                                                                            } ${task.status === 'done' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    >
+                                                                        {subtask.is_completed && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                                    </button>
+                                                                    <div className="flex-1 flex justify-between items-start">
+                                                                        <div>
+                                                                            <p className={`text-sm ${subtask.is_completed ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200 font-medium'}`}>
+                                                                                {subtask.title}
+                                                                            </p>
+                                                                            {subtask.description && (
+                                                                                <p className={`text-xs ${subtask.is_completed ? 'text-slate-300' : 'text-slate-500'}`}>
+                                                                                    {subtask.description}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Attachments Section */}
+                                                                        {task.status !== 'done' && (
+                                                                            <div className="flex items-center gap-3">
+                                                                                {/* Edit Button */}
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setSelectedTask(task); // Open modal for full editing
+                                                                                    }}
+                                                                                    className="text-slate-300 hover:text-blue-500 transition-colors p-1"
+                                                                                    title="Edit Subtask"
+                                                                                >
+                                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                                </button>
+
+                                                                                {subtask.attachments && subtask.attachments.length > 0 && (
+                                                                                    <div className="flex -space-x-2">
+                                                                                        {subtask.attachments.map((url: string, idx: number) => (
+                                                                                            <a
+                                                                                                key={idx}
+                                                                                                href={url}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/20 border border-blue-100 dark:border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:scale-110 transition-transform shadow-sm"
+                                                                                                title="View Attachment"
+                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                            >
+                                                                                                <span className="text-[10px] font-bold">PDF</span>
+                                                                                            </a>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+
+                                                                                <label className="cursor-pointer text-slate-300 hover:text-blue-500 transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5" title="Attach file">
+                                                                                    <input
+                                                                                        type="file"
+                                                                                        className="hidden"
+                                                                                        onChange={(e) => handleSubtaskUpload(subtask.subtask_id, e)}
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    />
+                                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                                                </label>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                            {task.subtasks.length === 0 && (
+                                                                <div className="p-4 text-center text-xs text-slate-400 italic">No subtasks</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
                                 ))}
                             </tbody>
                         </table>
@@ -530,9 +696,12 @@ export default function TasksPage() {
                     task={selectedTask}
                     userId={userId!}
                     onClose={() => setActiveModal('detail')}
-                    onTaskUpdated={() => {
+                    onTaskUpdated={(updatedTask) => {
                         fetchTasks(userId!);
-                        setActiveModal('detail'); // Go back to detail, or close? Let's go back to detail.
+                        if (updatedTask) {
+                            setSelectedTask(updatedTask);
+                        }
+                        setActiveModal('detail');
                     }}
                 />
             )}
@@ -590,20 +759,7 @@ export default function TasksPage() {
 
                         {/* Action Bar based on Status */}
                         <div className="flex gap-3 mb-6">
-                            {(selectedTask.status === 'todo' && selectedTask.user_id === userId) && (
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await api.put(`/tasks/${selectedTask.task_id}`, { status: 'in_progress' });
-                                            fetchTasks(userId!);
-                                            setActiveModal(null);
-                                        } catch (e) { console.error(e); }
-                                    }}
-                                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex justify-center items-center gap-2"
-                                >
-                                    Start Task
-                                </button>
-                            )}
+
                             {(selectedTask.status === 'in_progress' && selectedTask.user_id === userId) && (
                                 <button
                                     onClick={() => { setActiveModal(null); setActiveModal('submission'); }}

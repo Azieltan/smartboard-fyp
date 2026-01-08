@@ -43,6 +43,7 @@ create table group_members (
 create table calendar_events (
   event_id uuid primary key default uuid_generate_v4(),
   title text not null,
+  description text,
   start_time timestamp with time zone not null,
   end_time timestamp with time zone not null,
   creator text references users(user_id),

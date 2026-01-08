@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import CreateEventModal from './CreateEventModal';
+import EventDetailModal from './EventDetailModal';
+import TaskDetailModal from './TaskDetailModal';
+import EditTaskModal from './EditTaskModal';
 
 interface CalendarItem {
   id: string;
@@ -14,6 +17,9 @@ interface CalendarItem {
   isShared?: boolean;
   group_id?: string;
   owner_id?: string;
+  user_id?: string;
+  created_by?: string;
+  [key: string]: any;
 }
 
 interface WeeklyCalendarWidgetProps {
@@ -26,6 +32,11 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Modal State
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+
   useEffect(() => {
     if (userId) fetchItems();
   }, [userId]);
@@ -33,7 +44,7 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
   const fetchItems = async () => {
     setIsLoading(true);
     try {
-      const data = await api.get(`/calendar/${userId}/items`);
+      const data = await api.get(`/calendar/all/${userId}`); // Using calendar/all endpoint to get Tasks + Events
       if (Array.isArray(data)) {
         setItems(data);
       }
@@ -41,6 +52,20 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
       console.error("Failed to fetch calendar items", e);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleItemClick = async (item: CalendarItem) => {
+    if (item.type === 'task') {
+      try {
+        // Fetch full task details
+        const taskData = await api.get(`/tasks/${item.id}`);
+        setSelectedTask(taskData);
+      } catch (e) {
+        console.error("Failed to fetch task details", e);
+      }
+    } else {
+      setSelectedEvent(item);
     }
   };
 
@@ -140,7 +165,11 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {selectedItems.map(item => (
-              <div key={item.id} className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group flex items-start gap-4 hover:border-white/10 hover:shadow-lg">
+              <div
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group flex items-start gap-4 hover:border-white/10 hover:shadow-lg cursor-pointer"
+              >
                 <div className={`w-1 h-12 rounded-full shrink-0 ${item.type === 'event' ? 'bg-blue-500' :
                   item.priority === 'high' ? 'bg-red-500' : 'bg-emerald-500'
                   }`} />
@@ -173,6 +202,35 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
           userId={userId}
           onClose={() => setShowCreateModal(false)}
           onEventCreated={() => fetchItems()}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+
+      {selectedTask && !isEditingTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={() => fetchItems()}
+          onEdit={selectedTask.created_by === userId || selectedTask.user_id === userId ? () => setIsEditingTask(true) : undefined}
+        />
+      )}
+
+      {selectedTask && isEditingTask && (
+        <EditTaskModal
+          task={selectedTask}
+          userId={userId}
+          onClose={() => setIsEditingTask(false)}
+          onTaskUpdated={(updatedTask) => {
+            setIsEditingTask(false);
+            if (updatedTask) setSelectedTask(updatedTask);
+            fetchItems();
+          }}
         />
       )}
     </div>
