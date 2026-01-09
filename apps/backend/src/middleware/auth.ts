@@ -10,15 +10,20 @@ export interface AuthRequest extends Request {
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
+    console.log(`[Auth] ${req.method} ${req.url} - Token provided: ${!!token}`);
+
     if (!token) {
+        console.warn(`[Auth] Missing token for ${req.url}`);
         return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
+        // console.log(`[Auth] User verified: ${(decoded as any).userId}`);
         next();
     } catch (error) {
+        console.error(`[Auth] Invalid token for ${req.url}`, error);
         res.status(400).json({ error: 'Invalid token.' });
     }
 };

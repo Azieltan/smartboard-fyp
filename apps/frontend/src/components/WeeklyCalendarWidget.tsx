@@ -48,8 +48,10 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
       if (Array.isArray(data)) {
         setItems(data);
       }
-    } catch (e) {
-      console.error("Failed to fetch calendar items", e);
+    } catch (e: any) {
+      if (e?.response?.status !== 500) {
+        console.error("Failed to fetch calendar items", e);
+      }
     } finally {
       setIsLoading(false);
     }

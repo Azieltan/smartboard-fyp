@@ -163,13 +163,15 @@ export default function TasksPage() {
         result.sort((a, b) => {
             if (sortBy === 'dueDate_desc') {
                 // Latest first (Newer dates first)
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
+                if (!a.due_date && b.due_date) return 1;
+                if (!b.due_date && a.due_date) return -1;
+                if (!a.due_date && !b.due_date) return 0;
                 return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
             } else {
                 // First to Latest (Oldest dates first)
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
+                if (!a.due_date && b.due_date) return 1;
+                if (!b.due_date && a.due_date) return -1;
+                if (!a.due_date && !b.due_date) return 0;
                 return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             }
         });

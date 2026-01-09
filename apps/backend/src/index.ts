@@ -13,6 +13,7 @@ import { FriendService } from './services/friend';
 import { CalendarService } from './services/calendar';
 import { NotificationService } from './services/notification';
 import { SmartyService } from './services/smarty';
+import { AdminService } from './services/admin';
 
 dotenv.config();
 
@@ -804,18 +805,115 @@ app.delete('/notifications/:notificationId', async (req, res) => {
 
 
 
-import { AdminService } from './services/admin';
-
 // Admin Routes
-app.get('/admin/stats', async (req, res) => {
-    try {
-        // In a real app, middleware should strictly check if req.user.role === 'admin'
-        // But for now, relying on the authMiddleware (which ensures user is logged in) 
-        // and assuming frontend/service layer handles role logic or minimal security for this MVP.
-        // Ideally: if (req.user.role !== 'admin') return res.status(403).json({error: 'Forbidden'});
+const adminMiddleware = (req: any, res: any, next: any) => {
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
 
-        const stats = await AdminService.getStats();
+app.get('/admin/stats', adminMiddleware, async (req, res) => {
+    try {
+        const stats = await AdminService.getUserStats();
         res.json(stats);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/admin/users', adminMiddleware, async (req, res) => {
+    try {
+        const users = await AdminService.getAllUsers();
+        res.json(users);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/admin/users/:userId', adminMiddleware, async (req, res) => {
+    try {
+        await AdminService.deleteUser(req.params.userId);
+        io.to(req.params.userId).emit('force_logout', 'Your account has been deleted by the administrator.');
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/admin/users/:userId/status', adminMiddleware, async (req, res) => {
+    try {
+        const { isActive } = req.body;
+        await AdminService.toggleUserStatus(req.params.userId, isActive);
+
+        if (!isActive) {
+            io.to(req.params.userId).emit('force_logout', 'Your account has been deactivated by the administrator.');
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/admin/tasks', adminMiddleware, async (req, res) => {
+    try {
+        const tasks = await AdminService.getAllTasks();
+        res.json(tasks);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/admin/tasks/:taskId', adminMiddleware, async (req, res) => {
+    try {
+        const task = await AdminService.updateTask(req.params.taskId, req.body);
+        res.json(task);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/admin/tasks/:taskId', adminMiddleware, async (req, res) => {
+    try {
+        await AdminService.deleteTask(req.params.taskId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/admin/events', adminMiddleware, async (req, res) => {
+    try {
+        const events = await AdminService.getAllEvents();
+        res.json(events);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/admin/events/:eventId', adminMiddleware, async (req, res) => {
+    try {
+        const event = await AdminService.updateEvent(req.params.eventId, req.body);
+        res.json(event);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/admin/events/:eventId', adminMiddleware, async (req, res) => {
+    try {
+        await AdminService.deleteEvent(req.params.eventId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/admin/export', adminMiddleware, async (req, res) => {
+    try {
+        const data = await AdminService.exportData();
+        res.json(data);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

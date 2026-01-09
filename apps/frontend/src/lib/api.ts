@@ -20,6 +20,15 @@ const handleResponse = async (res: Response) => {
         }
 
         if (!res.ok) {
+            // Auto-logout if token is invalid or expired
+            if (typeof window !== 'undefined') {
+                if (res.status === 401 || (res.status === 400 && data?.error === 'Invalid token.')) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                }
+            }
+
             throw {
                 response: { data, status: res.status, url: res.url }
             };

@@ -45,8 +45,10 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
         console.warn("Calendar API returned non-array:", data);
         setEvents([]);
       }
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
+    } catch (error: any) {
+      if (error?.response?.status !== 500) {
+        console.error('Failed to fetch events:', error);
+      }
       setEvents([]);
     } finally {
       setIsLoading(false);

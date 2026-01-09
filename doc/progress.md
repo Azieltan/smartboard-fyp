@@ -21,7 +21,18 @@
 ---
 
 
-## Latest Updates (2026-01-08)
+## Latest Updates (2026-01-09)
+
+### Admin Portal & System Security
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Admin Portal** | ✅ Completed | Implemented secure Admin Dashboard at `/dashboard/admin`. |
+| **User Management** | ✅ Implemented | Admin can now View all users, Delete users/Deactivate accounts (forces logout via real-time socket). |
+| **Statistics** | ✅ Implemented | Overview cards for Total Users, Total Tasks, Active/Completed Tasks. |
+| **Export Reports** | ✅ Implemented | Ability to export User List with Task Counts to CSV. |
+| **Role Security** | ✅ Enhanced | Admin routes strictly protected by Middleware. Sidebar link visible only to 'admin' role. |
+
+## Previous Updates (2026-01-08)
 
 ### Fixes & Enhancements
 | Feature | Status | Details |

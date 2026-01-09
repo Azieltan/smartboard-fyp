@@ -3,7 +3,7 @@ import axios from 'axios';
 async function testRegister() {
     console.log('Testing /auth/register endpoint...');
     try {
-        const response = await axios.post('http://localhost:3000/api/auth/register', {
+        const response = await axios.post('http://localhost:3001/auth/register', {
             username: 'Test User',
             email: 'test' + Date.now() + '@example.com',
             password: 'Password123!'
@@ -17,7 +17,7 @@ async function testRegister() {
 async function testLogin() {
     console.log('\nTesting /auth/login endpoint (with intentional wrong credentials)...');
     try {
-        const response = await axios.post('http://localhost:3000/api/auth/login', {
+        const response = await axios.post('http://localhost:3001/auth/login', {
             email: 'nonexistent@example.com',
             password: 'wrongpassword'
         });

@@ -89,8 +89,11 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
 
           setTasks(pending.slice(0, 5));
         }
-      } catch (error) {
-        console.error('Failed to fetch tasks:', error);
+      } catch (error: any) {
+        // Suppress stale user errors
+        if (error?.response?.status !== 500) {
+          console.error('Failed to fetch tasks:', error);
+        }
       } finally {
         setIsLoading(false);
       }
