@@ -14,6 +14,7 @@ import { CalendarService } from './services/calendar';
 import { NotificationService } from './services/notification';
 import { SmartyService } from './services/smarty';
 import { AdminService } from './services/admin';
+import smartyRouter from './routes/smarty';
 
 dotenv.config();
 
@@ -80,27 +81,7 @@ app.get('/test-shared', (req, res) => {
 });
 
 // Smarty Routes
-// Smarty Routes
-
-app.post('/smarty/automate', async (req, res) => {
-    try {
-        const { userId, prompt } = req.body;
-        const result = await SmartyService.automate(userId, prompt);
-        res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to process automation request' });
-    }
-});
-
-app.post('/smarty/ask', async (req, res) => {
-    try {
-        const { userId, question } = req.body;
-        const result = await SmartyService.ask(userId, question);
-        res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to process question' });
-    }
-});
+app.use('/smarty', smartyRouter);
 
 // Auth Routes
 app.post('/auth/register', async (req, res) => {

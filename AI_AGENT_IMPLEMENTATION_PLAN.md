@@ -13,6 +13,7 @@
 3. [Task 2: Remove User Online State](#3-task-2-remove-user-online-state)
 4. [Task 3: Fix Chat Background UI](#4-task-3-fix-chat-background-ui)
 5. [Task 5: Draggable AI Bubble with Options](#5-task-5-draggable-ai-bubble-with-options)
+   - [Task 5 (Phase 2 & 3): n8n Orchestration & "Let Smarty Do"](#task-5-phase-2--3-n8n-orchestration--let-smarty-do)
 6. [Task 6: Group Enhancements](#6-task-6-group-enhancements)
 7. [Task 7: User Enhancements](#7-task-7-user-enhancements)
 8. [Task 8: Dashboard UI Implementation](#8-task-8-dashboard-ui-implementation)
@@ -997,48 +998,117 @@ document.addEventListener("touchend", handleMouseUp);
 
 ---
 
-## 6.1 Task 5 (Phase 2): Enable “Let Smarty Do” (Automation)
-
-### Current State
-
-- Frontend shows “Let Smarty Do” as **disabled / Coming Soon**.
-- Backend route exists: `POST /smarty/automate`.
-- n8n automation hook exists in backend (`smarty-automate` webhook trigger).
+## 6.1 Task 5 (Phase 2 & 3): n8n Orchestration & "Let Smarty Do"
 
 ### Goal
+Implement a robust AI orchestration layer using n8n for parsing natural language, resolving ambiguity, and calling backend APIs. This includes a "confirm-before-execute" flow to ensure safety and transparency.
 
-Enable “Let Smarty Do” so users can trigger safe, supported automation actions (e.g., create/update tasks, create calendar events) through the existing Smarty bubble UI.
+### Key Architectural Rules
+1. **Backend is authoritative**: Authentication, permission checks, and final DB writes must be done by the backend API. n8n orchestrates but does not assume trust.
+2. **Confirm before execute**: Any automated action that will create/update/delete persistent data must be confirmed by the user in plain language before execution.
+3. **Allowlist actions only**: Define a restricted set of allowed automation intents. n8n must reject anything outside the allowlist.
+4. **Traceability & Idempotence**: Every automation interaction produces an `automation_id` (UUID) for auditing.
+5. **Error transparency**: Provide user-friendly reasons and actionable next steps on any error.
 
-### Implementation Steps
+### Updated Flow: Natural Language -> Confirm -> Execute -> Report
 
-#### Step A: Define Allowed Actions (Backend)
+1. **User (Frontend)**: Sends request `POST /smarty/automate` with `rawText` and context.
+2. **Backend `/smarty/automate`**:
+   - Validate JWT, extract `userId`.
+   - Store an `automation_requests` row with `status: pending`.
+   - Forward a structured envelope to n8n.
+3. **n8n Workflow**:
+   - Parse intent + slots (title, datetime, etc.).
+   - Resolve ambiguous slots.
+   - Return structured `intent` + `slots` + `needs_confirmation` + `summary` to backend.
+4. **Backend -> Frontend**: Returns the `summary` and `needs_confirmation` flag.
+5. **Frontend UI**: Shows a confirmation card with buttons (Confirm / Edit / Cancel).
+6. **User Confirms**: Frontend calls `POST /smarty/automate/confirm` with `automation_id`.
+7. **Execution**: n8n (or backend) executes final steps by calling secure backend endpoints.
+8. **Finalization**: Backend updates `automation_requests` row to `done` or `failed`.
+9. **Feedback**: Frontend displays final success/error message with a link to the resource.
 
-**File**: `apps/backend/src/services/smarty.ts`
+### Backend Contract (APIs to Provide)
 
-- Define an allowlist of supported actions and a strict input schema.
-- Enforce auth and derive `userId` from JWT (do not trust client-provided IDs).
-- Return a deterministic response shape: `{ ok: boolean, message: string, data?: any }`.
+#### POST /smarty/automate
+- **Auth**: Bearer JWT
+- **Body**: `{ rawText: string, context?: object }`
+- **Response**: `{ automation_id, needs_confirmation: boolean, summary, payload (optional) }`
 
-#### Step B: Wire Frontend to `/smarty/automate`
+#### POST /smarty/automate/confirm
+- **Auth**: Bearer JWT
+- **Body**: `{ automation_id: string }`
+- **Behavior**: Validates automation row, triggers n8n execution, returns final result.
 
-**File**: `apps/frontend/src/components/SmartyBubble.tsx`
+#### POST /internal/automation/execute
+- **Internal Only**: Accepts `payload` and `automation_id`. Executes the business logic (e.g., calling `CalendarService`).
 
-- Replace “Coming Soon” alert with a real call to backend `/smarty/automate`.
-- Keep UX minimal: reuse the existing chat input panel to submit an “automation request” and display the result.
-- Add loading + error states consistent with the existing “Ask Smarty” flow.
+### Data Models
 
-#### Step C: n8n Workflow Contract
+```sql
+CREATE TABLE IF NOT EXISTS automation_requests (
+  automation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(user_id),
+  raw_text TEXT NOT NULL,
+  summary TEXT,
+  payload JSONB,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, confirmed, executing, done, failed
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
-- Define a stable payload contract for the `smarty-automate` workflow.
-- Ensure n8n returns a short, user-friendly summary string and (optionally) structured fields used by the app.
+### Allowlist Actions
+- `create_calendar_event`
+- `create_reminder`
+- `create_task`
+- `assign_task`
+- `mark_task_done`
+- `reschedule_event`
+- `send_group_message`
 
-### Testing Checklist
+### Gemini 3 Pro Prompt (for Code Generation)
 
-- [ ] “Let Smarty Do” no longer disabled
-- [ ] Requests are rejected if user is unauthenticated
-- [ ] Only allowlisted actions execute
-- [ ] Successful automation returns a clear summary in the UI
-- [ ] Errors/timeouts show a friendly failure message
+> **Purpose**: Single, explicit instruction prompt for generating specific implementation code.
+
+```
+SYSTEM: You are Code-Assist-Gemini, an expert full-stack engineer. Produce TypeScript-First production-ready code and test suites for a backend automation endpoint + example n8n workflow JSON. Follow the exact constraints below and output only files and code blocks in markdown. Do NOT include long explanations. Keep output concise but complete.
+
+CONSTRAINTS:
+- Target runtime: Node 18+, TypeScript, Express 4/5 compatible.
+- DB: Postgres (use supabase client patterns). Use parameterized queries or Supabase JS client calls in examples.
+- Validation: use zod for request validation and types.
+- Auth: assume JWT middleware provides `req.user` with `{ user_id, email }`.
+- All n8n communications must be via backend-to-n8n webhook URLs. Include sample HTTP calls (axios/fetch) the backend will use.
+- Security: do not store secrets in code. Use env vars (e.g., `N8N_WEBHOOK_URL`, `N8N_SECRET`).
+- Provide unit tests with Jest for API behavior and a mock n8n response.
+
+REQUIRED OUTPUT FILES:
+1) `apps/backend/src/routes/smarty.ts` - Express router with 2 endpoints: `POST /smarty/automate` and `POST /smarty/automate/confirm`.
+2) `apps/backend/src/services/automationService.ts` - business logic to create `automation_requests` row, call n8n webhook, and perform execution handshake.
+3) `apps/backend/src/schemas/automationSchemas.ts` - zod schemas and TypeScript types for payloads.
+4) `apps/backend/src/tests/smarty.test.ts` - Jest tests mocking n8n responses and verifying DB calls and response shapes.
+5) `n8n/smarty-automate-workflow.json` - an example n8n workflow JSON.
+6) `examples/curl_samples.md` - two curl examples (initiate automation, confirm automation).
+
+IMPLEMENTATION NOTES:
+- `POST /smarty/automate` should: validate JWT, parse body via zod, create `automation_requests` record with status `pending`, call n8n webhook with `automation_id` and return n8n response to frontend.
+- `POST /smarty/automate/confirm` should: validate JWT and `automation_id`, ensure `status: pending`, make confirm call to n8n or call internal execute endpoint which then calls internal business logic and updates DB.
+- The automationService must retry network calls up to 2 times with exponential backoff and return clear errors.
+
+OUTPUT FORMAT RULES:
+- Each file must be a single fenced markdown code block preceded by `// FILE: <path>` on a single line.
+- For TypeScript, include necessary imports and small comments where clarity helps.
+- Tests should be runnable with `npm test` using Jest; mock network calls using `nock` or `jest.mock`.
+- For the n8n workflow JSON, include at least 5 nodes with fake ids and an explanation line comment of each node's purpose at the top of the code block.
+
+END.
+```
+
+### Testing & QA
+- **Unit tests**: Backend permission checks and allowlist validation.
+- **Integration tests**: Simulate n8n response JSONs and verify confirmation flow.
+- **E2E smoke test**: Run scenario "create calendar event" verifying UI confirmation, DB row creation, calendar event creation, and notification.
 
 ## 7. Task 6: Group Enhancements
 

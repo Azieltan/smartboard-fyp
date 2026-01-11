@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import axios from 'axios';
+import { api } from '../lib/api';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -27,6 +28,14 @@ export function SmartyBubble() {
     const [position, setPosition] = useState({ x: 20, y: 20 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+    // Automation state
+    const [isAutomateMode, setIsAutomateMode] = useState(false);
+    const [pendingAutomation, setPendingAutomation] = useState<{
+        automation_id: string;
+        summary: string;
+        payload: any;
+    } | null>(null);
 
     // Refs
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -141,7 +150,30 @@ export function SmartyBubble() {
     };
 
     const handleLetSmartyDo = () => {
-        alert("This feature is still under development. Coming soon!");
+        setIsAutomateMode(true);
+        setShowOptions(false);
+        setShowChat(true);
+        setMessages([
+            { role: 'assistant', content: "I'm ready to help you automate tasks! Just tell me what you want to do, like 'Create a task called Review Report' or 'Add Sarah to the Marketing group'." }
+        ]);
+        resetHideTimer();
+    };
+
+    const handleConfirm = async () => {
+        if (!pendingAutomation) return;
+        setChatLoading(true);
+        try {
+            const res = await api.post('/smarty/automate/confirm', {
+                automation_id: pendingAutomation.automation_id
+            });
+            setMessages(prev => [...prev, { role: 'assistant', content: `✅ ${res.message || 'Done!'}` }]);
+            setPendingAutomation(null);
+        } catch (error: any) {
+            console.error('Confirm error:', error);
+            setMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${error.response?.data?.error || error.message || 'Failed to execute action'}` }]);
+        } finally {
+            setChatLoading(false);
+        }
     };
 
     const handleAsk = async (manualQuestion?: string) => {
@@ -154,26 +186,45 @@ export function SmartyBubble() {
         setChatLoading(true);
 
         try {
-            const res = await axios.post('https://n8n.h5preact.app/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', {
-                action: 'sendMessage',
-                sessionId: user.uid,
-                chatInput: userMessage
-            });
+            if (isAutomateMode) {
+                const res = await api.post('/smarty/automate', {
+                    rawText: userMessage,
+                    context: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+                });
 
-            let answer = "I didn't get a response.";
-            if (typeof res.data === 'string') {
-                answer = res.data;
-            } else if (Array.isArray(res.data)) {
-                answer = res.data.map((msg: any) => msg.text || JSON.stringify(msg)).join('\n');
-            } else if (res.data.output) {
-                answer = res.data.output;
+                if (res.needs_confirmation) {
+                    setPendingAutomation({
+                        automation_id: res.automation_id,
+                        summary: res.summary,
+                        payload: res.payload
+                    });
+                    setMessages(prev => [...prev, { role: 'assistant', content: res.summary }]);
+                } else {
+                    setMessages(prev => [...prev, { role: 'assistant', content: res.summary || "Action triggered successfully." }]);
+                }
             } else {
-                answer = res.data.text || res.data.answer || JSON.stringify(res.data);
-            }
+                const res = await axios.post('https://n8n.h5preact.app/webhook/f66a2f4e-b415-4844-a6ef-e37c9eb072b9/chat', {
+                    action: 'sendMessage',
+                    sessionId: user.uid,
+                    chatInput: userMessage
+                });
 
-            setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
-        } catch (error) {
-            setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I'm having trouble connecting to Smarty right now." }]);
+                let answer = "I didn't get a response.";
+                if (typeof res.data === 'string') {
+                    answer = res.data;
+                } else if (Array.isArray(res.data)) {
+                    answer = res.data.map((msg: any) => msg.text || JSON.stringify(msg)).join('\n');
+                } else if (res.data.output) {
+                    answer = res.data.output;
+                } else {
+                    answer = res.data.text || res.data.answer || JSON.stringify(res.data);
+                }
+
+                setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
+            }
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.error || error.message || "I'm having trouble connecting right now.";
+            setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, ${errorMsg}` }]);
         } finally {
             setChatLoading(false);
         }
@@ -250,19 +301,15 @@ export function SmartyBubble() {
                     <div className="h-px bg-white/10" />
                     <button
                         onClick={handleLetSmartyDo}
-                        className="w-full px-4 py-4 text-left text-sm flex items-center gap-3 transition-colors text-slate-400 cursor-not-allowed group opacity-60"
-                        disabled
+                        className="w-full px-4 py-4 text-left text-sm hover:bg-white/10 flex items-center gap-3 transition-colors text-white group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                             🤖
                         </div>
                         <div>
                             <p className="font-semibold">Let Smarty Do</p>
-                            <p className="text-xs text-slate-500">Coming Soon</p>
+                            <p className="text-xs text-slate-400">Automate tasks with AI</p>
                         </div>
-                        <span className="ml-auto px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-full">
-                            DEV
-                        </span>
                     </button>
                 </div>
             )}
@@ -275,8 +322,8 @@ export function SmartyBubble() {
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤖</div>
                             <div>
-                                <h3 className="font-bold text-sm">Smarty AI</h3>
-                                <p className="text-[10px] text-blue-100 opacity-80">Ready to help</p>
+                                <h3 className="font-bold text-sm">Smarty {isAutomateMode ? 'Orchestrator' : 'AI'}</h3>
+                                <p className="text-[10px] text-blue-100 opacity-80">{isAutomateMode ? 'Ready to automate' : 'Ready to help'}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -295,7 +342,7 @@ export function SmartyBubble() {
                                     </div>
                                 )}
                             </div>
-                            <button onClick={() => setShowChat(false)} className="hover:bg-white/20 rounded-full p-2 transition-colors">
+                            <button onClick={() => { setShowChat(false); setIsAutomateMode(false); }} className="hover:bg-white/20 rounded-full p-2 transition-colors">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -321,6 +368,35 @@ export function SmartyBubble() {
                             </div>
                         )}
                         <div ref={chatEndRef} />
+
+                        {/* Confirmation Card */}
+                        {pendingAutomation && (
+                            <div className="mt-4 p-4 bg-white/5 border border-blue-500/30 rounded-2xl animate-in zoom-in-95 duration-200 shadow-xl">
+                                <p className="text-xs text-blue-400 font-semibold mb-2 flex items-center gap-1">
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                    Confirm Action
+                                </p>
+                                <p className="text-sm text-slate-200 mb-4 leading-relaxed italic">
+                                    "{pendingAutomation.summary}"
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleConfirm}
+                                        disabled={chatLoading}
+                                        className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                                    >
+                                        {chatLoading ? 'Executing...' : 'Confirm'}
+                                    </button>
+                                    <button
+                                        onClick={() => setPendingAutomation(null)}
+                                        disabled={chatLoading}
+                                        className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold rounded-xl transition-all border border-white/5 disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Quick Questions */}
@@ -349,7 +425,7 @@ export function SmartyBubble() {
                             <input
                                 type="text"
                                 className="flex-1 px-4 py-2.5 bg-[#0f172a] border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white placeholder-slate-500 transition-all"
-                                placeholder="Ask Smarty..."
+                                placeholder={isAutomateMode ? "Tell Smarty what to do..." : "Ask Smarty..."}
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAsk()}

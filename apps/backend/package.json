@@ -23,7 +23,9 @@
         "jsonwebtoken": "^9.0.2",
         "multer": "^2.0.2",
         "next": "16.0.7",
-        "socket.io": "^4.8.1"
+        "socket.io": "^4.8.1",
+        "uuid": "^11.1.0",
+        "zod": "^4.3.5"
     },
     "devDependencies": {
         "@types/cors": "^2.8.13",

@@ -1,0 +1,240 @@
+{
+  "name": "smarty-automate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smarty-automate",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "webhookId": "smarty-automate-webhook",
+      "notes": "Receives POST requests from backend with automation_id, user_id, rawText, action type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Validate incoming request and route based on action\nconst input = $input.first().json;\nconst { action, automation_id, user_id, rawText, timezone, context, payload } = input;\n\nif (!automation_id || !user_id) {\n  throw new Error('Missing required fields: automation_id or user_id');\n}\n\n// Route based on action type\nif (action === 'confirm') {\n  // This is a confirmation request - route to execute\n  return [{ json: { ...input, route: 'execute' } }];\n}\n\n// Default: this is an initiate request - route to parse intent\nreturn [{ json: { ...input, route: 'parse' } }];\n"
+      },
+      "id": "router-node",
+      "name": "Route Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "notes": "Routes incoming requests: 'initiate' -> AI parsing, 'confirm' -> execute action"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equals",
+              "value2": "parse"
+            }
+          ]
+        }
+      },
+      "id": "if-parse",
+      "name": "IF Parse",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "notes": "Check if this is a parse request or execute request"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "You are a task parser for SmartBoard automation. Extract the user's intent and required data from their natural language request.\n\nAllowed actions (ONLY these are valid):\n- create_calendar_event: Extract title, start (ISO-8601 datetime), end (ISO-8601 datetime), reminder_minutes (optional number)\n- create_task: Extract title, description (optional), due_date (ISO-8601), priority (low/medium/high, default medium)\n- assign_task: Extract task_title, assignee_name\n- mark_task_done: Extract task_title\n- create_reminder: Extract title, remind_at (ISO-8601 datetime)\n- send_group_message: Extract group_name, message content\n- reschedule_event: Extract event_title, new_start (ISO-8601), new_end (ISO-8601)\n\nIMPORTANT RULES:\n1. Always parse dates relative to the current date provided\n2. If time is not specified, use sensible defaults (9:00 AM for meetings, 11:59 PM for due dates)\n3. Set needs_confirmation to true for any action that creates/modifies data\n4. Be conservative - if unsure, ask for clarification\n\nRespond ONLY with valid JSON in this exact format:\n{\n  \"intent\": \"<action_name or 'unknown'>\",\n  \"slots\": { <key-value pairs of extracted data> },\n  \"confidence\": <0.0-1.0>,\n  \"needs_confirmation\": <true/false>,\n  \"summary\": \"<Human readable summary of what will happen>\"\n}\n\nExamples:\nInput: \"Create a task called Review Q1 Report due tomorrow\"\nOutput: {\"intent\":\"create_task\",\"slots\":{\"title\":\"Review Q1 Report\",\"due_date\":\"2026-01-10T23:59:59\",\"priority\":\"medium\"},\"confidence\":0.95,\"needs_confirmation\":true,\"summary\":\"Create task 'Review Q1 Report' due January 10, 2026\"}\n\nInput: \"Schedule a meeting with Alex tomorrow at 2pm\"\nOutput: {\"intent\":\"create_calendar_event\",\"slots\":{\"title\":\"Meeting with Alex\",\"start\":\"2026-01-10T14:00:00\",\"end\":\"2026-01-10T15:00:00\"},\"confidence\":0.9,\"needs_confirmation\":true,\"summary\":\"Create calendar event 'Meeting with Alex' on January 10, 2026 at 2:00 PM\"}\n\nIf the request is unclear or outside allowed actions:\n{\"intent\":\"unknown\",\"slots\":{},\"confidence\":0,\"needs_confirmation\":false,\"summary\":\"I couldn't understand that request. I can help you create tasks, schedule events, send messages to groups, or mark tasks as done. What would you like to do?\"}",
+              "role": "system"
+            },
+            {
+              "content": "User request: {{ $json.rawText }}\n\nUser timezone: {{ $json.timezone || 'UTC' }}\nCurrent date and time: {{ new Date().toISOString() }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 500
+        }
+      },
+      "id": "ai-parse-node",
+      "name": "AI Parse Intent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "Uses GPT-4o-mini to parse natural language into structured intent + slots"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate AI response\nconst aiResponse = $input.first().json;\nconst originalRequest = $('Webhook Trigger').first().json;\n\nlet parsed;\ntry {\n  // Handle different response formats from LangChain\n  if (typeof aiResponse.text === 'string') {\n    // Remove markdown code blocks if present\n    let cleanText = aiResponse.text.trim();\n    if (cleanText.startsWith('```json')) {\n      cleanText = cleanText.slice(7);\n    }\n    if (cleanText.startsWith('```')) {\n      cleanText = cleanText.slice(3);\n    }\n    if (cleanText.endsWith('```')) {\n      cleanText = cleanText.slice(0, -3);\n    }\n    parsed = JSON.parse(cleanText.trim());\n  } else if (aiResponse.message?.content) {\n    parsed = JSON.parse(aiResponse.message.content);\n  } else {\n    parsed = aiResponse;\n  }\n} catch (e) {\n  console.error('Failed to parse AI response:', e);\n  return [{\n    json: {\n      automation_id: originalRequest.automation_id,\n      needs_confirmation: false,\n      summary: \"I had trouble understanding your request. Could you please rephrase it?\",\n      payload: null,\n      error: 'parse_error'\n    }\n  }];\n}\n\n// Validate against allowlist\nconst ALLOWED_ACTIONS = [\n  'create_calendar_event',\n  'create_reminder',\n  'create_task',\n  'assign_task',\n  'mark_task_done',\n  'reschedule_event',\n  'send_group_message'\n];\n\nif (!parsed.intent || !ALLOWED_ACTIONS.includes(parsed.intent)) {\n  return [{\n    json: {\n      automation_id: originalRequest.automation_id,\n      needs_confirmation: false,\n      summary: parsed.summary || \"I can only help with creating tasks, scheduling events, sending group messages, or marking tasks as done. What would you like me to do?\",\n      payload: null\n    }\n  }];\n}\n\n// Build validated response\nreturn [{\n  json: {\n    automation_id: originalRequest.automation_id,\n    needs_confirmation: parsed.needs_confirmation !== false,\n    summary: parsed.summary,\n    payload: {\n      action: parsed.intent,\n      data: {\n        ...parsed.slots,\n        user_id: originalRequest.user_id\n      }\n    },\n    confidence: parsed.confidence\n  }\n}];"
+      },
+      "id": "validate-slots",
+      "name": "Validate & Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ],
+      "notes": "Validates AI output against allowlist and formats the response for backend"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL || 'http://localhost:3001' }}/smarty/internal/execute",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"automation_id\": \"{{ $('Webhook Trigger').first().json.automation_id }}\",\n  \"payload\": {{ JSON.stringify($('Webhook Trigger').first().json.payload) }},\n  \"secret\": \"{{ $env.INTERNAL_SECRET || 'dev-secret' }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "execute-action",
+      "name": "Execute Action (Backend Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        400
+      ],
+      "notes": "Calls backend /smarty/internal/execute to perform the actual action"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format execution result for response to backend\nconst result = $input.first().json;\nconst originalRequest = $('Webhook Trigger').first().json;\n\nreturn [{\n  json: {\n    success: result.success !== false,\n    message: result.success ? 'Action completed successfully!' : (result.error || 'Action failed'),\n    automation_id: originalRequest.automation_id,\n    result: result.result || result\n  }\n}];"
+      },
+      "id": "format-execute-response",
+      "name": "Format Execute Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ],
+      "notes": "Formats the execution result for the final webhook response"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Request": {
+      "main": [
+        [
+          {
+            "node": "IF Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Parse": {
+      "main": [
+        [
+          {
+            "node": "AI Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Action (Backend Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Parse Intent": {
+      "main": [
+        [
+          {
+            "node": "Validate & Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Action (Backend Call)": {
+      "main": [
+        [
+          {
+            "node": "Format Execute Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "automation"
+    },
+    {
+      "name": "smartboard"
+    },
+    {
+      "name": "ai"
+    }
+  ],
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "smartboard-fyp"
+  }
+}
