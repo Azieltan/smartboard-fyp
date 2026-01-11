@@ -5,7 +5,7 @@ export const AutomationStatus = z.enum(statuses);
 
 export const AutomationRequestSchema = z.object({
   rawText: z.string().min(1),
-  context: z.record(z.any()).optional().default({}),
+  context: z.record(z.string(), z.any()).optional().default({}),
 });
 
 export const AutomationConfirmSchema = z.object({
@@ -24,7 +24,7 @@ const allowedActions = [
 
 export const AutomationPayloadSchema = z.object({
   action: z.enum(allowedActions),
-  data: z.record(z.any()),
+  data: z.record(z.string(), z.any()),
 });
 
 export type AutomationStatus = z.infer<typeof AutomationStatus>;

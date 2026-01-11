@@ -1,8 +1,35 @@
 ﻿---
 
-## Latest Updates (2026-01-09 - Session 10)
+## Latest Updates (2026-01-12 - Session 11)
 
-## Latest Updates (2026-01-09)
+### Let Smarty Do: n8n + DeepSeek Integration
+| Task | Status | Details |
+|------|--------|---------|
+| **n8n Workflow** | ✅ Created | `n8n/smarty-automate-workflow.json` with DeepSeek v3.2 via BytePlus API |
+| **Backend Service** | ✅ Rewritten | `automationService.ts` with 8 execution methods |
+| **Routes Updated** | ✅ Done | `routes/smarty.ts` matches new service interface |
+| **Frontend Fix** | ✅ Done | Added `{ api }` import to SmartyBubble.tsx |
+
+### Supported Automation Actions
+| Action | Command Example | Status |
+|--------|-----------------|--------|
+| Create Task | "Create task Review Report due tomorrow" | ✅ |
+| Create Reminder | "Remind me about meeting at 3pm" | ✅ |
+| Create Calendar Event | "Schedule meeting tomorrow at 2pm" | ✅ |
+| Add Member to Group | "Add John to Marketing group" | ✅ |
+| Remove Member | "Remove Sarah from Dev Team" | ✅ |
+| Mark Task Done | "Mark Report as done" | ✅ |
+| Create Group | "Create group called Project Alpha" | ✅ |
+| List Members | "Show members of FYP Team" | ✅ |
+
+### Architecture
+```
+User → SmartyBubble → Backend /automate → n8n (DeepSeek AI) → Backend (execute) → Supabase
+```
+
+---
+
+## Previous Updates (2026-01-09 - Session 10)
 
 ### Admin Portal & System Security
 | Feature | Status | Details |

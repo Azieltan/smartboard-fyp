@@ -19,14 +19,18 @@ const router = Router();
 // Natural language automation initiation
 router.post('/automate', authMiddleware, async (req: any, res) => {
   try {
-    const validated = AutomationRequestSchema.parse(req.body);
     const userId = req.user.userId;
+    const { rawText, context } = req.body;
 
-    const result = await AutomationService.initiateAutomation(userId, validated);
+    if (!rawText || typeof rawText !== 'string') {
+      return res.status(400).json({ error: 'rawText is required' });
+    }
+
+    const result = await AutomationService.initiateAutomation(userId, rawText, context);
     res.json(result);
   } catch (error: any) {
     console.error('[SmartyRoute] /automate error:', error);
-    res.status(error.name === 'ZodError' ? 400 : 500).json({
+    res.status(500).json({
       error: error.message || 'Internal Server Error'
     });
   }
