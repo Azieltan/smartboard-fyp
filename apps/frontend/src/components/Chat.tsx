@@ -321,7 +321,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     return (
         <div className="flex flex-col h-full overflow-hidden bg-[#0f172a]">
             {/* WhatsApp Style Header */}
-            <div className="h-16 border-b border-white/5 bg-[#1e293b]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
+            <div className="relative z-20 h-16 border-b border-white/5 bg-[#1e293b]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${type === 'group' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-teal-500 to-emerald-600'}`}>
                         {title.slice(0, 1).toUpperCase()}

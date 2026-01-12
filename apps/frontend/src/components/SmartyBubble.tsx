@@ -16,10 +16,12 @@ export function SmartyBubble() {
     const [isHidden, setIsHidden] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [showLoginTooltip, setShowLoginTooltip] = useState(false);
 
     // Chat state
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'assistant', content: "Hi, I'm Smarty! Ask me anything about using SmartBoard." }
+        { role: 'assistant', content: "Hi, I'm Smarty, your Q&A AI assistant! You may ask anything about our app if you don't understand." }
     ]);
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
@@ -51,9 +53,13 @@ export function SmartyBubble() {
             try {
                 const u = JSON.parse(userStr);
                 setUser({ uid: u.user_id });
+                setIsLoggedIn(true);
             } catch (e) {
                 console.error("Failed to parse user from localStorage", e);
+                setIsLoggedIn(false);
             }
+        } else {
+            setIsLoggedIn(false);
         }
     }, []);
 
@@ -136,6 +142,9 @@ export function SmartyBubble() {
     };
 
     const handleBubbleClick = () => {
+        if (!isLoggedIn) {
+            return; // Don't open if not logged in
+        }
         if (!isDragging) {
             resetHideTimer();
             setShowOptions(!showOptions);
@@ -154,7 +163,7 @@ export function SmartyBubble() {
         setShowOptions(false);
         setShowChat(true);
         setMessages([
-            { role: 'assistant', content: "I'm ready to help you automate tasks! Just tell me what you want to do, like 'Create a task called Review Report' or 'Add Sarah to the Marketing group'." }
+            { role: 'assistant', content: "I'm ready to help you automate tasks! You can set reminders, edit them, or delete them. Just tell me what you want to do!" }
         ]);
         resetHideTimer();
     };
@@ -235,11 +244,22 @@ export function SmartyBubble() {
         setShowMenu(false);
     };
 
-    const QUICK_QUESTIONS = [
+    // Quick questions for Q&A mode
+    const QNA_QUICK_QUESTIONS = [
         "What is SmartBoard?",
         "How do I upload files?",
         "How do I log out?"
     ];
+
+    // Quick questions for Automation mode
+    const AUTOMATE_QUICK_QUESTIONS = [
+        'Set a reminder for tomorrow 3pm "meeting with Adam"',
+        "Edit reminder",
+        "Delete reminder"
+    ];
+
+    // Select which questions to show based on mode
+    const QUICK_QUESTIONS = isAutomateMode ? AUTOMATE_QUICK_QUESTIONS : QNA_QUICK_QUESTIONS;
 
     // Quick Question Scroll Logic
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -443,11 +463,20 @@ export function SmartyBubble() {
                 </div>
             )}
 
+            {/* Login Tooltip */}
+            {showLoginTooltip && !isLoggedIn && (
+                <div className="absolute bottom-16 right-0 bg-[#1e293b] text-white text-sm px-4 py-2 rounded-xl shadow-lg border border-white/10 whitespace-nowrap animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    Please login to use Smarty AI
+                </div>
+            )}
+
             {/* Main Bubble Button */}
             <button
                 onClick={handleBubbleClick}
-                className={`w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer ${showOptions || showChat ? 'bg-[#1e293b] rotate-90 text-white' : 'bg-gradient-to-br from-blue-500 via-indigo-600 to-violet-600 text-white shadow-blue-600/30'}`}
-                title="Click to open Smarty, Drag to move"
+                onMouseEnter={() => !isLoggedIn && setShowLoginTooltip(true)}
+                onMouseLeave={() => setShowLoginTooltip(false)}
+                className={`w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer ${showOptions || showChat ? 'bg-[#1e293b] rotate-90 text-white' : 'bg-gradient-to-br from-blue-500 via-indigo-600 to-violet-600 text-white shadow-blue-600/30'} ${!isLoggedIn ? 'opacity-70' : ''}`}
+                title={isLoggedIn ? "Click to open Smarty, Drag to move" : "Please login to use Smarty AI"}
             >
                 {showOptions || showChat ? (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

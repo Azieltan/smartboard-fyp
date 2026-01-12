@@ -117,7 +117,7 @@ export default function AddFriendModal({ userId, onClose }: AddFriendModalProps)
                                         </div>
                                         <div className="text-left flex-1 min-w-0">
                                             <p className="text-sm font-semibold text-white truncate">{user.user_name}</p>
-                                            <p className="text-xs text-slate-400 truncate tracking-tight">{user.user_id}</p>
+                                            <p className="text-xs text-slate-400 truncate tracking-tight">{user.email}</p>
                                         </div>
                                         <div className="text-pink-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>

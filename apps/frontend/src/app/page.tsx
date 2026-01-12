@@ -233,15 +233,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bottom CTA */}
-        <div className="mt-24 text-center max-w-2xl">
-          <h2 className="text-3xl font-bold mb-4">Ready to boost your productivity?</h2>
-          <p className="text-slate-400 mb-8">Join thousands of teams already using SmartBoard to work smarter together.</p>
-          <Link href="/register" className="btn-primary inline-flex items-center gap-2">
-            <span>Start Free Trial</span>
-            <span>🚀</span>
-          </Link>
-        </div>
+
       </main>
 
       {/* Footer */}
