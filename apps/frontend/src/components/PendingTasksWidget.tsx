@@ -14,8 +14,6 @@ interface Task {
   due_date?: string;
   user_id?: string;
   created_by?: string;
-  depends_on?: string;
-  dependency?: { title: string; status: string };
 }
 
 interface PendingTasksWidgetProps {
@@ -192,14 +190,6 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
                     <p className="text-xs text-slate-400">
                       Due: {dueDate}
                     </p>
-                  )}
-                  {task.dependency && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <div className={`w-1 h-1 rounded-full ${task.dependency.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {task.dependency.status === 'done' ? 'Ready' : `Blocked by ${task.dependency.title}`}
-                      </p>
-                    </div>
                   )}
                 </div>
               </div>

@@ -37,8 +37,6 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
 
     const [priority, setPriority] = useState(task.priority);
     const [isLoading, setIsLoading] = useState(false);
-    const [dependsOn, setDependsOn] = useState(task.depends_on || '');
-    const [allTasks, setAllTasks] = useState<any[]>([]);
 
     // Assignment Logic (Pre-fill logic is tricky if we don't know exact context, relying on what's in task)
     // For simplicity in Edit, we might just allow changing assignee if needed, 
@@ -63,16 +61,12 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
         const fetchData = async () => {
             try {
                 const timestamp = new Date().getTime();
-                const [friendsData, groupsData, tasksData] = await Promise.all([
+                const [friendsData, groupsData] = await Promise.all([
                     api.get(`/friends/${userId}?t=${timestamp}`),
-                    api.get(`/groups/${userId}?t=${timestamp}`),
-                    api.get(`/tasks?userId=${userId}`)
+                    api.get(`/groups/${userId}?t=${timestamp}`)
                 ]);
                 if (Array.isArray(friendsData)) setFriends(friendsData);
                 if (Array.isArray(groupsData)) setGroups(groupsData);
-                if (Array.isArray(tasksData)) {
-                    setAllTasks(tasksData.filter((t: any) => t.task_id !== task.task_id && t.status !== 'done'));
-                }
 
                 // Fetch existing subtasks
                 const taskData = await api.get(`/tasks/${task.task_id}`);
@@ -133,7 +127,6 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                 description,
                 due_date: dateTime,
                 priority,
-                depends_on: dependsOn || null,
             };
 
             // Handle Assignment Changes
@@ -278,31 +271,6 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Due Time</label>
                             <TimeSelector value={time} onChange={setTime} />
                         </div>
-                    </div>
-
-                    {/* Dependency Selection */}
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                            <span className="flex items-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                </svg>
-                                Depends On (Optional)
-                            </span>
-                        </label>
-                        <select
-                            value={dependsOn}
-                            onChange={(e) => setDependsOn(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all"
-                        >
-                            <option value="" className="text-slate-500">None - No dependency</option>
-                            {allTasks.map(t => (
-                                <option key={t.task_id} value={t.task_id} className="text-slate-900 dark:text-white">
-                                    {t.title}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="mt-1 text-[10px] text-slate-500">This task will show as blocked until the dependency is completed.</p>
                     </div>
 
                     {/* Priority */}
