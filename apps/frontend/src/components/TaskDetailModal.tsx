@@ -144,6 +144,25 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onEdit }: Tas
 
         {/* Body */}
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+          {/* Dependency Info */}
+          {task.dependency && (
+            <div className={`p-4 rounded-xl border flex items-start gap-4 ${task.dependency.status === 'done' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400'}`}>
+              <div className={`mt-1 w-2 h-2 rounded-full ${task.dependency.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+              <div className="flex-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider mb-1">
+                  {task.dependency.status === 'done' ? 'Dependency Completed' : 'Task Blocked'}
+                </h4>
+                <p className="text-sm">
+                  {task.dependency.status === 'done'
+                    ? `The dependent task "${task.dependency.title}" has been finished. You can now proceed.`
+                    : `This task is waiting for "${task.dependency.title}" to be completed.`}
+                </p>
+              </div>
+              <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </div>
+          )}
           {task.description && (
             <div>
               <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Description</h3>

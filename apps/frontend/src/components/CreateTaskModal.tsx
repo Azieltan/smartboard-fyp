@@ -18,6 +18,8 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
     const [time, setTime] = useState('12:00');
     const [priority, setPriority] = useState('medium');
     const [isLoading, setIsLoading] = useState(false);
+    const [dependsOn, setDependsOn] = useState('');
+    const [allTasks, setAllTasks] = useState<any[]>([]);
 
     const [assignType, setAssignType] = useState<'me' | 'friend' | 'group'>(presetGroupId ? 'group' : 'me');
     const [assigneeId, setAssigneeId] = useState(presetGroupId || '');
@@ -49,12 +51,14 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
         const fetchData = async () => {
             try {
                 const timestamp = new Date().getTime();
-                const [friendsData, groupsData] = await Promise.all([
+                const [friendsData, groupsData, tasksData] = await Promise.all([
                     api.get(`/friends/${userId}?t=${timestamp}`),
-                    api.get(`/groups/${userId}?t=${timestamp}`)
+                    api.get(`/groups/${userId}?t=${timestamp}`),
+                    api.get(`/tasks?userId=${userId}`)
                 ]);
                 if (Array.isArray(friendsData)) setFriends(friendsData);
                 if (Array.isArray(groupsData)) setGroups(groupsData);
+                if (Array.isArray(tasksData)) setAllTasks(tasksData.filter((t: any) => t.status !== 'done'));
             } catch (error) {
                 console.error('Failed to fetch assignment data:', error);
             }
@@ -95,6 +99,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                 priority,
                 created_by: userId,
                 status: 'todo',
+                depends_on: dependsOn || null,
                 subtasks: subtasks.filter(s => s.title.trim() !== '')
             };
 
@@ -213,6 +218,31 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                             </label>
                             <TimeSelector value={time} onChange={setTime} />
                         </div>
+                    </div>
+
+                    {/* Dependency Selection */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                            <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                Depends On (Optional)
+                            </span>
+                        </label>
+                        <select
+                            value={dependsOn}
+                            onChange={(e) => setDependsOn(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:border-emerald-500 outline-none transition-all"
+                        >
+                            <option value="" className="text-slate-500">None - No dependency</option>
+                            {allTasks.map(t => (
+                                <option key={t.task_id} value={t.task_id} className="text-slate-900 dark:text-white">
+                                    {t.title}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-[10px] text-slate-500">This task will show as blocked until the dependency is completed.</p>
                     </div>
 
                     {/* Priority Selection */}

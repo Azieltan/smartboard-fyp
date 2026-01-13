@@ -14,6 +14,8 @@ interface Task {
   due_date?: string;
   user_id?: string;
   created_by?: string;
+  depends_on?: string;
+  dependency?: { title: string; status: string };
 }
 
 interface PendingTasksWidgetProps {
@@ -79,10 +81,14 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
               return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
             } else if (sortOption === 'priority_high') { // High to Low
               const pMap = { high: 3, medium: 2, low: 1 };
-              return (pMap[b.priority || 'medium'] || 0) - (pMap[a.priority || 'medium'] || 0);
+              const valA = pMap[(a.priority || 'medium') as keyof typeof pMap] || 0;
+              const valB = pMap[(b.priority || 'medium') as keyof typeof pMap] || 0;
+              return valB - valA;
             } else if (sortOption === 'priority_low') { // Low to High
               const pMap = { high: 3, medium: 2, low: 1 };
-              return (pMap[a.priority || 'medium'] || 0) - (pMap[b.priority || 'medium'] || 0);
+              const valA = pMap[(a.priority || 'medium') as keyof typeof pMap] || 0;
+              const valB = pMap[(b.priority || 'medium') as keyof typeof pMap] || 0;
+              return valA - valB;
             }
             return 0;
           });
@@ -186,6 +192,14 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
                     <p className="text-xs text-slate-400">
                       Due: {dueDate}
                     </p>
+                  )}
+                  {task.dependency && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className={`w-1 h-1 rounded-full ${task.dependency.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {task.dependency.status === 'done' ? 'Ready' : `Blocked by ${task.dependency.title}`}
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

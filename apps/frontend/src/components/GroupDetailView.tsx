@@ -38,6 +38,8 @@ interface Task {
     created_by: string;
     user_id?: string;
     group_id?: string;
+    depends_on?: string;
+    dependency?: { title: string; status: string };
 }
 
 interface GroupDetailViewProps {
@@ -570,15 +572,32 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                                                         </div>
                                                         {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{task.description}</p>}
 
+                                                        {task.dependency && (
+                                                            <div className="flex items-center gap-1.5 mt-2">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${task.dependency.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                                                                <p className="text-[10px] text-slate-500">
+                                                                    {task.dependency.status === 'done'
+                                                                        ? `Dependency "${task.dependency.title}" completed`
+                                                                        : `Waiting for "${task.dependency.title}"`
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        )}
+
                                                         {/* Task Actions */}
                                                         <div className="flex items-center gap-2 mt-3" onClick={e => e.stopPropagation()}>
                                                             {/* Submit Button */}
                                                             {task.status !== 'done' && task.status !== 'in_review' && (
                                                                 <button
                                                                     onClick={() => { setSelectedTask(task); setShowSubmitModal(true); }}
-                                                                    className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all"
+                                                                    disabled={task.dependency && task.dependency.status !== 'done'}
+                                                                    className={`px-3 py-1 rounded-lg text-white text-xs font-bold transition-all ${task.dependency && task.dependency.status !== 'done'
+                                                                            ? 'bg-slate-400 cursor-not-allowed opacity-50'
+                                                                            : 'bg-emerald-500 hover:bg-emerald-600'
+                                                                        }`}
+                                                                    title={task.dependency && task.dependency.status !== 'done' ? `Blocked by "${task.dependency.title}"` : ''}
                                                                 >
-                                                                    Submit Work
+                                                                    {task.dependency && task.dependency.status !== 'done' ? 'Blocked' : 'Submit Work'}
                                                                 </button>
                                                             )}
 

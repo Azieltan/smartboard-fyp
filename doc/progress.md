@@ -1,5 +1,22 @@
 ﻿---
 
+## Latest Updates (2026-01-13 - Session 13)
+
+### Core Feature: Task Dependencies
+| Feature | Status | Details |
+|---------|--------|---------|
+| **DB Migration** | ✅ User Applied | Added `depends_on` column to `tasks` table. |
+| **Backend Support** | ✅ Implemented | `TaskService` updated to handle parent task linking and status fetching. |
+| **UI: Creation/Editing** | ✅ Implemented | `CreateTaskModal` and `EditTaskModal` now feature a dependency selector. |
+| **UI: Visual Cues** | ✅ Implemented | Blocked tasks show animated badges and dependency progress in Dashboards and Group views. |
+| **Logic: Blocking** | ✅ Implemented | "Submit Work" is disabled for tasks with incomplete dependencies. |
+| **UI: Detail View** | ✅ Implemented | `TaskDetailModal` shows a prominent banner for dependency status. |
+
+### Infrastructure
+- **API Helper Fix:** Updated `lib/api.ts` to natively support `FormData` and flexible headers, fixing previous attachment upload limitations.
+
+---
+
 ## Latest Updates (2026-01-13 - Session 12)
 
 ### New Core Features & Performance

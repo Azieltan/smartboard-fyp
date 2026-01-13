@@ -4,7 +4,7 @@ import { Task } from '@smartboard/home';
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
         if (!userId) {
-            const { data, error } = await supabase.from('tasks').select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)');
+            const { data, error } = await supabase.from('tasks').select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name), dependency:tasks!tasks_depends_on_fkey(title, status)');
             if (error) throw new Error(error.message);
             return data as Task[];
         }
@@ -29,7 +29,7 @@ export class TaskService {
 
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name), dependency:tasks!tasks_depends_on_fkey(title, status)')
             .or(orCondition);
 
         if (error) {
@@ -118,7 +118,7 @@ export class TaskService {
             .from('tasks')
             .update(updatePayload)
             .eq('task_id', taskId)
-            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name), dependency:tasks!tasks_depends_on_fkey(title, status)')
             .single();
 
         if (error) {
@@ -313,7 +313,7 @@ export class TaskService {
     static async getTaskWithSubtasks(taskId: string): Promise<any> {
         const { data: task, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name), dependency:tasks!tasks_depends_on_fkey(title, status)')
             .eq('task_id', taskId)
             .single();
 

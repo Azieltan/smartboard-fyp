@@ -50,26 +50,41 @@ export const api = {
         });
         return handleResponse(res);
     },
-    post: async (endpoint: string, body: any) => {
+    post: async (endpoint: string, body: any, config: any = {}) => {
+        const headers = { ...getHeaders(), ...(config.headers || {}) };
+
+        // If body is FormData, don't set Content-Type so browser sets boundary
+        if (body instanceof FormData) {
+            delete headers['Content-Type'];
+        }
+
         const res = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify(body),
+            headers,
+            body: body instanceof FormData ? body : JSON.stringify(body),
         });
         return handleResponse(res);
     },
-    put: async (endpoint: string, body: any) => {
+    put: async (endpoint: string, body: any, config: any = {}) => {
+        const headers = { ...getHeaders(), ...(config.headers || {}) };
+
+        if (body instanceof FormData) {
+            delete headers['Content-Type'];
+        }
+
         const res = await fetch(`${API_URL}${endpoint}`, {
             method: 'PUT',
-            headers: getHeaders(),
-            body: JSON.stringify(body),
+            headers,
+            body: body instanceof FormData ? body : JSON.stringify(body),
         });
         return handleResponse(res);
     },
-    delete: async (endpoint: string, body?: any) => {
+    delete: async (endpoint: string, body?: any, config: any = {}) => {
+        const headers = { ...getHeaders(), ...(config.headers || {}) };
+
         const res = await fetch(`${API_URL}${endpoint}`, {
             method: 'DELETE',
-            headers: getHeaders(),
+            headers,
             ...(body ? { body: JSON.stringify(body) } : {}),
         });
         return handleResponse(res);
