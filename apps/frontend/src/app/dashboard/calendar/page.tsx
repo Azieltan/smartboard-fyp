@@ -32,6 +32,10 @@ export default function CalendarPage() {
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isEditingTask, setIsEditingTask] = useState(false);
 
+    // Drag-and-drop state
+    const [draggedItem, setDraggedItem] = useState<CalendarItem | null>(null);
+    const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+
     useEffect(() => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
@@ -101,6 +105,66 @@ export default function CalendarPage() {
         return items.filter(item => item.start.startsWith(dateStr));
     };
 
+    // Drag-and-drop handlers
+    const handleDragStart = (e: React.DragEvent, item: CalendarItem) => {
+        if (item.type !== 'event') {
+            e.preventDefault();
+            return;
+        }
+        setDraggedItem(item);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.id);
+    };
+
+    const handleDragOver = (e: React.DragEvent, day: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverDay(day);
+    };
+
+    const handleDragLeave = () => {
+        setDragOverDay(null);
+    };
+
+    const handleDrop = async (e: React.DragEvent, day: number) => {
+        e.preventDefault();
+        setDragOverDay(null);
+
+        if (!draggedItem || draggedItem.type !== 'event') {
+            setDraggedItem(null);
+            return;
+        }
+
+        const newDateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const oldDate = new Date(draggedItem.start);
+        const newStartDate = new Date(newDateStr);
+        newStartDate.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+
+        // Calculate new end time (maintain duration)
+        const duration = new Date(draggedItem.end).getTime() - oldDate.getTime();
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+        try {
+            await api.put(`/calendar/events/${draggedItem.id}`, {
+                start_time: newStartDate.toISOString(),
+                end_time: newEndDate.toISOString()
+            });
+
+            // Optimistically update UI
+            setItems(prev => prev.map(item =>
+                item.id === draggedItem.id
+                    ? { ...item, start: newStartDate.toISOString(), end: newEndDate.toISOString() }
+                    : item
+            ));
+        } catch (error) {
+            console.error('Failed to reschedule event:', error);
+            // Refresh to revert
+            if (userId) fetchItems(userId);
+        }
+
+        setDraggedItem(null);
+    };
+
     if (!userId) return <div className="p-8 text-center text-slate-400">Please login to view calendar.</div>;
 
     return (
@@ -167,7 +231,10 @@ export default function CalendarPage() {
                                 <div
                                     key={day}
                                     onClick={() => handleDateClick(day)}
-                                    className={`min-h-[120px] p-2 border-b border-r border-slate-200 dark:border-white/5 hover:bg-blue-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative group ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                    onDragOver={(e) => handleDragOver(e, day)}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, day)}
+                                    className={`min-h-[120px] p-2 border-b border-r border-slate-200 dark:border-white/5 hover:bg-blue-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative group ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${dragOverDay === day ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500 ring-inset' : ''}`}
                                 >
                                     <span className={`text-sm font-medium block mb-2 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-500 dark:text-slate-400'}`}>
                                         {day}
@@ -177,12 +244,15 @@ export default function CalendarPage() {
                                         {dayItems.map(item => (
                                             <div
                                                 key={item.id}
+                                                draggable={item.type === 'event'}
+                                                onDragStart={(e) => handleDragStart(e, item)}
+                                                onDragEnd={() => setDraggedItem(null)}
                                                 onClick={(e) => handleItemClick(e, item)}
-                                                className={`text-[11px] px-2 py-1 rounded-md truncate border shadow-sm transition-transform hover:scale-105 cursor-pointer flex items-center gap-1 font-medium ${item.type === 'task'
+                                                className={`text-[11px] px-2 py-1 rounded-md truncate border shadow-sm transition-all cursor-pointer flex items-center gap-1 font-medium ${item.type === 'task'
                                                     ? 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-blue-500/30 text-slate-700 dark:text-blue-200 hover:border-blue-400'
-                                                    : 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-100 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-200 hover:border-indigo-400'
-                                                    }`}
-                                                title={item.title}
+                                                    : 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-100 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-200 hover:border-indigo-400 hover:scale-105 cursor-grab active:cursor-grabbing'
+                                                    } ${draggedItem?.id === item.id ? 'opacity-50' : ''}`}
+                                                title={item.type === 'event' ? `${item.title} (drag to reschedule)` : item.title}
                                             >
                                                 {item.type === 'task' ? (
                                                     <span className={`w-1.5 h-1.5 rounded-full ${item.priority === 'high' ? 'bg-red-500' : item.priority === 'low' ? 'bg-emerald-500' : 'bg-amber-500'

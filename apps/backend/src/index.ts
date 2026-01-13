@@ -14,6 +14,7 @@ import { CalendarService } from './services/calendar';
 import { NotificationService } from './services/notification';
 import { SmartyService } from './services/smarty';
 import { AdminService } from './services/admin';
+import { SearchService } from './services/search';
 import smartyRouter from './routes/smarty';
 
 dotenv.config();
@@ -161,6 +162,18 @@ app.post('/seed', async (req, res) => {
 // Apply Auth Middleware to all subsequent routes
 app.use(authMiddleware);
 
+// Global Search Route
+app.get('/search', async (req, res) => {
+    try {
+        const query = req.query.q as string;
+        const userId = (req as any).user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        const results = await SearchService.search(userId, query);
+        res.json(results);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Search failed' });
+    }
+});
 
 
 import { GroupService } from './services/group';
@@ -599,6 +612,17 @@ app.get('/calendar/all/:userId', async (req, res) => {
     }
 });
 
+// Update calendar event (for drag-and-drop rescheduling)
+app.put('/calendar/events/:eventId', async (req, res) => {
+    try {
+        const { start_time, end_time } = req.body;
+        const event = await CalendarService.updateEvent(req.params.eventId, { start_time, end_time });
+        res.json(event);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Failed to update event' });
+    }
+});
+
 // Task Routes
 
 // Task Routes
@@ -901,6 +925,9 @@ app.get('/admin/export', adminMiddleware, async (req, res) => {
 });
 
 httpServer.listen(port, () => {
+    // Start due date reminder checks
+    const { ReminderService } = require('./services/reminder');
+    ReminderService.startReminderInterval();
 
     console.log(`Server running on port ${port}`);
 });

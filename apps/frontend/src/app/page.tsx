@@ -150,51 +150,54 @@ export default function Home() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-24 max-w-6xl w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-24 max-w-6xl w-full">
           {[
             {
+              title: "Smarty AI",
+              desc: "Your AI assistant for Q&A and task automation. Just ask or let Smarty do it for you.",
+              icon: "🤖",
+              gradient: "from-violet-500 to-pink-500",
+              learnMoreHref: "#faq-what-is-smartboard"
+            },
+            {
               title: "Smart Calendar",
-              desc: "Interactive scheduling with drag-and-drop. Never miss a deadline again.",
-              icon: "/calendar-icon.svg",
+              desc: "View your events and tasks in an interactive calendar. Drag events to reschedule instantly.",
+              icon: "📅",
               gradient: "from-blue-500 to-violet-500",
               learnMoreHref: "#faq-smart-calendar"
             },
             {
-              title: "Notifications",
-              desc: "In-app notifications for important workflow updates and deadlines.",
-              icon: "/reminder-icon.svg",
-              gradient: "from-amber-500 to-pink-500",
-              learnMoreHref: "#faq-smart-reminders"
+              title: "Task Management",
+              desc: "Create tasks, track subtasks, submit work, and get feedback from your team.",
+              icon: "✅",
+              gradient: "from-emerald-500 to-teal-500",
+              learnMoreHref: "#faq-what-is-smartboard"
             },
             {
               title: "Real-time Chat",
-              desc: "Built-in communication for every task. Collaborate seamlessly.",
-              icon: "/chat-icon.svg",
-              gradient: "from-emerald-500 to-blue-500",
+              desc: "Built-in messaging for group and direct chats. Collaborate seamlessly with your team.",
+              icon: "💬",
+              gradient: "from-amber-500 to-orange-500",
               learnMoreHref: "#faq-real-time-chat"
             }
           ].map((feature, i) => (
             <div
               key={i}
-              className="illustration-card glass-panel-glow p-8 text-left group"
+              className="illustration-card glass-panel-glow p-6 text-left group"
               style={{ animationDelay: `${i * 0.1}s` }}
             >
-              <div className="mb-6 relative w-20 h-20">
-                <Image
-                  src={feature.icon}
-                  alt={feature.title}
-                  width={80}
-                  height={80}
-                  className="group-hover:scale-110 transition-transform duration-300"
-                />
+              <div className="mb-4 w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform duration-300" style={{ background: `linear-gradient(135deg, var(--tw-gradient-stops))` }}>
+                <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center`}>
+                  {feature.icon}
+                </div>
               </div>
-              <h3 className={`text-xl font-bold mb-3 bg-gradient-to-r ${feature.gradient} bg-clip-text text-transparent`}>
+              <h3 className={`text-lg font-bold mb-2 bg-gradient-to-r ${feature.gradient} bg-clip-text text-transparent`}>
                 {feature.title}
               </h3>
-              <p className="text-slate-400 leading-relaxed">{feature.desc}</p>
+              <p className="text-slate-400 leading-relaxed text-sm">{feature.desc}</p>
               <Link
                 href={feature.learnMoreHref}
-                className="mt-4 inline-flex items-center text-sm text-violet-400 group-hover:text-violet-300 transition-colors"
+                className="mt-3 inline-flex items-center text-sm text-violet-400 group-hover:text-violet-300 transition-colors"
               >
                 <span>Learn more</span>
                 <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

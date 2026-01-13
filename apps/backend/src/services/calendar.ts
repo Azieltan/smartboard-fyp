@@ -175,4 +175,19 @@ export class CalendarService {
 
         return [...formattedEvents, ...formattedTasks];
     }
+
+    static async updateEvent(eventId: string, updates: Partial<CalendarEvent>): Promise<CalendarEvent> {
+        const { data, error } = await supabase
+            .from('calendar_events')
+            .update(updates)
+            .eq('event_id', eventId)
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data as CalendarEvent;
+    }
 }

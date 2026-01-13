@@ -70,7 +70,11 @@ const staticNavigation = [
     },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+    onSearchClick?: () => void;
+}
+
+export function Sidebar({ onSearchClick }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
@@ -137,6 +141,20 @@ export function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+                {/* Search Button */}
+                {onSearchClick && (
+                    <button
+                        onClick={onSearchClick}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-300 group mb-4"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <span className="font-medium">Search</span>
+                        <kbd className="ml-auto px-2 py-0.5 bg-white/10 rounded text-[10px] text-slate-500">Ctrl+K</kbd>
+                    </button>
+                )}
+
                 <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-4 mb-4">Menu</p>
                 {navigation.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));

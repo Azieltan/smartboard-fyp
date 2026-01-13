@@ -1,5 +1,30 @@
 ﻿---
 
+## Latest Updates (2026-01-13 - Session 12)
+
+### New Core Features & Performance
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Global Search** | ✅ Implemented | Added **Ctrl+K** search across Tasks, Events, Messages, Users, and Groups with `SearchModal`. |
+| **Calendar DnD** | ✅ Implemented | Enabled drag-and-drop rescheduling for events in the month view. |
+| **Due Date Reminders** | ✅ Implemented | Background service `ReminderService` sends hourly notifications for tasks due in <24h. |
+| **Empty States** | ✅ Enhanced | Reusable `EmptyState` component with animated icons and CTAs. |
+
+### UI/UX Refinements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Homepage Features** | ✅ Updated | Showcases 4 main cards: Smarty AI, Calendar, Task Mgmt, and Chat. |
+| **Smarty Protection** | ✅ Done | Smarty bubble is now disabled for guests; shows login tooltip. |
+| **Friend Search** | ✅ Improved | Displays **user emails** instead of IDs in search results. |
+| **Chat Fixes** | ✅ Fixed | Resolved `z-index` issue on Chat header preventing menu interaction. |
+| **Homepage Cleanup** | ✅ Done | Removed "Ready to boost productivity" CTA section. |
+
+### Technical Debt & Backend
+- **New Service:** `services/search.ts` - Multi-entity indexed search logic.
+- **New Service:** `services/reminder.ts` - Cron-style interval logic for due date alerts.
+- **API Extension:** Added `PUT /calendar/events/:eventId` for drag-drop persistence.
+- **API Extension:** Added `GET /search` for unified query results.
+
 ## Latest Updates (2026-01-12 - Session 11)
 
 ### Let Smarty Do: n8n + DeepSeek Integration

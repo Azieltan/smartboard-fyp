@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '../../components/Sidebar';
 import { NotificationManager } from '../../components/NotificationManager';
+import SearchModal from '../../components/SearchModal';
 
 export default function DashboardLayout({
     children,
@@ -12,6 +13,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const [userId, setUserId] = useState<string>('');
+    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -23,6 +25,18 @@ export default function DashboardLayout({
                 console.error('Failed to parse user', e);
             }
         }
+    }, []);
+
+    // Global keyboard shortcut for search
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                setShowSearch(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     return (
@@ -37,7 +51,10 @@ export default function DashboardLayout({
             {/* Notification Pop-outs */}
             {userId && <NotificationManager userId={userId} />}
 
-            <Sidebar />
+            {/* Global Search Modal */}
+            <SearchModal isOpen={showSearch} onClose={() => setShowSearch(false)} />
+
+            <Sidebar onSearchClick={() => setShowSearch(true)} />
 
             <main className="flex-1 relative flex flex-col h-screen overflow-y-auto custom-scrollbar">
                 {children}
