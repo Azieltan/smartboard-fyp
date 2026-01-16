@@ -123,6 +123,17 @@ app.post('/auth/login', async (req, res) => {
     }
 });
 
+app.post('/auth/sync', async (req, res) => {
+    try {
+        const { access_token } = req.body;
+        if (!access_token) return res.status(400).json({ error: 'Access token required' });
+        const result = await AuthService.syncSession(access_token);
+        res.json(result);
+    } catch (error: any) {
+        res.status(401).json({ error: error.message });
+    }
+});
+
 app.get('/users/search', async (req, res) => {
     try {
         const query = req.query.query as string;

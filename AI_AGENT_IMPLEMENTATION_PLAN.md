@@ -18,7 +18,8 @@
 8. [Task 8: Dashboard UI Implementation](#8-task-8-dashboard-ui-implementation)
 9. [Task Logic Behind Tasks](#9-task-logic-behind-tasks-ownerassigneeadmin)
 10. [Full Function Double-Check Checklist](#11-full-function-double-check-checklist-before-demo--merge)
-11. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
+11. [Task 9: Advanced Authentication](#11-task-9-advanced-authentication)
+12. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
 
 ---
 
@@ -1782,6 +1783,56 @@ npm run dev
 npx tsc -p apps/frontend/tsconfig.json --noEmit
 npm -w apps/backend run build
 ```
+
+---
+
+## 11. Task 9: Advanced Authentication
+
+### Goal
+
+Implement robust authentication methods including:
+1.  **Sign in with Google** (OAuth)
+2.  **Forgot Password** flow
+3.  **Multi-method Login** (Email, Phone, Google)
+
+### Strategy
+
+To maintain compatibility with existing backend JWT logic (`middleware/auth.ts`), we will use a **Session Syc** approach:
+1.  Frontend uses Supabase Client for OAuth/Magic Links.
+2.  Frontend obtains Supabase Access Token.
+3.  Frontend sends Supabase Token to Backend (`/auth/sync`).
+4.  Backend verifies token with Supabase, syncs user to DB, and issues App JWT.
+5.  Frontend stores App JWT and proceeds as logged in.
+
+### Implementation Steps
+
+#### Step 9.1: Backend Sync Endpoint
+
+**File**: `apps/backend/src/services/auth.ts`
+
+Method `syncSession(accessToken: string)`:
+- Call `supabase.auth.getUser(accessToken)`
+- Upsert user to `users` table
+- Sign and return App JWT
+
+**File**: `apps/backend/src/index.ts`
+- Add `POST /auth/sync` route.
+
+#### Step 9.2: Forgot Password Page
+
+**File**: `apps/frontend/src/app/forgot-password/page.tsx`
+- Simple form taking Email.
+- Calls `supabase.auth.resetPasswordForEmail(email)`.
+
+#### Step 9.3: Update Login UI
+
+**File**: `apps/frontend/src/app/login/page.tsx`
+- Add "Sign in with Google" button.
+- Add "Sign in with Phone" (optional/placeholder if SMS not set up).
+- Handle `onAuthStateChange` to trigger backend sync on successful OAuth login.
+
+#### Step 9.4: Backend Notification for New Users (Optional)
+- When a new user syncs for the first time, send a welcome notification.
 
 ---
 

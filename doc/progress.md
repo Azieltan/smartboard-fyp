@@ -21,7 +21,18 @@
 ---
 
 
-## Latest Updates (2026-01-09)
+## Latest Updates (2026-01-11)
+
+### Advanced Authentication & Recovery
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Sign in with Google** | ✅ Implemented | Added "Sign in with Google" button. Uses Supabase Auth (OAuth) + Backend Session Sync to maintain compatibility with existing JWT system. |
+| **Forgot Password** | ✅ Implemented | Created dedicated `/forgot-password` page with email reset link functionality via Supabase. |
+| **Phone Auth UI** | ✅ Implemented | Added UI for Phone Login (Send Code / Verify OTP). Ready for backend SMS configuration. |
+| **Backend Sync** | ✅ Implemented | Created `POST /auth/sync` endpoint to securely exchange Supabase OAuth tokens for App JWTs. |
+| **Dependencies** | ✅ Installed | Added `@supabase/supabase-js` to frontend dependencies to support client-side auth flows. |
+
+## Previous Updates (2026-01-09)
 
 ### Admin Portal & System Security
 | Feature | Status | Details |
