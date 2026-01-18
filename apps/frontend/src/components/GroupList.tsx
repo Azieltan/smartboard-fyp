@@ -223,8 +223,10 @@ export default function GroupList({ userId, onSelectGroup }: GroupListProps) {
                         return (
                             <div key={group.group_id} className="space-y-2">
                                 <div
-                                    onClick={() => onSelectGroup(group.group_id)}
-                                    className={`p-4 rounded-xl bg-slate-50 dark:bg-white/5 border transition-all cursor-pointer group ${isExpanded ? 'border-emerald-500/30 bg-slate-100 dark:bg-white/10' : 'border-slate-100 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10'}`}
+                                    onClick={() => {
+                                        onSelectGroup(group.group_id);
+                                    }}
+                                    className={`p-4 rounded-xl bg-slate-50 dark:bg-white/5 border transition-all cursor-pointer relative z-10 hover:z-20 ${isExpanded ? 'border-emerald-500/30 bg-slate-100 dark:bg-white/10' : 'border-slate-100 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10'}`}
                                 >
                                     <div className="flex justify-between items-center mb-1">
                                         <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">{group.name}</h3>

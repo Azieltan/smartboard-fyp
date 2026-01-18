@@ -43,12 +43,13 @@ interface Task {
 interface GroupDetailViewProps {
     groupId: string;
     userId: string;
+    userRole?: string;
     onBack: () => void;
 }
 
 type ViewTab = 'chat' | 'members' | 'tasks';
 
-export default function GroupDetailView({ groupId, userId, onBack }: GroupDetailViewProps) {
+export default function GroupDetailView({ groupId, userId, userRole, onBack }: GroupDetailViewProps) {
     const [activeTab, setActiveTab] = useState<ViewTab>('chat');
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
@@ -203,8 +204,9 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
         }
     };
 
-    const canManage = myRole?.role === 'owner' || (myRole?.role === 'admin' && myRole?.can_manage_members);
-    const isOwner = myRole?.role === 'owner';
+    const isSystemAdmin = ['admin', 'systemadmin', 'owner'].includes(userRole || '');
+    const canManage = myRole?.role === 'owner' || (myRole?.role === 'admin' && myRole?.can_manage_members) || isSystemAdmin;
+    const isOwner = myRole?.role === 'owner' || isSystemAdmin;
 
     const getRoleBadge = (role: string) => {
         switch (role) {
@@ -669,7 +671,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
 
-                                {myRole?.role === 'owner' ? (
+                                {isOwner ? (
                                     <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
                                         Delete Group
                                     </button>

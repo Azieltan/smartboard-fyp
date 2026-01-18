@@ -21,9 +21,21 @@
 ---
 
 
-## Latest Updates (2026-01-11)
+## Latest Updates (2026-01-18)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Admin Access** | ✅ Fixed | Backend `adminMiddleware` now accepts `systemadmin` role (matching Frontend/DB manual update). |
+| **Phone Auth** | ✅ Enabled | Backend `AuthService` now handles Supabase Phone Auth users (generates placeholder email and fallback username). |
+| **Calendar UI** | ✅ Fixed | Added scrollbar to day cells to prevent overflow when displaying multiple tasks/events `max-h-[150px]`. |
+
+## Previous Updates (2026-01-11)
 
 ### Advanced Authentication & Recovery
+- [x] **Group Details Access**: Fixed issue where only the first group was accessible/manageable (Z-index fix and System Admin permission override).
+- [x] **Authentication**: Advanced Auth (Google, Phone) & Forgot Password Flow completed.
+- [x] **Calendar**: Scrollbar added for days with many events.
 | Feature | Status | Details |
 |---------|--------|---------|
 | **Sign in with Google** | ✅ Implemented | Added "Sign in with Google" button. Uses Supabase Auth (OAuth) + Backend Session Sync to maintain compatibility with existing JWT system. |

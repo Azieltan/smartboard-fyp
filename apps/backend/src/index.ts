@@ -818,7 +818,7 @@ app.delete('/notifications/:notificationId', async (req, res) => {
 
 // Admin Routes
 const adminMiddleware = (req: any, res: any, next: any) => {
-    if (req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'systemadmin') {
         return res.status(403).json({ error: 'Admin access required' });
     }
     next();

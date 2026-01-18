@@ -173,7 +173,7 @@ export default function CalendarPage() {
                                         {day}
                                     </span>
 
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
                                         {dayItems.map(item => (
                                             <div
                                                 key={item.id}

@@ -134,7 +134,9 @@ export class AuthService {
             .eq('user_id', authUser.id)
             .maybeSingle();
 
+        const email = authUser.email || (authUser.phone ? `${authUser.phone}@phone.ws` : `${authUser.id}@placeholder.ws`);
         const metaName = authUser.user_metadata?.user_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name;
+        const fallbackName = authUser.phone || email.split('@')[0] || 'User';
 
         if (!user) {
             const { data: inserted, error: insertErr } = await supabase
@@ -142,8 +144,8 @@ export class AuthService {
                 .upsert(
                     {
                         user_id: authUser.id,
-                        user_name: metaName || authUser.email?.split('@')[0] || 'User',
-                        email: authUser.email,
+                        user_name: metaName || fallbackName,
+                        email: email,
                         role: 'member'
                     },
                     { onConflict: 'user_id' }

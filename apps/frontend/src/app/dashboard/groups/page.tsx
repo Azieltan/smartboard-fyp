@@ -9,6 +9,7 @@ export default function GroupsPage() {
     const router = useRouter();
     const [userId, setUserId] = useState<string | null>(null);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>('member');
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -19,6 +20,7 @@ export default function GroupsPage() {
         try {
             const user = JSON.parse(userStr);
             setUserId(user.user_id);
+            setUserRole(user.role || 'member');
         } catch {
             router.push('/login');
         }
@@ -38,6 +40,7 @@ export default function GroupsPage() {
             <GroupDetailView
                 groupId={selectedGroupId}
                 userId={userId}
+                userRole={userRole}
                 onBack={() => setSelectedGroupId(null)}
             />
         );
