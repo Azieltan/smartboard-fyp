@@ -182,8 +182,9 @@ export function PendingTasksWidget({ userId }: PendingTasksWidgetProps) {
                     <p className="text-sm font-semibold text-white truncate group-hover:text-violet-400 transition-colors">
                       {task.title}
                     </p>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${colors.bg} ${colors.text}`}>
-                      {priority}
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${colors.bg} ${colors.text} flex items-center gap-1.5`}>
+                      <span className="opacity-70">Prio:</span>
+                      <span className="capitalize">{priority}</span>
                     </span>
                   </div>
                   {dueDate && (

@@ -181,4 +181,56 @@ export class AuthService {
         if (error) throw new Error(error.message);
         return data as any as User[];
     }
+
+    /**
+     * Sync OAuth user (Google, etc) - creates or updates user profile and returns JWT
+     */
+    static async syncOAuthUser(
+        supabaseUserId: string,
+        email: string,
+        displayName?: string,
+        avatarUrl?: string
+    ): Promise<{ user: User; token: string; isNewUser: boolean }> {
+        // Check if user already exists
+        let { data: existingUser } = await supabase
+            .from('users')
+            .select('user_id, user_name, email, role, created_at')
+            .eq('user_id', supabaseUserId)
+            .maybeSingle();
+
+        let isNewUser = false;
+
+        if (!existingUser) {
+            // Create new user profile
+            isNewUser = true;
+            const userName = displayName || email.split('@')[0] || 'User';
+
+            const { data: newUser, error: insertErr } = await supabase
+                .from('users')
+                .insert({
+                    user_id: supabaseUserId,
+                    user_name: userName,
+                    email: email,
+                    role: 'member'
+                })
+                .select('user_id, user_name, email, role, created_at')
+                .single();
+
+            if (insertErr) throw new Error(insertErr.message);
+            existingUser = newUser;
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+            { userId: existingUser.user_id, email: existingUser.email, role: existingUser.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        return {
+            user: existingUser as any as User,
+            token,
+            isNewUser
+        };
+    }
 }

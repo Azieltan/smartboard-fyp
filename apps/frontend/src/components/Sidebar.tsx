@@ -104,7 +104,7 @@ export function Sidebar({ onSearchClick }: SidebarProps) {
     }, []);
 
     const navigation = [...staticNavigation];
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'systemadmin') {
         navigation.splice(4, 0, { // Insert before Settings
             name: 'Admin Portal',
             href: '/dashboard/admin', // Updated to nest under dashboard
@@ -191,6 +191,14 @@ export function Sidebar({ onSearchClick }: SidebarProps) {
                             {getInitials(user?.name || user?.user_name || user?.username)}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
+                            {user?.role && (
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mb-0.5 tracking-wider ${user.role === 'admin' || user.role === 'systemadmin'
+                                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-sm'
+                                    : 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400'
+                                    }`}>
+                                    {user.role}
+                                </span>
+                            )}
                             <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.name || user?.user_name || user?.username || 'User'}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'user@example.com'}</p>
 

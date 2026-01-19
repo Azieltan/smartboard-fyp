@@ -65,6 +65,7 @@ create table tasks (
   group_id uuid references groups(group_id) on delete set null,
   status text check (status in ('todo', 'in_progress', 'in_review', 'done')) default 'todo',
   priority text check (priority in ('low', 'medium', 'high')) default 'medium',
+  reminder_sent boolean default false,
   created_at timestamp with time zone default now()
 );
 

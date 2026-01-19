@@ -312,6 +312,20 @@ body {
     background: rgba(139, 92, 246, 0.7);
   }
 
+  /* Thin scrollbar variant for compact spaces */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 2px;
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

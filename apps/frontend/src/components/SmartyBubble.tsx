@@ -253,9 +253,11 @@ export function SmartyBubble() {
 
     // Quick questions for Automation mode
     const AUTOMATE_QUICK_QUESTIONS = [
-        'Set a reminder for tomorrow 3pm "meeting with Adam"',
-        "Edit reminder",
-        "Delete reminder"
+        'Create reminder for tomorrow 3pm "meeting"',
+        'List my tasks',
+        'Delete task [name]',
+        'Update task [name] to due Friday',
+        'Create task Review Report due Monday'
     ];
 
     // Select which questions to show based on mode
@@ -389,30 +391,63 @@ export function SmartyBubble() {
                         )}
                         <div ref={chatEndRef} />
 
-                        {/* Confirmation Card */}
+                        {/* Confirmation Card - Enhanced with details */}
                         {pendingAutomation && (
                             <div className="mt-4 p-4 bg-white/5 border border-blue-500/30 rounded-2xl animate-in zoom-in-95 duration-200 shadow-xl">
                                 <p className="text-xs text-blue-400 font-semibold mb-2 flex items-center gap-1">
                                     <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                                     Confirm Action
                                 </p>
-                                <p className="text-sm text-slate-200 mb-4 leading-relaxed italic">
-                                    "{pendingAutomation.summary}"
+                                <p className="text-sm text-slate-200 mb-3 leading-relaxed">
+                                    {pendingAutomation.summary}
                                 </p>
+
+                                {/* Show parsed details if available */}
+                                {pendingAutomation.payload?.params && (
+                                    <div className="mb-3 p-2 bg-black/20 rounded-lg text-xs space-y-1">
+                                        {pendingAutomation.payload.params.title && (
+                                            <div className="flex gap-2">
+                                                <span className="text-slate-400">Title:</span>
+                                                <span className="text-white">{pendingAutomation.payload.params.title}</span>
+                                            </div>
+                                        )}
+                                        {pendingAutomation.payload.params.due_date && (
+                                            <div className="flex gap-2">
+                                                <span className="text-slate-400">Date:</span>
+                                                <span className="text-white">{new Date(pendingAutomation.payload.params.due_date).toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {pendingAutomation.payload.params.remind_at && (
+                                            <div className="flex gap-2">
+                                                <span className="text-slate-400">Remind at:</span>
+                                                <span className="text-white">{new Date(pendingAutomation.payload.params.remind_at).toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {pendingAutomation.payload.params.priority && (
+                                            <div className="flex gap-2">
+                                                <span className="text-slate-400">Priority:</span>
+                                                <span className={`${pendingAutomation.payload.params.priority === 'high' ? 'text-red-400' : pendingAutomation.payload.params.priority === 'low' ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                    {pendingAutomation.payload.params.priority}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleConfirm}
                                         disabled={chatLoading}
                                         className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
                                     >
-                                        {chatLoading ? 'Executing...' : 'Confirm'}
+                                        {chatLoading ? 'Executing...' : '✓ Confirm'}
                                     </button>
                                     <button
                                         onClick={() => setPendingAutomation(null)}
                                         disabled={chatLoading}
                                         className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold rounded-xl transition-all border border-white/5 disabled:opacity-50"
                                     >
-                                        Cancel
+                                        ✕ Cancel
                                     </button>
                                 </div>
                             </div>

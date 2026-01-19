@@ -28,6 +28,9 @@ export class AutomationService {
 
     try {
       // Call n8n for AI parsing (DeepSeek v3.2)
+      console.log('[AutomationService] Calling n8n webhook:', N8N_WEBHOOK_URL);
+      console.log('[AutomationService] Request payload:', { automation_id, user_id: userId, rawText });
+
       const response = await axios.post(N8N_WEBHOOK_URL, {
         automation_id,
         user_id: userId,
@@ -36,6 +39,9 @@ export class AutomationService {
       }, { timeout: 60000 }); // 60s timeout for DeepSeek
 
       const result = response.data;
+
+      console.log('[AutomationService] n8n response:', JSON.stringify(result, null, 2));
+      console.log('[AutomationService] needs_confirmation:', result.needs_confirmation);
 
       // Store in DB for audit
       await supabase.from('automation_requests').insert({
@@ -143,6 +149,21 @@ export class AutomationService {
 
         case 'list_group_members':
           result = await this.executeListMembers(userId, params);
+          break;
+
+        case 'delete_task':
+        case 'delete_reminder':
+          result = await this.executeDeleteTask(userId, params);
+          break;
+
+        case 'update_task':
+        case 'update_reminder':
+          result = await this.executeUpdateTask(userId, params);
+          break;
+
+        case 'get_tasks':
+        case 'list_tasks':
+          result = await this.executeListTasks(userId, params);
           break;
 
         default:
@@ -347,6 +368,117 @@ export class AutomationService {
     return {
       message: `Members of "${group.name}":\n${memberList || 'No members yet'}`,
       details: { group, members }
+    };
+  }
+
+  // Delete a task or reminder
+  private static async executeDeleteTask(userId: string, params: any) {
+    const searchTitle = params.task_title || params.title || params.reminder_title;
+
+    if (!searchTitle) {
+      throw new Error('Please specify which task or reminder to delete. Try: "Delete task [task name]"');
+    }
+
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('task_id, title')
+      .ilike('title', `%${searchTitle}%`)
+      .eq('user_id', userId)
+      .single();
+
+    if (!task) {
+      throw new Error(`Could not find task or reminder matching "${searchTitle}". Please check the name and try again.`);
+    }
+
+    await supabase.from('tasks').delete().eq('task_id', task.task_id);
+
+    return {
+      message: `✅ Deleted: "${task.title}"`,
+      details: task
+    };
+  }
+
+  // Update a task or reminder
+  private static async executeUpdateTask(userId: string, params: any) {
+    const searchTitle = params.task_title || params.title || params.reminder_title;
+
+    if (!searchTitle) {
+      throw new Error('Please specify which task or reminder to update. Try: "Update task [task name] to [new details]"');
+    }
+
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('task_id, title, due_date, priority, description')
+      .ilike('title', `%${searchTitle}%`)
+      .eq('user_id', userId)
+      .single();
+
+    if (!task) {
+      throw new Error(`Could not find task matching "${searchTitle}". Please check the name and try again.`);
+    }
+
+    const updates: any = {};
+    if (params.new_title) updates.title = params.new_title;
+    if (params.due_date) updates.due_date = new Date(params.due_date);
+    if (params.priority) updates.priority = params.priority;
+    if (params.description) updates.description = params.description;
+
+    if (Object.keys(updates).length === 0) {
+      throw new Error('Please specify what to update. Try: "Change task deadline to Friday" or "Update task priority to high"');
+    }
+
+    await supabase.from('tasks')
+      .update({ ...updates, updated_at: new Date() })
+      .eq('task_id', task.task_id);
+
+    const changesList = Object.entries(updates)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ');
+
+    return {
+      message: `✅ Updated "${task.title}": ${changesList}`,
+      details: { task, updates }
+    };
+  }
+
+  // List tasks for user
+  private static async executeListTasks(userId: string, params: any) {
+    let query = supabase
+      .from('tasks')
+      .select('task_id, title, status, priority, due_date')
+      .eq('user_id', userId)
+      .order('due_date', { ascending: true });
+
+    // Optional filters
+    if (params.status) {
+      query = query.eq('status', params.status);
+    }
+    if (params.priority) {
+      query = query.eq('priority', params.priority);
+    }
+
+    const { data: tasks, error } = await query.limit(10);
+
+    if (error) throw new Error('Failed to fetch tasks');
+
+    if (!tasks || tasks.length === 0) {
+      return {
+        message: '📋 No tasks found. Create one by saying "Create task [title]"',
+        details: []
+      };
+    }
+
+    const taskList = tasks
+      .map((t: any) => {
+        const dueStr = t.due_date ? ` (due: ${new Date(t.due_date).toLocaleDateString()})` : '';
+        const priorityEmoji = t.priority === 'high' ? '🔴' : t.priority === 'low' ? '🟢' : '🟡';
+        return `${priorityEmoji} ${t.title}${dueStr} - ${t.status}`;
+      })
+      .join('\n');
+
+    return {
+      message: `📋 Your tasks:\n${taskList}`,
+      details: tasks
     };
   }
 }

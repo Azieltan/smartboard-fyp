@@ -16,6 +16,7 @@ import { SmartyService } from './services/smarty';
 import { AdminService } from './services/admin';
 import { SearchService } from './services/search';
 import smartyRouter from './routes/smarty';
+import adminRouter from './routes/admin';
 
 dotenv.config();
 
@@ -84,6 +85,9 @@ app.get('/test-shared', (req, res) => {
 // Smarty Routes
 app.use('/smarty', smartyRouter);
 
+// Admin Routes
+app.use('/admin', adminRouter);
+
 // Auth Routes
 app.post('/auth/register', async (req, res) => {
     try {
@@ -146,6 +150,28 @@ app.post('/auth/change-password', async (req, res) => {
     }
 });
 
+// OAuth Sync - For Google, etc. login users
+app.post('/auth/oauth-sync', async (req, res) => {
+    try {
+        const { supabaseUserId, email, displayName, avatarUrl } = req.body;
+
+        if (!supabaseUserId || !email) {
+            return res.status(400).json({ error: 'supabaseUserId and email are required' });
+        }
+
+        const result = await AuthService.syncOAuthUser(
+            supabaseUserId,
+            email,
+            displayName,
+            avatarUrl
+        );
+
+        res.json(result);
+    } catch (error: any) {
+        console.error('OAuth sync error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 
 import { seedDatabase } from './seed';

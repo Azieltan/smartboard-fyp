@@ -3,6 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { CreateUserModal } from '@/components/CreateUserModal';
+import {
+    Chart as ChartJS,
+    ArcElement,
+    Tooltip,
+    Legend,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title
+} from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 interface Stats {
     totalUsers: number;
@@ -30,6 +44,7 @@ interface Task {
     priority: string;
     user_id: string;
     created_by: string;
+    created_at?: string;
     due_date: string;
     owner?: { user_name: string };
     assignee?: { user_name: string };
@@ -51,19 +66,67 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<'users' | 'tasks' | 'events'>('users');
     const [isLoading, setIsLoading] = useState(true);
 
+    const [tasksForCharts, setTasksForCharts] = useState<Task[]>([]);
+
     useEffect(() => {
         fetchStats();
     }, []);
 
     const fetchStats = async () => {
         try {
-            const data = await api.get('/admin/stats');
-            setStats(data);
+            const [statsData, tasksData] = await Promise.all([
+                api.get('/admin/stats'),
+                api.get('/admin/tasks')
+            ]);
+            setStats(statsData);
+            setTasksForCharts(tasksData);
         } catch (error) {
             console.error('Failed to fetch stats', error);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Prepare Chart Data
+    const pieData = {
+        labels: ['Active (Todo/In Progress)', 'In Review', 'Completed'],
+        datasets: [
+            {
+                data: [
+                    tasksForCharts.filter(t => ['todo', 'in_progress'].includes(t.status)).length,
+                    tasksForCharts.filter(t => t.status === 'in_review').length,
+                    tasksForCharts.filter(t => t.status === 'done').length
+                ],
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)', // Blue
+                    'rgba(168, 85, 247, 0.8)', // Purple
+                    'rgba(16, 185, 129, 0.8)'  // Emerald
+                ],
+                borderColor: [
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(168, 85, 247, 1)',
+                    'rgba(16, 185, 129, 1)'
+                ],
+                borderWidth: 1,
+            },
+        ],
+    };
+
+    const tasksByPriority = {
+        high: tasksForCharts.filter(t => t.priority === 'high').length,
+        medium: tasksForCharts.filter(t => t.priority === 'medium').length,
+        low: tasksForCharts.filter(t => t.priority === 'low').length,
+    };
+
+    const barData = {
+        labels: ['High Priority', 'Medium Priority', 'Low Priority'],
+        datasets: [
+            {
+                label: 'Tasks by Priority',
+                data: [tasksByPriority.high, tasksByPriority.medium, tasksByPriority.low],
+                backgroundColor: 'rgba(249, 115, 22, 0.8)', // Orange
+            },
+        ],
     };
 
     if (isLoading) {
@@ -112,6 +175,22 @@ export default function AdminPage() {
                 />
             </div>
 
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-white/5">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Task Status Distribution</h3>
+                    <div className="h-64 flex justify-center">
+                        <Pie data={pieData} options={{ responsive: true, maintainAspectRatio: false }} />
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-white/5">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Tasks by Priority</h3>
+                    <div className="h-64">
+                        <Bar data={barData} options={{ responsive: true, maintainAspectRatio: false }} />
+                    </div>
+                </div>
+            </div>
+
             {/* Tabs */}
             <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-xl overflow-hidden min-h-[500px] flex flex-col">
                 <div className="flex border-b border-slate-200 dark:border-white/10">
@@ -137,8 +216,8 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
         <button
             onClick={onClick}
             className={`px-8 py-4 font-semibold text-sm transition-all relative ${active
-                    ? 'text-blue-500 bg-blue-50/50 dark:bg-blue-500/10'
-                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5'
+                ? 'text-blue-500 bg-blue-50/50 dark:bg-blue-500/10'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5'
                 }`}
         >
             {label}
@@ -169,6 +248,7 @@ function UserList() {
     const [users, setUsers] = useState<User[]>([]);
     const [search, setSearch] = useState('');
     const [isExporting, setIsExporting] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         api.get('/admin/users').then(setUsers);
@@ -232,7 +312,16 @@ function UserList() {
                 <button onClick={handleExport} disabled={isExporting} className="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 disabled:opacity-50">
                     {isExporting ? 'Exporting...' : 'Export CSV'}
                 </button>
+                <button onClick={() => setIsCreateModalOpen(true)} className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 shadow-lg shadow-blue-500/30">
+                    + New User
+                </button>
             </div>
+
+            <CreateUserModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={() => api.get('/admin/users').then(setUsers)}
+            />
             <table className="w-full text-left">
                 <thead className="bg-slate-50 dark:bg-white/5 text-slate-500">
                     <tr>
@@ -350,13 +439,13 @@ function TaskList() {
                             <td className="p-4">
                                 <div className="flex gap-2">
                                     <span className={`px-2 py-0.5 rounded text-xs ${t.status === 'done' ? 'bg-green-100 text-green-700' :
-                                            t.status === 'in_review' ? 'bg-purple-100 text-purple-700' :
-                                                t.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                        t.status === 'in_review' ? 'bg-purple-100 text-purple-700' :
+                                            t.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
                                         }`}>
                                         {t.status.replace('_', ' ')}
                                     </span>
                                     <span className={`px-2 py-0.5 rounded text-xs ${t.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                            t.priority === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
+                                        t.priority === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
                                         }`}>
                                         {t.priority}
                                     </span>

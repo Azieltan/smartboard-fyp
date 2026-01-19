@@ -202,4 +202,42 @@ export class AdminService {
         if (error) throw new Error(error.message);
         return true;
     }
+
+    // --- User Management ---
+    static async createUser(payload: { email: string; password?: string; name: string; role: string }) {
+        const { email, password, name, role } = payload;
+        const finalPassword = password || Math.random().toString(36).slice(-8) + 'Aa1!';
+
+        // 1. Create auth user (auto confirmed)
+        const { data: { user: authUser }, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password: finalPassword,
+            email_confirm: true,
+            user_metadata: { display_name: name }
+        });
+
+        if (authError) throw new Error(authError.message);
+        if (!authUser) throw new Error('Failed to create auth user');
+
+        // 2. Create profile
+        const { data: user, error: dbError } = await supabase
+            .from('users')
+            .insert({
+                user_id: authUser.id,
+                user_name: name,
+                email: email,
+                role: role || 'member',
+                password_hash: 'managed_by_supabase'
+            })
+            .select()
+            .single();
+
+        if (dbError) {
+            // Cleanup auth user to prevent orphan
+            await supabase.auth.admin.deleteUser(authUser.id);
+            throw new Error(dbError.message);
+        }
+
+        return { user, password: finalPassword };
+    }
 }
