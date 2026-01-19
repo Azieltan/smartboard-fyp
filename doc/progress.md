@@ -231,3 +231,19 @@ User → SmartyBubble → Backend /automate → n8n (DeepSeek AI) → Backend (e
 - [ ] **ACTION REQUIRED**: Run SQL for `reminder_sent` column
 - [ ] Smarty CRUD verification
 
+---
+
+## Session 17: Final Pushes & Cleanup
+**Date**: 2026-01-19
+
+### Repository Status
+| Task | Status | Details |
+|------|--------|---------|
+| **Git Push** | ✅ Done | Pushed all recent changes (Admin V2, Google Login Fixes, Automation CRUD) to GitHub `main` branch. |
+
+### Major Changes Merged
+- **Admin Panel V2**: Integrated charts and user creation modal.
+- **Google OAuth**: Completed full flow (auth-callback, profile completion, sync).
+- **Automation CRUD**: Smarty AI can now list, update, and delete tasks/reminders.
+- **Backend**: Added `reminder_sent` logic and admin routes.
+
