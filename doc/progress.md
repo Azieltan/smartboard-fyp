@@ -44,6 +44,11 @@
 | **Data Integrity** | ✅ Verified | Validated database integrity via script: Group Owners and Pending Requests are correctly stored in the backend. |
 | **UI/UX** | ✅ Improved | Enhanced "Group Info" button to be more visible and clickable. |
 | **Chat Refresh** | ✅ Fixed | Eliminated skeleton screen flash when receiving new DMs by implementing background data fetching. |
+| **Chat Cross-Talk** | ✅ Fixed | Solved issue where messages from one chat would appear in others. Implemented strict ID filtering in the socket listener. |
+| **Chat Scroll** | ✅ Improved | Removed forced auto-scroll. Added "New Message" float button and manual scroll detection. |
+| **Instant DMs** | ✅ Optimized | Added optimistic socket matching for DMs. Sidebar now updates instantly for new conversations without needing a database re-fetch. |
+| **Badge Counts** | ✅ Fixed | Reinforced notification count logic with strict type casting and robust default values to prevent missing badges. |
+| **Socket Stability** | ✅ Optimized | Split socket listeners (room management vs. message handling) to prevent connection thrashing. Ensures reliable "Move to Top" behavior and unread badge updates. |
 
 ## Latest Updates (2026-01-20)
 

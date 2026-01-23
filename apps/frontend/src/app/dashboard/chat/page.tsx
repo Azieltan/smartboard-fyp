@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Chat from '../../../components/Chat';
 import { api } from '../../../lib/api';
 import { socket } from '../../../lib/socket';
@@ -17,6 +17,7 @@ interface Conversation {
     avatar?: string;
     role?: string;
     groupId?: string; // Real backend Group ID (different from 'id' for DMs)
+    totalMessages?: number;
 }
 
 interface Group {
@@ -68,7 +69,7 @@ export default function ChatPage() {
         }
     }, []);
 
-    const fetchData = async (uid: string, background: boolean = false) => {
+    const fetchData = useCallback(async (uid: string, background: boolean = false) => {
         if (!background) setIsLoading(true);
         try {
             const groups = await api.get(`/groups/${uid}`);
@@ -81,8 +82,8 @@ export default function ChatPage() {
                 role: g.role,
                 lastMessage: g.last_message?.content,
                 time: g.last_message?.send_time,
-                totalMessages: g.total_messages || 0,
-                groupId: g.group_id // For groups, id === groupId
+                totalMessages: Number(g.total_messages || 0),
+                groupId: g.group_id
             }));
 
             const friendConvs: Conversation[] = friends
@@ -93,8 +94,8 @@ export default function ChatPage() {
                     type: 'dm',
                     lastMessage: f.last_message?.content,
                     time: f.last_message?.send_time,
-                    totalMessages: f.total_messages || 0,
-                    groupId: f.dm_group_id // The binding key for socket events
+                    totalMessages: Number(f.total_messages || 0),
+                    groupId: f.dm_group_id
                 }));
 
             // Calc unread
@@ -103,14 +104,14 @@ export default function ChatPage() {
 
             groupConvs.forEach(c => {
                 const lastRead = readCounts[c.id] || 0;
-                if ((c as any).totalMessages > lastRead) {
-                    newUnread[c.id] = (c as any).totalMessages - lastRead;
+                if ((c.totalMessages || 0) > lastRead) {
+                    newUnread[c.id] = (c.totalMessages || 0) - lastRead;
                 }
             });
             friendConvs.forEach(c => {
                 const lastRead = readCounts[c.id] || 0;
-                if ((c as any).totalMessages > lastRead) {
-                    newUnread[c.id] = (c as any).totalMessages - lastRead;
+                if ((c.totalMessages || 0) > lastRead) {
+                    newUnread[c.id] = (c.totalMessages || 0) - lastRead;
                 }
             });
             setUnreadCounts(newUnread);
@@ -137,13 +138,13 @@ export default function ChatPage() {
         } finally {
             if (!background) setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (userId) {
             fetchData(userId);
         }
-    }, [userId]);
+    }, [userId, fetchData]);
 
     const handleAcceptFriend = async (relationshipId: string) => {
         try {
@@ -163,29 +164,39 @@ export default function ChatPage() {
         }
     };
 
-    // Socket connection for real-time sidebar updates
+    // Socket: Join Rooms (Reactive to list changes)
     useEffect(() => {
         if (!userId) return;
 
-        socket.connect();
-
-        // Join personal user room for reliable DM delivery
-        socket.emit('join_room', userId);
-
-        // Join known conversation rooms (still useful for history/context if needed)
         conversations.forEach(c => {
             const roomId = c.groupId || c.id;
             if (roomId) socket.emit('join_room', roomId);
         });
+    }, [conversations, userId]);
+
+    // Socket: Main Listener (Stable)
+    useEffect(() => {
+        if (!userId) return;
+
+        console.log('[Sidebar] Initializing socket listener');
+        socket.connect();
+        socket.emit('join_room', userId);
 
         const handleNewMessageSidebar = (msg: any) => {
             if (!msg || !msg.group_id) return;
 
             setConversations(prev => {
                 // Find conversation by matching groupId
-                const convIndex = prev.findIndex(c => (c.groupId || c.id) === msg.group_id);
+                let convIndex = prev.findIndex(c => (c.groupId || c.id) === msg.group_id);
 
-                // If not found, it might be a new DM or Group we were just added to.
+                // Fallback for DMs: match by sender ID logic if Group ID is not yet linked
+                // This covers the case where User A sends to User B, and User B receives it via user_room
+                // but hasn't "discovered" the dm_group_id yet.
+                if (convIndex === -1 && msg.user_id !== userId) {
+                    convIndex = prev.findIndex(c => c.type === 'dm' && c.id === msg.user_id);
+                }
+
+                // If still not found, it might be a new DM or Group we were just added to.
                 // We should re-fetch to get the new list.
                 if (convIndex === -1) {
                     fetchData(userId, true); // Pass true to suppress loading state
@@ -196,6 +207,11 @@ export default function ChatPage() {
                 updatedConv.lastMessage = msg.content;
                 updatedConv.time = msg.send_time;
                 updatedConv.totalMessages = (updatedConv.totalMessages || 0) + 1;
+
+                // Cache the group_id if it was missing (e.g. first DM)
+                if (!updatedConv.groupId) {
+                    updatedConv.groupId = msg.group_id;
+                }
 
                 // Move to top
                 const newConvs = [...prev];
@@ -220,7 +236,8 @@ export default function ChatPage() {
                         // We are NOT viewing it, show badge
                         setUnreadCounts(current => {
                             const lastRead = JSON.parse(localStorage.getItem('chat_read_counts') || '{}')[updatedConv.id] || 0;
-                            const count = updatedConv.totalMessages > lastRead ? updatedConv.totalMessages - lastRead : 0;
+                            const count = (updatedConv.totalMessages || 0) > lastRead ? (updatedConv.totalMessages || 0) - lastRead : 0;
+                            console.log(`[Badge] ID: ${updatedConv.id}, Total: ${updatedConv.totalMessages}, LastRead: ${lastRead}, NewCount: ${count}`);
                             return { ...current, [updatedConv.id]: count };
                         });
                     }
@@ -244,7 +261,7 @@ export default function ChatPage() {
         return () => {
             socket.off('new_message', handleNewMessageSidebar);
         }
-    }, [conversations, userId]);
+    }, [userId, fetchData]);
 
     const handleConversationClick = (conv: Conversation) => {
         setSelectedId(conv.id);
@@ -422,6 +439,7 @@ export default function ChatPage() {
                                             key={conv.id}
                                             conv={conv}
                                             selectedId={selectedId}
+                                            unreadCount={unreadCounts[conv.id] || 0}
                                             onClick={() => handleConversationClick(conv)}
                                         />
                                     ))}
