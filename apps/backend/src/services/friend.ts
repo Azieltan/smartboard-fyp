@@ -97,11 +97,65 @@ export class FriendService {
 
         const userMap = new Map(users?.map(u => [u.user_id, u]));
 
-        // Organize the information so it looks good when displayed on your screen.
-        return requests.map(r => {
+        // Fetch DM groups for accepted friends to get last message
+        // We can find DM groups by name pattern 'dm-id-id' (sorted) or by querying groups where these users are members.
+        // Let's use the 'dm-A-B' convention for lookup as it's efficient if we know IDs.
+
+        const friendsWithDmInfo = await Promise.all(requests.map(async (r: any) => {
             const isSender = r.from_user_id === userId;
             const otherUserId = isSender ? r.to_user_id : r.from_user_id;
             const otherUser = userMap.get(otherUserId);
+
+            let lastMessage = null;
+            let unreadCount = 0;
+            let dmGroupId = null;
+
+            if (r.status === 'accepted') {
+                // Try to find the DM group
+                const userIds = [userId, otherUserId].sort();
+                const dmGroupName = `dm-${userIds[0]}-${userIds[1]}`;
+
+                // Get group ID
+                const { data: dmGroup } = await supabase
+                    .from('groups')
+                    .select('group_id')
+                    .eq('name', dmGroupName)
+                    .eq('is_dm', true)
+                    .maybeSingle();
+
+                if (dmGroup) {
+                    dmGroupId = dmGroup.group_id;
+
+                    // Get chat ID
+                    const { data: chat } = await supabase
+                        .from('chats')
+                        .select('chat_id')
+                        .eq('group_id', dmGroup.group_id)
+                        .maybeSingle();
+
+                    if (chat) {
+                        // Get last message
+                        const { data: msgs } = await supabase
+                            .from('messages')
+                            .select('content, send_time')
+                            .eq('chat_id', chat.chat_id)
+                            .order('send_time', { ascending: false })
+                            .limit(1);
+
+                        if (msgs && msgs.length > 0) {
+                            lastMessage = msgs[0];
+                        }
+
+                        // Get total count (for badge calc)
+                        const { count } = await supabase
+                            .from('messages')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('chat_id', chat.chat_id);
+
+                        unreadCount = count || 0;
+                    }
+                }
+            }
 
             return {
                 id: r.request_id,
@@ -109,9 +163,14 @@ export class FriendService {
                 user_id: r.from_user_id,
                 friend_id: r.to_user_id,
                 status: r.status,
-                friend_details: otherUser || { user_id: otherUserId, user_name: 'Unknown', email: '' }
+                friend_details: otherUser || { user_id: otherUserId, user_name: 'Unknown', email: '' },
+                last_message: lastMessage,
+                total_messages: unreadCount,
+                dm_group_id: dmGroupId
             };
-        });
+        }));
+
+        return friendsWithDmInfo;
     }
     static async removeFriend(relationshipId: string): Promise<void> {
         const { error } = await supabase

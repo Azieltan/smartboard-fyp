@@ -30,6 +30,28 @@
 | **Phone Auth** | ✅ Enabled | Backend `AuthService` now handles Supabase Phone Auth users (generates placeholder email and fallback username). |
 | **Calendar UI** | ✅ Fixed | Added scrollbar to day cells to prevent overflow when displaying multiple tasks/events `max-h-[150px]`. |
 
+## Latest Updates (2026-01-23)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Group Requests** | ✅ Fixed | Fixed visibility issue where Group Owners could not see "Join Requests". Implemented robust sequential data loading and permission checks in `GroupDetailView` to ensure owner status is correctly identified. Added explicit refresh logic for pending members. |
+| **Group Settings** | ✅ Fixed | Replaced minimal inline settings modal with full-featured `GroupInfoModal`. Fixed API call to include `requesterId` for ownership verification. |
+| **Pending in Modal** | ✅ Fixed | Updated `GroupInfoModal` to fetch and display pending join requests, ensuring consistency with the main group view. |
+| **Group Info** | ✅ Fixed | Improved error reporting and relaxed server-side ownership check to ensure owners can always update their group settings. |
+| **Chat Sorting** | ✅ Implemented | Chats are now sorted by latest message time. |
+| **Unread Badges** | ✅ Implemented | Added unread message count badges to the chat list, which clear when the chat is opened. |
+| **Data Integrity** | ✅ Verified | Validated database integrity via script: Group Owners and Pending Requests are correctly stored in the backend. |
+| **UI/UX** | ✅ Improved | Enhanced "Group Info" button to be more visible and clickable. |
+| **Chat Refresh** | ✅ Fixed | Eliminated skeleton screen flash when receiving new DMs by implementing background data fetching. |
+
+## Latest Updates (2026-01-20)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Group Details** | ✅ Fixed | Resolved a routing collision on the backend where `/groups/detail/:groupId` was unreachable. Also improved the frontend ownership check. |
+
 ## Previous Updates (2026-01-11)
 
 ### Advanced Authentication & Recovery

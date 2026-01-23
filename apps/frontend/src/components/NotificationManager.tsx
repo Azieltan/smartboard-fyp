@@ -38,6 +38,13 @@ export function NotificationManager({ userId }: NotificationManagerProps) {
       case 'friend_request':
         router.push('/dashboard/chat');
         break;
+      case 'join_request': {
+        const gid = notification.metadata?.groupId || (notification as any).group_id;
+        if (gid) {
+          router.push(`/dashboard/groups?groupId=${gid}&tab=members`);
+        }
+        break;
+      }
       case 'group_invite':
         if (notification.metadata?.groupId) {
           router.push(`/dashboard/chat`);

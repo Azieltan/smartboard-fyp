@@ -152,7 +152,12 @@ export class GroupService {
     static async updateGroup(groupId: string, updates: { name?: string; description?: string; requires_approval?: boolean; requesterId: string }): Promise<Group> {
         // Only owner can update group
         const requester = await this.getMemberRole(groupId, updates.requesterId);
-        if (!requester || requester.role !== 'owner') {
+
+        // Fetch group to check owner_id directly if member role check is ambiguous
+        const { data: group } = await supabase.from('groups').select('user_id').eq('group_id', groupId).single();
+        const isOwnerDirect = group?.user_id === updates.requesterId;
+
+        if (!isOwnerDirect && (!requester || requester.role !== 'owner')) {
             throw new Error('Only the owner can update group settings');
         }
 
@@ -198,13 +203,79 @@ export class GroupService {
         }
 
         // Filter out DMs and map
-        return (data || [])
-            .filter((item: any) => !item.groups.is_dm)
-            .map((item: any) => ({
+        const groups = (data || []).filter((item: any) => !item.groups.is_dm);
+
+        // Fetch last message for each group
+        const groupIds = groups.map((g: any) => g.groups.group_id);
+
+        // We need to associate messages with groups. 
+        // Best way is to find chats for these groups, then messages.
+        // Or simpler: query messages joined with chats where group_id is in list.
+        // Due to Supabase limitation on deep nesting/aggregates in one go, we might loop or use RPC.
+        // For now, let's fetch chats for these groups.
+
+        const { data: chats } = await supabase
+            .from('chats')
+            .select('chat_id, group_id')
+            .in('group_id', groupIds);
+
+        const chatIdMap = new Map<string, string>();
+        chats?.forEach((c: any) => chatIdMap.set(c.group_id, c.chat_id));
+
+        // Fetch latest messages for these chats
+        // This is N+1 but limited by user group count (usually small). 
+        // Optimized approach would use a Postgres function.
+
+        const results = await Promise.all(groups.map(async (item: any) => {
+            const groupId = item.groups.group_id;
+            const chatId = chatIdMap.get(groupId);
+            let lastMessage = null;
+            let unreadCount = 0;
+
+            if (chatId) {
+                // Get latest message
+                const { data: msgs } = await supabase
+                    .from('messages')
+                    .select('content, send_time')
+                    .eq('chat_id', chatId)
+                    .order('send_time', { ascending: false })
+                    .limit(1);
+
+                if (msgs && msgs.length > 0) {
+                    lastMessage = msgs[0];
+                }
+
+                // Get unread count (mock: messages in last 24h not by me? or just total count?)
+                // Since we don't have last_read_at, we'll return 0 or a placeholder.
+                // User asked for "number... after seen number will disappear".
+                // We need `last_read_at` on group_members.
+                // Let's assume we can fetch it if it existed.
+                // For now, we will return 0 to avoid showing wrong numbers, or we can use a local storage hack on frontend.
+                // Let's try to fetch actual count of messages today as a proxy for activity if we can't track read.
+                // BETTER: We can just return the total count of messages, and frontend calculates diff from local storage.
+
+                const { count } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('chat_id', chatId);
+
+                unreadCount = count || 0;
+            }
+
+            return {
                 ...item.groups,
                 role: item.role,
-                can_manage_members: item.can_manage_members
-            }));
+                can_manage_members: item.can_manage_members,
+                last_message: lastMessage,
+                total_messages: unreadCount // Passing total count to let frontend diff it
+            };
+        }));
+
+        return results.sort((a, b) => {
+            const timeA = new Date(a.last_message?.send_time || a.created_at).getTime();
+            const timeB = new Date(b.last_message?.send_time || b.created_at).getTime();
+            return timeB - timeA;
+        });
     }
 
     // ==================== Member Management ====================
@@ -485,14 +556,20 @@ export class GroupService {
 
     // ==================== Pending Members ====================
     static async getPendingMembers(groupId: string): Promise<any[]> {
+        console.log(`[GroupService] Fetching pending members for group ${groupId}`);
         const { data, error } = await supabase
             .from('group_members')
-            .select('*, users!inner(user_name, email)')
+            .select('*, users(user_name, email)')
             .eq('group_id', groupId)
             .eq('status', 'pending');
 
-        if (error) throw new Error(error.message);
-        return data;
+        if (error) {
+            console.error('[GroupService] Error fetching pending:', error);
+            throw new Error(error.message);
+        }
+
+        console.log(`[GroupService] Found ${data?.length || 0} pending members`);
+        return data || [];
     }
 
     static async updateMemberStatus(groupId: string, userId: string, status: 'active' | 'rejected'): Promise<void> {

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Chat from '../../../components/Chat';
 import { api } from '../../../lib/api';
+import { socket } from '../../../lib/socket';
 import AddFriendModal from '../../../components/AddFriendModal';
 import CreateGroupModal from '../../../components/CreateGroupModal';
 import JoinGroupModal from '../../../components/JoinGroupModal';
@@ -15,6 +16,7 @@ interface Conversation {
     time?: string;
     avatar?: string;
     role?: string;
+    groupId?: string; // Real backend Group ID (different from 'id' for DMs)
 }
 
 interface Group {
@@ -43,9 +45,17 @@ export default function ChatPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const selectedIdRef = useRef<string | null>(null); // Ref to access current selection in socket callback
     const [selectedType, setSelectedType] = useState<'group' | 'dm' | null>(null);
     const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
+    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
+    // Keep ref in sync
+    useEffect(() => {
+        selectedIdRef.current = selectedId;
+    }, [selectedId]);
+
+    // Load user
     useEffect(() => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
@@ -58,8 +68,8 @@ export default function ChatPage() {
         }
     }, []);
 
-    const fetchData = async (uid: string) => {
-        setIsLoading(true);
+    const fetchData = async (uid: string, background: boolean = false) => {
+        if (!background) setIsLoading(true);
         try {
             const groups = await api.get(`/groups/${uid}`);
             const friends = await api.get(`/friends/${uid}`);
@@ -68,7 +78,11 @@ export default function ChatPage() {
                 id: g.group_id,
                 name: g.name,
                 type: 'group',
-                role: g.role
+                role: g.role,
+                lastMessage: g.last_message?.content,
+                time: g.last_message?.send_time,
+                totalMessages: g.total_messages || 0,
+                groupId: g.group_id // For groups, id === groupId
             }));
 
             const friendConvs: Conversation[] = friends
@@ -76,9 +90,32 @@ export default function ChatPage() {
                 .map((f: any) => ({
                     id: f.friend_details?.user_id || f.friend_id,
                     name: f.friend_details?.user_name || 'Unknown User',
-                    type: 'dm'
+                    type: 'dm',
+                    lastMessage: f.last_message?.content,
+                    time: f.last_message?.send_time,
+                    totalMessages: f.total_messages || 0,
+                    groupId: f.dm_group_id // The binding key for socket events
                 }));
 
+            // Calc unread
+            const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
+            const newUnread: Record<string, number> = {};
+
+            groupConvs.forEach(c => {
+                const lastRead = readCounts[c.id] || 0;
+                if ((c as any).totalMessages > lastRead) {
+                    newUnread[c.id] = (c as any).totalMessages - lastRead;
+                }
+            });
+            friendConvs.forEach(c => {
+                const lastRead = readCounts[c.id] || 0;
+                if ((c as any).totalMessages > lastRead) {
+                    newUnread[c.id] = (c as any).totalMessages - lastRead;
+                }
+            });
+            setUnreadCounts(newUnread);
+
+            // Pending requests
             const pending = friends
                 .filter((f: any) => f.status === 'pending' && f.friend_id === uid)
                 .map((f: any) => ({
@@ -87,11 +124,18 @@ export default function ChatPage() {
                 }));
             setPendingRequests(pending);
 
-            setConversations([...groupConvs, ...friendConvs]);
+            // Sort all by time
+            const all = [...groupConvs, ...friendConvs].sort((a, b) => {
+                const tA = new Date(a.time || 0).getTime();
+                const tB = new Date(b.time || 0).getTime();
+                return tB - tA;
+            });
+
+            setConversations(all);
         } catch (error) {
             console.error('Failed to fetch chats:', error);
         } finally {
-            setIsLoading(false);
+            if (!background) setIsLoading(false);
         }
     };
 
@@ -119,9 +163,103 @@ export default function ChatPage() {
         }
     };
 
+    // Socket connection for real-time sidebar updates
+    useEffect(() => {
+        if (!userId) return;
+
+        socket.connect();
+
+        // Join personal user room for reliable DM delivery
+        socket.emit('join_room', userId);
+
+        // Join known conversation rooms (still useful for history/context if needed)
+        conversations.forEach(c => {
+            const roomId = c.groupId || c.id;
+            if (roomId) socket.emit('join_room', roomId);
+        });
+
+        const handleNewMessageSidebar = (msg: any) => {
+            if (!msg || !msg.group_id) return;
+
+            setConversations(prev => {
+                // Find conversation by matching groupId
+                const convIndex = prev.findIndex(c => (c.groupId || c.id) === msg.group_id);
+
+                // If not found, it might be a new DM or Group we were just added to.
+                // We should re-fetch to get the new list.
+                if (convIndex === -1) {
+                    fetchData(userId, true); // Pass true to suppress loading state
+                    return prev;
+                }
+
+                const updatedConv = { ...prev[convIndex] };
+                updatedConv.lastMessage = msg.content;
+                updatedConv.time = msg.send_time;
+                updatedConv.totalMessages = (updatedConv.totalMessages || 0) + 1;
+
+                // Move to top
+                const newConvs = [...prev];
+                newConvs.splice(convIndex, 1);
+                newConvs.unshift(updatedConv);
+
+                // Update Unread Count state derived from this
+                // Only if WE are NOT the sender
+                if (msg.user_id !== userId) {
+                    // Check if we are currently viewing this chat
+                    const isViewing = selectedIdRef.current === updatedConv.id; // updatedConv.id is friendId for DMs, groupId for Groups
+
+                    if (isViewing) {
+                        // We are viewing it, so update read count immediately
+                        const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
+                        readCounts[updatedConv.id] = updatedConv.totalMessages;
+                        localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
+
+                        // Ensure badge is 0
+                        setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
+                    } else {
+                        // We are NOT viewing it, show badge
+                        setUnreadCounts(current => {
+                            const lastRead = JSON.parse(localStorage.getItem('chat_read_counts') || '{}')[updatedConv.id] || 0;
+                            const count = updatedConv.totalMessages > lastRead ? updatedConv.totalMessages - lastRead : 0;
+                            return { ...current, [updatedConv.id]: count };
+                        });
+                    }
+                } else {
+                    // If we SENT it, implicitly we read everything up to now (or at least this msg)
+                    // Update local storage to match current total
+                    const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
+                    readCounts[updatedConv.id] = updatedConv.totalMessages;
+                    localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
+
+                    // Clear badge if any existed (shouldn't really, but good safety)
+                    setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
+                }
+
+                return newConvs;
+            });
+        };
+
+        socket.on('new_message', handleNewMessageSidebar);
+
+        return () => {
+            socket.off('new_message', handleNewMessageSidebar);
+        }
+    }, [conversations, userId]);
+
     const handleConversationClick = (conv: Conversation) => {
         setSelectedId(conv.id);
         setSelectedType(conv.type);
+
+        // Mark as read
+        if (conv.type === 'group' || conv.type === 'dm') {
+            const currentTotal = (conv as any).totalMessages || 0;
+            const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
+            readCounts[conv.id] = currentTotal;
+            localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
+
+            // Clear badge
+            setUnreadCounts(prev => ({ ...prev, [conv.id]: 0 }));
+        }
     };
 
     const filteredConversations = conversations.filter(conv => {
@@ -162,7 +300,7 @@ export default function ChatPage() {
                             </svg>
                         </div>
 
-                        {/* Quick Actions Menu (Restored) */}
+                        {/* Quick Actions Menu */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowDropdown(!showDropdown)}
@@ -267,6 +405,7 @@ export default function ChatPage() {
                                             key={conv.id}
                                             conv={conv}
                                             selectedId={selectedId}
+                                            unreadCount={unreadCounts[conv.id] || 0}
                                             onClick={() => handleConversationClick(conv)}
                                         />
                                     ))}
@@ -293,6 +432,7 @@ export default function ChatPage() {
                                         key={conv.id}
                                         conv={conv}
                                         selectedId={selectedId}
+                                        unreadCount={unreadCounts[conv.id] || 0}
                                         onClick={() => handleConversationClick(conv)}
                                     />
                                 ))
@@ -346,7 +486,6 @@ export default function ChatPage() {
     );
 }
 
-
 function TabButton({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) {
     return (
         <button
@@ -358,7 +497,14 @@ function TabButton({ label, active, onClick }: { label: string, active: boolean,
     );
 }
 
-function ConversationItem({ conv, selectedId, onClick }: { conv: Conversation, selectedId: string | null, onClick: () => void }) {
+function ConversationItem({ conv, selectedId, unreadCount, onClick }: { conv: Conversation, selectedId: string | null, unreadCount?: number, onClick: () => void }) {
+    // Format timestamp
+    const formatTime = (isoString?: string) => {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
         <button
             onClick={onClick}
@@ -374,10 +520,17 @@ function ConversationItem({ conv, selectedId, onClick }: { conv: Conversation, s
                     <h3 className={`font-semibold truncate transition-colors ${selectedId === conv.id ? 'text-blue-400' : 'text-slate-100 group-hover:text-white'}`}>
                         {conv.name}
                     </h3>
-                    <span className="text-[9px] text-slate-500">12:45 PM</span>
+                    <div className="flex flex-col items-end">
+                        <span className="text-[9px] text-slate-500">{formatTime(conv.time)}</span>
+                        {unreadCount && unreadCount > 0 ? (
+                            <span className="mt-1 min-w-[16px] h-4 px-1 rounded-full bg-blue-500 text-[9px] font-bold text-white flex items-center justify-center">
+                                {unreadCount}
+                            </span>
+                        ) : null}
+                    </div>
                 </div>
                 <p className="text-xs text-slate-400 truncate leading-tight opacity-70">
-                    {conv.type === 'group' ? 'Tap to view group...' : 'Say hello!'}
+                    {conv.lastMessage || (conv.type === 'group' ? 'Tap to view group...' : 'Say hello!')}
                 </p>
             </div>
             {selectedId === conv.id && (

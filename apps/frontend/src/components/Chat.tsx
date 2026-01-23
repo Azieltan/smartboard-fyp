@@ -476,9 +476,9 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 </form>
             </div>
 
-            {showGroupInfo && (
+            {showGroupInfo && effectiveGroupId && (
                 <GroupInfoModal
-                    groupId={groupId}
+                    groupId={effectiveGroupId}
                     userId={userId}
                     onClose={() => setShowGroupInfo(false)}
                 />
