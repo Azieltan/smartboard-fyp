@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import GroupDetailView from '../../../components/GroupDetailView';
 import GroupList from '../../../components/GroupList';
 
 export default function GroupsPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [userId, setUserId] = useState<string | null>(null);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [initialTab, setInitialTab] = useState<'chat' | 'members' | 'tasks'>('chat');
+    const [userRole, setUserRole] = useState<string>('member');
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -19,10 +22,27 @@ export default function GroupsPage() {
         try {
             const user = JSON.parse(userStr);
             setUserId(user.user_id);
+            setUserRole(user.role || 'member');
         } catch {
             router.push('/login');
         }
     }, [router]);
+
+    // Handle URL params
+    useEffect(() => {
+        // Guard against null searchParams
+        if (!searchParams) return;
+        const groupId = searchParams.get('groupId');
+        const tab = searchParams.get('tab');
+        if (groupId) {
+            setSelectedGroupId(groupId);
+            if (tab && ['chat', 'members', 'tasks'].includes(tab)) {
+                setInitialTab(tab as any);
+            } else {
+                setInitialTab('chat');
+            }
+        }
+    }, [searchParams]);
 
     if (!userId) {
         return (
@@ -36,9 +56,16 @@ export default function GroupsPage() {
     if (selectedGroupId) {
         return (
             <GroupDetailView
+                key={`${selectedGroupId}-${initialTab}`}
                 groupId={selectedGroupId}
                 userId={userId}
-                onBack={() => setSelectedGroupId(null)}
+                userRole={userRole}
+                initialTab={initialTab}
+                onBack={() => {
+                    setSelectedGroupId(null);
+                    setInitialTab('chat');
+                    router.push('/dashboard/groups');
+                }}
             />
         );
     }

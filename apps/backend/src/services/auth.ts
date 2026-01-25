@@ -118,6 +118,66 @@ export class AuthService {
 
         return { user: user as any as User, token };
     }
+
+    static async syncSession(accessToken: string): Promise<{ user: User; token: string }> {
+        // 1. Verify token with Supabase
+        const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser(accessToken);
+
+        if (authError || !authUser) {
+            throw new Error('Invalid or expired session');
+        }
+
+        // 2. Fetch or Create Profile in public.users
+        let { data: user, error } = await supabase
+            .from('users')
+            .select('user_id, user_name, email, role, created_at')
+            .eq('user_id', authUser.id)
+            .maybeSingle();
+
+        const email = authUser.email || (authUser.phone ? `${authUser.phone}@phone.ws` : `${authUser.id}@placeholder.ws`);
+        const metaName = authUser.user_metadata?.user_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name;
+        const fallbackName = authUser.phone || email.split('@')[0] || 'User';
+
+        if (!user) {
+            const { data: inserted, error: insertErr } = await supabase
+                .from('users')
+                .upsert(
+                    {
+                        user_id: authUser.id,
+                        user_name: metaName || fallbackName,
+                        email: email,
+                        role: 'member'
+                    },
+                    { onConflict: 'user_id' }
+                )
+                .select('user_id, user_name, email, role, created_at')
+                .single();
+
+            if (insertErr) throw new Error(insertErr.message);
+            user = inserted;
+        } else if (metaName && (user.user_name === 'User' || user.user_name === 'user' || user.user_name === 'Users')) {
+            // Update the existing generic name to the one from metadata if available
+            const { data: updated, error: updateErr } = await supabase
+                .from('users')
+                .update({ user_name: metaName })
+                .eq('user_id', user.user_id)
+                .select('user_id, user_name, email, role, created_at')
+                .single();
+
+            if (!updateErr && updated) {
+                user = updated;
+            }
+        }
+
+        // 3. Generate internal App JWT
+        const token = jwt.sign(
+            { userId: user.user_id, email: user.email, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        return { user: user as any as User, token };
+    }
     static async getAllUsers(): Promise<User[]> {
         const { data, error } = await supabase
             .from('users')

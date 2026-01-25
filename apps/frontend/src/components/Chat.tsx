@@ -19,6 +19,7 @@ interface Message {
     send_time: string;
     user_name?: string;
     email?: string;
+    group_id?: string;
 }
 
 interface ChatProps {
@@ -40,6 +41,12 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     const lastSentRef = useRef<{ content: string, time: number }>({ content: '', time: 0 });
     const [showMenu, setShowMenu] = useState(false);
     const [showAddMember, setShowAddMember] = useState(false);
+
+    // Scroll & Notification State
+    const [isAtBottom, setIsAtBottom] = useState(true);
+    const [unreadBottomCount, setUnreadBottomCount] = useState(0);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
 
     // New State for Info Modal
     const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -63,6 +70,8 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             setMessages([]);
             setChatId(null);
             setEffectiveGroupId(null);
+            setIsAtBottom(true);
+            setUnreadBottomCount(0);
 
             if (type === 'dm') {
                 try {
@@ -72,7 +81,6 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                     if (dm?.chatId) setChatId(dm.chatId);
                 } catch (error: unknown) {
                     console.error('Failed to init DM chat', error);
-                    // Optionally set an error state here to show UI
                 }
                 return;
             }
@@ -87,7 +95,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                     setChatId(chat.chat_id);
                 }
             } catch (error: unknown) {
-                // Ignore 404s as it just means the chat hasn't been created yet (will be created on first message)
+                // Ignore 404s
                 const err = error as { response?: { status?: number } };
                 if (err?.response?.status !== 404) {
                     console.error('Failed to get chat details', error);
@@ -113,14 +121,34 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
 
         const handleNewMessage = (msg: Message) => {
             console.log('Received socket message:', msg);
+
+            // CRITICAL: Filter messages for this chat only
+            // msg.group_id comes from backend. If missing (old msg), fall back to chat_id check if available
+            if (msg.group_id && msg.group_id !== effectiveGroupId) {
+                console.log('Ignoring message from another group:', msg.group_id);
+                return;
+            }
+
             setMessages(prev => {
-                // Deduplicate based on ID - very important to prevent doubling
                 if (prev.some(m => m.message_id === msg.message_id)) {
-                    console.log('Skipping duplicate message:', msg.message_id);
                     return prev;
                 }
                 return [...prev, msg];
             });
+
+            // Handle Scroll & Notification
+            if (messagesContainerRef.current) {
+                const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+                const isUserAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+                if (isUserAtBottom || msg.user_id === userId) {
+                    // Auto-scroll if already at bottom or if WE sent the message
+                    setTimeout(scrollToBottom, 100);
+                } else {
+                    // User is reading history, show notification
+                    setUnreadBottomCount(prev => prev + 1);
+                }
+            }
         };
 
         socket.on('new_message', handleNewMessage);
@@ -130,7 +158,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             socket.emit('leave_room', effectiveGroupId);
             socket.off('new_message', handleNewMessage);
         };
-    }, [effectiveGroupId]);
+    }, [effectiveGroupId, userId]);
 
     const fetchMessages = useCallback(async (targetGroupId?: string | null) => {
         const gid = targetGroupId ?? effectiveGroupId;
@@ -139,6 +167,10 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             const data = await api.get(`/chats/${gid}/messages`);
             if (Array.isArray(data)) {
                 setMessages(data);
+                // Initial load: scroll to bottom
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 100);
             }
         } catch (error: unknown) {
             console.error('Failed to fetch messages:', error);
@@ -151,16 +183,22 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         }
     }, [effectiveGroupId, fetchMessages]);
 
-    // Auto-scroll to bottom ref
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setUnreadBottomCount(0);
+        setIsAtBottom(true);
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+    const handleScroll = () => {
+        if (!messagesContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+        const isBottom = scrollHeight - scrollTop - clientHeight < 50;
+        setIsAtBottom(isBottom);
+
+        if (isBottom) {
+            setUnreadBottomCount(0);
+        }
+    };
 
     const sendMessage = async (e?: React.FormEvent, contentOverride?: string) => {
         if (e) e.preventDefault();
@@ -376,7 +414,11 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar chat-bg-pattern">
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar chat-bg-pattern relative"
+            >
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 space-y-2 opacity-50">
                         <span className="text-4xl">✨</span>
@@ -415,6 +457,33 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                     ))
                 )}
                 <div ref={messagesEndRef} />
+
+                {/* New Message Notification & Scroll Button */}
+                {!isAtBottom && (
+                    <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2">
+                        {unreadBottomCount > 0 && (
+                            <button
+                                onClick={scrollToBottom}
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-bounce flex items-center gap-2"
+                            >
+                                <span>New Message</span>
+                                <span className="bg-white text-blue-600 text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">
+                                    {unreadBottomCount}
+                                </span>
+                            </button>
+                        )}
+                        {unreadBottomCount === 0 && (
+                            <button
+                                onClick={scrollToBottom}
+                                className="bg-slate-700/50 hover:bg-slate-700/80 text-white p-2 rounded-full shadow-lg backdrop-blur-sm transition-all"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Input Area */}
@@ -476,9 +545,9 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
                 </form>
             </div>
 
-            {showGroupInfo && (
+            {showGroupInfo && effectiveGroupId && (
                 <GroupInfoModal
-                    groupId={groupId}
+                    groupId={effectiveGroupId}
                     userId={userId}
                     onClose={() => setShowGroupInfo(false)}
                 />

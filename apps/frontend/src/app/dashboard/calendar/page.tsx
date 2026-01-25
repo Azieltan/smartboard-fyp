@@ -177,7 +177,7 @@ export default function CalendarPage() {
                                     </span>
 
                                     {/* Scrollable container for multiple items */}
-                                    <div className="space-y-1 max-h-[68px] overflow-y-auto overflow-x-hidden custom-scrollbar scrollbar-thin pr-0.5">
+                                    <div className="space-y-1 max-h-[150px] overflow-y-auto overflow-x-hidden custom-scrollbar scrollbar-thin pr-0.5">
                                         {dayItems.map(item => (
                                             <div
                                                 key={item.id}

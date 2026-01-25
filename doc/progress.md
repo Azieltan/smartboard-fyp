@@ -2,7 +2,73 @@
 
 ---
 
+<<<<<<< HEAD
 ## Previous Updates (Earlier Sessions)
+=======
+
+## Latest Updates (2026-01-18)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Admin Access** | ✅ Fixed | Backend `adminMiddleware` now accepts `systemadmin` role (matching Frontend/DB manual update). |
+| **Phone Auth** | ✅ Enabled | Backend `AuthService` now handles Supabase Phone Auth users (generates placeholder email and fallback username). |
+| **Calendar UI** | ✅ Fixed | Added scrollbar to day cells to prevent overflow when displaying multiple tasks/events `max-h-[150px]`. |
+
+## Latest Updates (2026-01-23)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Group Requests** | ✅ Fixed | Fixed visibility issue where Group Owners could not see "Join Requests". Implemented robust sequential data loading and permission checks in `GroupDetailView` to ensure owner status is correctly identified. Added explicit refresh logic for pending members. |
+| **Group Settings** | ✅ Fixed | Replaced minimal inline settings modal with full-featured `GroupInfoModal`. Fixed API call to include `requesterId` for ownership verification. |
+| **Pending in Modal** | ✅ Fixed | Updated `GroupInfoModal` to fetch and display pending join requests, ensuring consistency with the main group view. |
+| **Group Info** | ✅ Fixed | Improved error reporting and relaxed server-side ownership check to ensure owners can always update their group settings. |
+| **Chat Sorting** | ✅ Implemented | Chats are now sorted by latest message time. |
+| **Unread Badges** | ✅ Implemented | Added unread message count badges to the chat list, which clear when the chat is opened. |
+| **Data Integrity** | ✅ Verified | Validated database integrity via script: Group Owners and Pending Requests are correctly stored in the backend. |
+| **UI/UX** | ✅ Improved | Enhanced "Group Info" button to be more visible and clickable. |
+| **Chat Refresh** | ✅ Fixed | Eliminated skeleton screen flash when receiving new DMs by implementing background data fetching. |
+| **Chat Cross-Talk** | ✅ Fixed | Solved issue where messages from one chat would appear in others. Implemented strict ID filtering in the socket listener. |
+| **Chat Scroll** | ✅ Improved | Removed forced auto-scroll. Added "New Message" float button and manual scroll detection. |
+| **Instant DMs** | ✅ Optimized | Added optimistic socket matching for DMs. Sidebar now updates instantly for new conversations without needing a database re-fetch. |
+| **Badge Counts** | ✅ Fixed | Reinforced notification count logic with strict type casting and robust default values to prevent missing badges. |
+| **Socket Stability** | ✅ Optimized | Split socket listeners (room management vs. message handling) to prevent connection thrashing. Ensures reliable "Move to Top" behavior and unread badge updates. |
+
+## Latest Updates (2026-01-20)
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Group Details** | ✅ Fixed | Resolved a routing collision on the backend where `/groups/detail/:groupId` was unreachable. Also improved the frontend ownership check. |
+
+## Previous Updates (2026-01-11)
+
+### Advanced Authentication & Recovery
+- [x] **Group Details Access**: Fixed issue where only the first group was accessible/manageable (Z-index fix and System Admin permission override).
+- [x] **Authentication**: Advanced Auth (Google, Phone) & Forgot Password Flow completed.
+- [x] **Calendar**: Scrollbar added for days with many events.
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Sign in with Google** | ✅ Implemented | Added "Sign in with Google" button. Uses Supabase Auth (OAuth) + Backend Session Sync to maintain compatibility with existing JWT system. |
+| **Forgot Password** | ✅ Implemented | Created dedicated `/forgot-password` page with email reset link functionality via Supabase. |
+| **Phone Auth UI** | ✅ Implemented | Added UI for Phone Login (Send Code / Verify OTP). Ready for backend SMS configuration. |
+| **Backend Sync** | ✅ Implemented | Created `POST /auth/sync` endpoint to securely exchange Supabase OAuth tokens for App JWTs. |
+| **Dependencies** | ✅ Installed | Added `@supabase/supabase-js` to frontend dependencies to support client-side auth flows. |
+
+## Previous Updates (2026-01-09)
+
+### Admin Portal & System Security
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Admin Portal** | ✅ Completed | Implemented secure Admin Dashboard at `/dashboard/admin`. |
+| **User Management** | ✅ Implemented | Admin can now View all users, Delete users/Deactivate accounts (forces logout via real-time socket). |
+| **Statistics** | ✅ Implemented | Overview cards for Total Users, Total Tasks, Active/Completed Tasks. |
+| **Export Reports** | ✅ Implemented | Ability to export User List with Task Counts to CSV. |
+| **Role Security** | ✅ Enhanced | Admin routes strictly protected by Middleware. Sidebar link visible only to 'admin' role. |
+
+## Previous Updates (2026-01-08)
+>>>>>>> login-with-google
 
 ### Fixes & Enhancements
 | Feature | Status | Details |

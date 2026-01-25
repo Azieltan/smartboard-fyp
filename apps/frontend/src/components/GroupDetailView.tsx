@@ -9,6 +9,7 @@ import TaskReviewModal from './TaskReviewModal';
 import CreateTaskModal from './CreateTaskModal';
 import InviteToGroupModal from './InviteToGroupModal';
 import TaskDetailModal from './TaskDetailModal';
+import GroupInfoModal from './GroupInfoModal';
 
 interface GroupMember {
     group_id: string;
@@ -26,6 +27,7 @@ interface Group {
     join_code?: string;
     role?: string;
     can_manage_members?: boolean;
+    requires_approval?: boolean;
 }
 
 interface Task {
@@ -43,13 +45,15 @@ interface Task {
 interface GroupDetailViewProps {
     groupId: string;
     userId: string;
+    userRole?: string;
     onBack: () => void;
+    initialTab?: 'chat' | 'members' | 'tasks';
 }
 
 type ViewTab = 'chat' | 'members' | 'tasks';
 
-export default function GroupDetailView({ groupId, userId, onBack }: GroupDetailViewProps) {
-    const [activeTab, setActiveTab] = useState<ViewTab>('chat');
+export default function GroupDetailView({ groupId, userId, userRole, onBack, initialTab }: GroupDetailViewProps) {
+    const [activeTab, setActiveTab] = useState<ViewTab>(initialTab || 'chat');
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
     const [pendingMembers, setPendingMembers] = useState<any[]>([]);
@@ -60,6 +64,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [showMenu, setShowMenu] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     // Task Modals
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -74,20 +79,65 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
     const [sortBy, setSortBy] = useState<'date' | 'priority'>('date');
 
     useEffect(() => {
-        fetchGroupDetails();
-        fetchMembers();
-        fetchTasks();
-    }, [groupId]);
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                // 1. Fetch Group Details First
+                const groupData = await api.get(`/groups/detail/${groupId}`);
+                setGroup(groupData);
 
-    const fetchGroupDetails = async () => {
-        try {
-            const data = await api.get(`/groups/detail/${groupId}`);
-            setGroup(data);
-        } catch (e) {
-            console.error("Failed to fetch group details", e);
-        }
-    };
+                // 2. Fetch Members
+                console.log('[Frontend] Fetching members for group:', groupId);
+                const membersData = await api.get(`/groups/${groupId}/members`);
 
+                if (Array.isArray(membersData)) {
+                    setMembers(membersData);
+                    const me = membersData.find((m: GroupMember) => m.user_id === userId);
+                    console.log('[Frontend] My Role Object:', me);
+                    setMyRole(me || null);
+
+                    // 3. Determine Permissions
+                    // Check if owner defined in Group OR role in Members is owner/admin
+                    const isGroupOwner = groupData.user_id === userId;
+                    const isMemberOwner = me?.role === 'owner';
+                    const isAdminWithPerms = me?.role === 'admin' && me?.can_manage_members;
+                    const isSysAdmin = ['admin', 'systemadmin', 'owner'].includes(userRole || '');
+
+                    const canViewPending = isGroupOwner || isMemberOwner || isAdminWithPerms || isSysAdmin;
+
+                    console.log('[Frontend] Can View Pending?', canViewPending);
+
+                    if (canViewPending) {
+                        try {
+                            console.log('[Frontend] Fetching pending members...');
+                            const pending = await api.get(`/groups/${groupId}/pending`);
+                            console.log('[Frontend] Pending members:', pending);
+                            setPendingMembers(Array.isArray(pending) ? pending : []);
+                        } catch (err) {
+                            console.error('[Frontend] Error fetching pending:', err);
+                        }
+                    }
+                }
+
+                // 4. Fetch Tasks (Parallel is fine but kept here for simplicity)
+                const tasksData = await api.get(`/tasks?userId=${userId}`);
+                if (Array.isArray(tasksData)) {
+                    const groupTasks = tasksData.filter((t: any) => t.group_id === groupId);
+                    setTasks(groupTasks);
+                }
+
+            } catch (e) {
+                console.error("Failed to load group data", e);
+                setError("Failed to load group data. Please try again.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadData();
+    }, [groupId, userId, userRole]);
+
+    // Keep individual fetch functions for updates after actions
     const fetchMembers = async () => {
         try {
             const data = await api.get(`/groups/${groupId}/members`);
@@ -95,33 +145,30 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                 setMembers(data);
                 const me = data.find((m: GroupMember) => m.user_id === userId);
                 setMyRole(me || null);
-            }
 
-            // Also fetch pending members if you have update permissions
-            const me = (Array.isArray(data) ? data : []).find((m: GroupMember) => m.user_id === userId);
-            const canManage = me?.role === 'owner' || (me?.role === 'admin' && me?.can_manage_members);
+                // Use robust logic to check permissions after state update
+                // Note: state variables like 'group' might be stale in this closure, so rely on the current data logic
+                const isGroupOwner = group?.user_id === userId;
+                const isMemberOwner = me?.role === 'owner';
+                const isAdminWithPerms = me?.role === 'admin' && me?.can_manage_members;
+                const isSysAdmin = ['admin', 'systemadmin', 'owner'].includes(userRole || '');
 
-            if (canManage) {
-                try {
-                    const pending = await api.get(`/groups/${groupId}/pending-members`);
-                    setPendingMembers(Array.isArray(pending) ? pending : []);
-                } catch (err) {
-                    // Could fail if endpoint doesn't exist yet/permission issues, ignore silently or log
-                    console.log('No pending members or permission denied');
+                const canViewPending = isGroupOwner || isMemberOwner || isAdminWithPerms || isSysAdmin;
+
+                if (canViewPending) {
+                    try {
+                        const pending = await api.get(`/groups/${groupId}/pending`);
+                        console.log('[Frontend] Refreshed Pending members:', pending);
+                        setPendingMembers(Array.isArray(pending) ? pending : []);
+                    } catch (err) { console.error(err); }
                 }
             }
-
-            setLoading(false);
-        } catch (e) {
-            console.error("Failed to fetch members", e);
-            setLoading(false);
-        }
+        } catch (e) { console.error(e); }
     };
 
     const fetchTasks = async () => {
         try {
             const data = await api.get(`/tasks?userId=${userId}`);
-            // Filter tasks for this group
             if (Array.isArray(data)) {
                 const groupTasks = data.filter((t: any) => t.group_id === groupId);
                 setTasks(groupTasks);
@@ -129,6 +176,13 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
         } catch (e) {
             console.error("Failed to fetch tasks", e);
         }
+    };
+    // Removed old fetchGroupDetails to avoid confusion as it's handled in useEffect now
+    const fetchGroupDetails = async () => {
+        try {
+            const data = await api.get(`/groups/detail/${groupId}`);
+            setGroup(data);
+        } catch (e) { console.error(e); }
     };
 
     const copyCode = () => {
@@ -203,8 +257,9 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
         }
     };
 
-    const canManage = myRole?.role === 'owner' || (myRole?.role === 'admin' && myRole?.can_manage_members);
-    const isOwner = myRole?.role === 'owner';
+    const isSystemAdmin = ['admin', 'systemadmin', 'owner'].includes(userRole || '');
+    const canManage = myRole?.role === 'owner' || (myRole?.role === 'admin' && myRole?.can_manage_members) || isSystemAdmin;
+    const isOwner = myRole?.role === 'owner' || isSystemAdmin || group?.user_id === userId;
 
     const getRoleBadge = (role: string) => {
         switch (role) {
@@ -221,6 +276,15 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                <p className="mb-4">{error}</p>
+                <button onClick={onBack} className="text-blue-500 hover:underline">Go Back</button>
             </div>
         );
     }
@@ -242,7 +306,7 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
 
                     <div className="flex items-center gap-2">
                         {/* Join Code (visible to owner/admin) */}
-                        {group?.join_code && (myRole?.role === 'owner' || myRole?.role === 'admin') && (
+                        {group?.join_code && (isOwner || myRole?.role === 'admin') && (
                             <div className="hidden sm:flex items-center gap-2">
                                 <div className="bg-slate-100 dark:bg-black/30 rounded-lg px-3 py-2 border border-slate-200 dark:border-white/10 flex items-center gap-2">
                                     <span className="text-[10px] text-slate-500 uppercase">Code:</span>
@@ -263,13 +327,15 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
 
                         {/* 3-Dot Menu */}
                         <div className="relative">
-                            <button
-                                onClick={() => setShowInviteModal(true)}
-                                className="mr-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-500/20"
-                            >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                Invite
-                            </button>
+                            {(isOwner || canManage) && (
+                                <button
+                                    onClick={() => setShowInviteModal(true)}
+                                    className="mr-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-500/20"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                    Invite
+                                </button>
+                            )}
                             <button
                                 onClick={() => setShowMenu(!showMenu)}
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-600 dark:text-slate-200 transition-all shadow-sm"
@@ -369,43 +435,56 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
                         <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10">
 
                             {/* Pending Approvals Section */}
-                            {pendingMembers.length > 0 && (
+                            {canManage && (
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Pending Requests</h3>
-                                    <div className="space-y-3">
-                                        {pendingMembers.map(member => (
-                                            <div key={member.user_id} className="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-800/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold">
-                                                            {member.users?.username?.charAt(0).toUpperCase() || '?'}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-slate-900 dark:text-white">{member.users?.username || 'Unknown User'}</p>
-                                                            <p className="text-xs text-slate-500">{member.users?.email}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => handleMemberApproval(member.user_id, 'active')}
-                                                            disabled={actionLoading === member.user_id}
-                                                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors"
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleMemberApproval(member.user_id, 'rejected')}
-                                                            disabled={actionLoading === member.user_id}
-                                                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded-lg transition-colors"
-                                                        >
-                                                            Reject
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Pending Requests</h3>
+                                        <div className={`text-[10px] px-2 py-0.5 rounded-full border ${group?.requires_approval ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                            {group?.requires_approval ? 'Approval Required' : 'Auto-Join Enabled'}
+                                        </div>
                                     </div>
-                                    <div className="my-6 border-b border-slate-200 dark:border-white/10"></div>
+                                    {pendingMembers.length > 0 ? (
+                                        <>
+                                            <div className="space-y-3">
+                                                {pendingMembers.map(member => (
+                                                    <div key={member.user_id} className="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-800/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold">
+                                                                    {member.users?.username?.charAt(0).toUpperCase() || '?'}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-900 dark:text-white">{member.users?.username || 'Unknown User'}</p>
+                                                                    <p className="text-xs text-slate-500">{member.users?.email}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => handleMemberApproval(member.user_id, 'active')}
+                                                                    disabled={actionLoading === member.user_id}
+                                                                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors"
+                                                                >
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleMemberApproval(member.user_id, 'rejected')}
+                                                                    disabled={actionLoading === member.user_id}
+                                                                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded-lg transition-colors"
+                                                                >
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="my-6 border-b border-slate-200 dark:border-white/10"></div>
+                                        </>
+                                    ) : (
+                                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10 text-center mb-6">
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">No pending join requests</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -622,120 +701,88 @@ export default function GroupDetailView({ groupId, userId, onBack }: GroupDetail
             </div>
 
             {/* Task Modal */}
-            {showTaskModal && (
-                <CreateTaskModal
-                    userId={userId}
-                    groupId={groupId}
-                    onClose={() => setShowTaskModal(false)}
-                    onTaskCreated={() => {
-                        setShowTaskModal(false);
-                        fetchTasks();
-                    }}
-                />
-            )}
+            {
+                showTaskModal && (
+                    <CreateTaskModal
+                        userId={userId}
+                        groupId={groupId}
+                        onClose={() => setShowTaskModal(false)}
+                        onTaskCreated={() => {
+                            setShowTaskModal(false);
+                            fetchTasks();
+                        }}
+                    />
+                )
+            }
 
-            {/* Group Settings Modal */}
-            {showSettingsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1e293b] rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Group Settings</h3>
-                            <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Option: Join Code */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Join Code</label>
-                                <div className="flex gap-2">
-                                    <div className="flex-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-center tracking-widest">
-                                        {group?.join_code}
-                                    </div>
-                                    <button
-                                        onClick={regenerateCode}
-                                        className="px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-xl font-medium transition-colors"
-                                    >
-                                        Regenerate
-                                    </button>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-2">Share this code with people you want to add to the group.</p>
-                            </div>
-
-                            <div className="border-t border-slate-100 dark:border-white/5"></div>
-
-                            {/* Option: Danger Zone */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Danger Zone</label>
-
-                                {myRole?.role === 'owner' ? (
-                                    <button className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors">
-                                        Delete Group
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={async () => {
-                                            if (confirm("Are you sure you want to leave this group?")) {
-                                                try {
-                                                    await api.post(`/groups/${groupId}/leave`, { userId });
-                                                    alert("You have left the group.");
-                                                    router.push('/dashboard');
-                                                } catch (e: any) {
-                                                    alert(e.message || "Failed to leave group");
-                                                }
-                                            }
-                                        }}
-                                        className="w-full py-3 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                                    >
-                                        Leave Group
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Group Settings Modal (Now using robust component) */}
+            {
+                showSettingsModal && (
+                    <GroupInfoModal
+                        groupId={groupId}
+                        userId={userId}
+                        onClose={() => {
+                            setShowSettingsModal(false);
+                            // Refresh main view data after settings close (name might change)
+                            const loadData = async () => {
+                                try {
+                                    const groupData = await api.get(`/groups/detail/${groupId}`);
+                                    setGroup(groupData);
+                                } catch (e) { console.error(e); }
+                            };
+                            loadData();
+                        }}
+                    />
+                )
+            }
 
             {/* Task Modals */}
-            {showSubmitModal && selectedTask && (
-                <TaskSubmissionModal
-                    taskId={selectedTask.task_id}
-                    userId={userId}
-                    taskTitle={selectedTask.title}
-                    onClose={() => setShowSubmitModal(false)}
-                    onSubmitSuccess={() => {
-                        setShowSubmitModal(false);
-                        fetchTasks();
-                    }}
-                />
-            )}
+            {
+                showSubmitModal && selectedTask && (
+                    <TaskSubmissionModal
+                        taskId={selectedTask.task_id}
+                        userId={userId}
+                        taskTitle={selectedTask.title}
+                        onClose={() => setShowSubmitModal(false)}
+                        onSubmitSuccess={() => {
+                            setShowSubmitModal(false);
+                            fetchTasks();
+                        }}
+                    />
+                )
+            }
 
-            {showReviewModal && selectedTask && (
-                <TaskReviewModal
-                    taskId={selectedTask.task_id}
-                    taskTitle={selectedTask.title}
-                    onClose={() => setShowReviewModal(false)}
-                    onReviewComplete={() => {
-                        setShowReviewModal(false);
-                        fetchTasks();
-                    }}
-                />
-            )}
-            {(showInviteModal) && (
-                <InviteToGroupModal
-                    groupId={groupId}
-                    userId={userId}
-                    onClose={() => setShowInviteModal(false)}
-                />
-            )}
-            {showTaskDetailModal && selectedTask && (
-                <TaskDetailModal
-                    task={selectedTask}
-                    onClose={() => setShowTaskDetailModal(false)}
-                    onUpdate={fetchTasks}
-                />
-            )}
-        </div>
+            {
+                showReviewModal && selectedTask && (
+                    <TaskReviewModal
+                        taskId={selectedTask.task_id}
+                        taskTitle={selectedTask.title}
+                        onClose={() => setShowReviewModal(false)}
+                        onReviewComplete={() => {
+                            setShowReviewModal(false);
+                            fetchTasks();
+                        }}
+                    />
+                )
+            }
+            {
+                (showInviteModal) && (
+                    <InviteToGroupModal
+                        groupId={groupId}
+                        userId={userId}
+                        onClose={() => setShowInviteModal(false)}
+                    />
+                )
+            }
+            {
+                showTaskDetailModal && selectedTask && (
+                    <TaskDetailModal
+                        task={selectedTask}
+                        onClose={() => setShowTaskDetailModal(false)}
+                        onUpdate={fetchTasks}
+                    />
+                )
+            }
+        </div >
     );
 }

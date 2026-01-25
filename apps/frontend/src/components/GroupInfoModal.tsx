@@ -29,6 +29,7 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
     const router = useRouter();
     const [group, setGroup] = useState<GroupInfo | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
+    const [pendingMembers, setPendingMembers] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'info' | 'members'>('members');
     const [isLoading, setIsLoading] = useState(true);
     const [myRole, setMyRole] = useState<'owner' | 'admin' | 'member' | null>(null);
@@ -61,6 +62,20 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                 setMembers(membersRes);
                 const me = membersRes.find((m: GroupMember) => m.user_id === userId);
                 setMyRole(me?.role || null);
+
+                // Fetch Pending
+                const isGroupOwner = groupRes.user_id === userId;
+                const isMemberOwner = me?.role === 'owner';
+                const isAdminWithPerms = me?.role === 'admin'; // Assume admins see requests
+
+                if (isGroupOwner || isMemberOwner || isAdminWithPerms) {
+                    try {
+                        const pending = await api.get(`/groups/${groupId}/pending`);
+                        setPendingMembers(Array.isArray(pending) ? pending : []);
+                    } catch (err) {
+                        console.error('Failed to load pending requests within modal:', err);
+                    }
+                }
             }
         } catch (error) {
             console.error("Failed to fetch group info", error);
@@ -74,13 +89,16 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
             await api.put(`/groups/${groupId}`, {
                 name: editName,
                 description: editDesc,
-                requires_approval: editRequiresApproval
+                requires_approval: editRequiresApproval,
+                requesterId: userId // Ensure backend checks ownership
             });
             setIsEditing(false);
             fetchData(); // Refresh
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update group", error);
-            alert("Failed to update group info");
+            // Show the actual error message from backend if available
+            const msg = error.response?.data?.error || error.message || "Failed to update group info";
+            alert(`Error: ${msg}`);
         }
     };
 
@@ -196,18 +214,43 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                                         <div className="text-slate-600 dark:text-slate-400 text-sm whitespace-pre-wrap">{group.description || 'No description provided.'}</div>
                                     )}
                                 </div>
-
+                                {isEditing ? (
+                                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-black/20 p-3 rounded-xl border border-slate-200 dark:border-white/10">
+                                        <input
+                                            type="checkbox"
+                                            id="reqApproval"
+                                            checked={editRequiresApproval}
+                                            onChange={e => setEditRequiresApproval(e.target.checked)}
+                                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="reqApproval" className="flex-1 cursor-pointer">
+                                            <span className="block text-sm font-medium text-slate-900 dark:text-white">Require Approval to Join</span>
+                                            <span className="block text-xs text-slate-500 dark:text-slate-400">If checked, new members must be approved by an admin.</span>
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className={`w-2 h-2 rounded-full ${group.requires_approval ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                                        <span className="text-sm text-slate-600 dark:text-slate-400">
+                                            {group.requires_approval ? 'Approval Required to Join' : 'Auto-Join Enabled (Instant)'}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {canEdit && (
-                                    <div className="pt-2">
+                                    <div className="pt-2 flex justify-end">
                                         {isEditing ? (
                                             <div className="flex gap-2">
-                                                <button onClick={handleSaveInfo} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">Save Changes</button>
                                                 <button onClick={() => setIsEditing(false)} className="px-4 py-2 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+                                                <button onClick={handleSaveInfo} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-500/30">Save Changes</button>
                                             </div>
                                         ) : (
-                                            <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors border border-slate-200 dark:border-white/10">
-                                                Edit Details
+                                            <button
+                                                onClick={() => setIsEditing(true)}
+                                                className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-xl text-sm font-medium transition-all border border-transparent hover:border-slate-300 dark:hover:border-white/20 flex items-center justify-center gap-2 group"
+                                            >
+                                                <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                Edit Group Details
                                             </button>
                                         )}
                                     </div>
@@ -279,6 +322,53 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                     {/* MEMBERS TAB */}
                     {activeTab === 'members' && (
                         <div className="space-y-4">
+                            {/* Pending Requests Section */}
+                            {pendingMembers.length > 0 && (canEdit) && (
+                                <div className="mb-4">
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pending Requests ({pendingMembers.length})</h3>
+                                    <div className="space-y-2">
+                                        {pendingMembers.map(request => (
+                                            <div key={request.user_id} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/20">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-800/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-xs">
+                                                        {request.users?.username?.[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-bold text-slate-900 dark:text-white">{request.users?.username || 'Unknown'}</div>
+                                                        <div className="text-xs text-slate-500">{request.users?.email}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                await api.put(`/groups/${groupId}/members/${request.user_id}/status`, { status: 'active' });
+                                                                fetchData();
+                                                            } catch (e) { alert("Failed to approve"); }
+                                                        }}
+                                                        className="px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 transition-colors"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                await api.put(`/groups/${groupId}/members/${request.user_id}/status`, { status: 'rejected' });
+                                                                fetchData();
+                                                            } catch (e) { alert("Failed to reject"); }
+                                                        }}
+                                                        className="px-3 py-1 bg-white dark:bg-transparent text-red-500 border border-slate-200 dark:border-red-900/30 text-xs font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-red-900/20 transition-colors"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="h-px bg-slate-200 dark:bg-white/10 my-4"></div>
+                                </div>
+                            )}
+
                             {canEdit && (
                                 <button
                                     onClick={() => setShowAddMember(true)}
@@ -353,16 +443,18 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
             </div>
 
             {/* Nested Add Member Modal */}
-            {showAddMember && (
-                <AddMemberModal
-                    groupId={groupId}
-                    userId={userId}
-                    onClose={() => {
-                        setShowAddMember(false);
-                        fetchData(); // Refresh members after adding
-                    }}
-                />
-            )}
-        </div>
+            {
+                showAddMember && (
+                    <AddMemberModal
+                        groupId={groupId}
+                        userId={userId}
+                        onClose={() => {
+                            setShowAddMember(false);
+                            fetchData(); // Refresh members after adding
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 }

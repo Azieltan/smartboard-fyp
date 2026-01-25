@@ -109,6 +109,17 @@ app.post('/auth/login', async (req, res) => {
     }
 });
 
+app.post('/auth/sync', async (req, res) => {
+    try {
+        const { access_token } = req.body;
+        if (!access_token) return res.status(400).json({ error: 'Access token required' });
+        const result = await AuthService.syncSession(access_token);
+        res.json(result);
+    } catch (error: any) {
+        res.status(401).json({ error: error.message });
+    }
+});
+
 app.get('/users/search', async (req, res) => {
     try {
         const query = req.query.query as string;
@@ -206,6 +217,16 @@ import { GroupService } from './services/group';
 import { ChatService } from './services/chat';
 
 // Group Routes
+
+// Get group details (Must serve before /groups/:userId to avoid collision)
+app.get('/groups/detail/:groupId', async (req, res) => {
+    try {
+        const group = await GroupService.getGroup(req.params.groupId);
+        res.json(group);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.post('/groups', async (req, res) => {
     try {
         const { name, ownerId, requiresApproval, friendIds, friendRoles } = req.body;
@@ -396,15 +417,7 @@ app.post('/groups/:groupId/regenerate-code', async (req, res) => {
     }
 });
 
-// Get group details
-app.get('/groups/detail/:groupId', async (req, res) => {
-    try {
-        const group = await GroupService.getGroup(req.params.groupId);
-        res.json(group);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
+
 
 import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
@@ -541,8 +554,24 @@ app.post('/chats/:groupId/messages', async (req, res) => {
 
         const message = await ChatService.sendMessage(chat.chat_id, userId, content);
 
-        // Emit real-time event to the groupId room
-        io.to(req.params.groupId).emit('new_message', message);
+        const payload = {
+            ...message,
+            group_id: req.params.groupId
+        };
+
+        // Standard emission to group room
+        io.to(req.params.groupId).emit('new_message', payload);
+
+        // ROBUST: Emit to individual members' User Rooms
+        // This ensures they get the message even if the frontend hasn't "discovered" the group ID yet (e.g. new DM)
+        try {
+            const members = await GroupService.getGroupMembers(req.params.groupId);
+            members.forEach(m => {
+                io.to(m.user_id).emit('new_message', payload);
+            });
+        } catch (memErr) {
+            console.error('Failed to broadcast to members:', memErr);
+        }
 
         res.json(message);
     } catch (error: any) {
@@ -838,7 +867,7 @@ app.delete('/notifications/:notificationId', async (req, res) => {
 
 // Admin Routes
 const adminMiddleware = (req: any, res: any, next: any) => {
-    if (req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'systemadmin') {
         return res.status(403).json({ error: 'Admin access required' });
     }
     next();
