@@ -8,6 +8,9 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "start npm run dev --workspace=backend && start npm run dev --workspace=frontend"
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1"
   }
 }

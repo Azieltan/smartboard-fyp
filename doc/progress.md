@@ -313,3 +313,29 @@ User → SmartyBubble → Backend /automate → n8n (DeepSeek AI) → Backend (e
 - **Automation CRUD**: Smarty AI can now list, update, and delete tasks/reminders.
 - **Backend**: Added `reminder_sent` logic and admin routes.
 
+---
+
+## Session 18: DX Improvements & Branch Merge
+**Date**: 2026-01-25
+
+### Developer Experience (DX)
+| Feature | Status | Details |
+|---------|--------|---------|
+| **One-Click Start** | ✅ Added | Implemented `npm run dev` at root to start both frontend and backend using `concurrently`. |
+| **Monorepo Scripts** | ✅ Updated | Root `package.json` now handles workspace orchestration with colored log prefixes. |
+
+### Branch Management
+| Action | Details |
+|--------|---------|
+| **Merge Branch** | Merged `login-with-google` into `main`. |
+| **Conflict Resolution** | Resolved conflicts in `package.json`, `calendar/page.tsx`, and `login/page.tsx`. |
+| **Dependencies** | Combined dependencies from both branches (Chart.js + Supabase/Date-fns). |
+
+### Infrastructure
+- **New Package:** Added `concurrently` to root devDependencies.
+- **Fixed:** Repaired corrupted `package.json` files that were blocking npm commands.
+| Feature | Status | Details |
+|---------|--------|---------|
+| **MCP Config** | ✅ Fixed | Fixed syntax error in `mcp_config.json` where multiple objects were causing an "End of file expected" error. Merged `context7` server definition into the main `mcpServers` object. |
+
+

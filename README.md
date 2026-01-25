@@ -4,6 +4,23 @@
 
 The canonical, up-to-date implementation plan lives in `AI_AGENT_IMPLEMENTATION_PLAN.md`.
 
+## Key Features
+
+- **Smarty AI Automation**: Natural language task and reminder management using n8n and DeepSeek.
+- **Admin Dashboard**: Comprehensive stats, user management, and system monitoring.
+- **Google OAuth Integration**: Seamless social login and profile completion.
+- **Task Management**: Structured tasks with subtasks, labels, and priorities.
+- **Real-time Notifications**: Instant updates for task assignments and system alerts.
+- **Collaborative Workspace**: Friend system and shared group tasks.
+
+## Project Structure
+
+- `apps/frontend`: Next.js React application.
+- `apps/backend`: Node.js Express server.
+- `packages/`: Shared logic and types.
+- `scripts/`: Utility scripts for dev and testing.
+
+
 ## Getting Started
 
 Follow these steps to set up the project locally.
@@ -41,21 +58,17 @@ Create a file named `.env.local` in `apps/frontend/` and add the required variab
 
 
 ### 4. Running the Application
-You need to run the backend and frontend in separate terminals.
 
-**Terminal 1 (Backend):**
+You can start both the backend and frontend simultaneously from the root directory:
+
 ```bash
-cd apps/backend
 npm run dev
 ```
 
-**Terminal 2 (Frontend):**
-```bash
-cd apps/frontend
-npm run dev
-```
+This will launch:
+- **Frontend**: `http://localhost:3000`
+- **Backend**: `http://localhost:3001`
 
-The frontend will be available at `http://localhost:3000` and the backend at `http://localhost:3001`.
 
 ## Typecheck / Build
 

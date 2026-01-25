@@ -1,0 +1,339 @@
+{
+  "name": "SmartBoard - Let Smarty Do v3 (AI Agent)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smarty-agent-v3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "smarty-agent-v3"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.3,
+          "maxOutputTokens": 2048
+        }
+      },
+      "id": "gemini-model",
+      "name": "Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        320,
+        500
+      ],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "text": "={{ $json.rawText }}",
+        "systemMessage": "You are Smarty, an intelligent productivity AI assistant for SmartBoard.\n\n## Your Mission\nHelp users manage tasks, reminders, calendar events, and groups through natural language commands.\n\n## Available Tools\n1. **create_task** - Create a new task with title, due date, priority\n2. **create_reminder** - Set a reminder for a specific time\n3. **create_event** - Schedule a calendar event\n4. **list_tasks** - List user's tasks (can filter by status/priority)\n5. **mark_task_done** - Mark a task as complete\n6. **manage_group** - Add/remove members from groups\n\n## Rules\n1. ALWAYS use tools to fulfill user requests - never make up data\n2. Parse relative dates: 'tomorrow' = next day, 'next Friday' = upcoming Friday\n3. Default priority is 'medium', default event duration is 1 hour\n4. For ambiguous requests, ask for clarification\n5. Respond in the same language as the user (Chinese or English)\n\n## Response Format\nAfter using tools, summarize what you did in a friendly, concise way.\n\n## Context\nUser ID: {{ $json.user_id }}\nCurrent Time: {{ $now.format('yyyy-MM-dd HH:mm') }}\nTimezone: {{ $json.timezone || 'Asia/Kuala_Lumpur' }}",
+        "options": {
+          "returnIntermediateSteps": true
+        }
+      },
+      "id": "ai-agent",
+      "name": "Smarty AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_task",
+        "description": "Create a new task for the user. Use when user wants to add a task, todo item, or work item.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"The task title/name\"\n    },\n    \"description\": {\n      \"type\": \"string\",\n      \"description\": \"Optional task description\"\n    },\n    \"due_date\": {\n      \"type\": \"string\",\n      \"description\": \"Due date in ISO-8601 format (e.g., 2026-01-26T15:00:00)\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"description\": \"Task priority level\"\n    },\n    \"group_name\": {\n      \"type\": \"string\",\n      \"description\": \"Optional group name to assign task to\"\n    }\n  },\n  \"required\": [\"title\"]\n}"
+      },
+      "id": "tool-create-task",
+      "name": "Tool: Create Task",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_reminder",
+        "description": "Create a reminder for the user at a specific time",
+        "jsCode": "// Tool: create_reminder\nconst params = $input.all()[0].json;\n\nreturn {\n  json: {\n    tool_call: 'create_reminder',\n    params: {\n      title: params.title,\n      remind_at: params.remind_at\n    },\n    needs_confirmation: true,\n    summary: `Reminder set: \"${params.title}\" at ${params.remind_at}`\n  }\n};",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"What to remind about\"\n    },\n    \"remind_at\": {\n      \"type\": \"string\",\n      \"description\": \"When to remind in ISO-8601 format\"\n    }\n  },\n  \"required\": [\"title\", \"remind_at\"]\n}"
+      },
+      "id": "tool-create-reminder",
+      "name": "Tool: Create Reminder",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_event",
+        "description": "Create a calendar event for the user",
+        "jsCode": "// Tool: create_event\nconst params = $input.all()[0].json;\n\nreturn {\n  json: {\n    tool_call: 'create_calendar_event',\n    params: {\n      title: params.title,\n      start_time: params.start_time,\n      end_time: params.end_time || null,\n      duration_hours: params.duration_hours || 1\n    },\n    needs_confirmation: true,\n    summary: `Event scheduled: \"${params.title}\" at ${params.start_time}`\n  }\n};",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"Event title\"\n    },\n    \"start_time\": {\n      \"type\": \"string\",\n      \"description\": \"Event start time in ISO-8601\"\n    },\n    \"end_time\": {\n      \"type\": \"string\",\n      \"description\": \"Optional end time\"\n    },\n    \"duration_hours\": {\n      \"type\": \"number\",\n      \"description\": \"Duration in hours (default 1)\"\n    }\n  },\n  \"required\": [\"title\", \"start_time\"]\n}"
+      },
+      "id": "tool-create-event",
+      "name": "Tool: Create Event",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        600,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "name": "list_tasks",
+        "description": "List user's tasks, optionally filtered by status or priority",
+        "jsCode": "// Tool: list_tasks\nconst params = $input.all()[0].json;\n\nreturn {\n  json: {\n    tool_call: 'list_tasks',\n    params: {\n      status: params.status || null,\n      priority: params.priority || null\n    },\n    needs_confirmation: false,\n    summary: `Fetching tasks${params.status ? ` with status: ${params.status}` : ''}${params.priority ? ` with priority: ${params.priority}` : ''}`\n  }\n};",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"status\": {\n      \"type\": \"string\",\n      \"enum\": [\"todo\", \"in_progress\", \"done\"],\n      \"description\": \"Optional filter by task status\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"description\": \"Optional filter by priority\"\n    }\n  }\n}"
+      },
+      "id": "tool-list-tasks",
+      "name": "Tool: List Tasks",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        740,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "name": "mark_task_done",
+        "description": "Mark a task as complete/done",
+        "jsCode": "// Tool: mark_task_done\nconst params = $input.all()[0].json;\n\nreturn {\n  json: {\n    tool_call: 'mark_task_done',\n    params: {\n      task_title: params.task_title\n    },\n    needs_confirmation: true,\n    summary: `Mark task \"${params.task_title}\" as completed`\n  }\n};",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"task_title\": {\n      \"type\": \"string\",\n      \"description\": \"The title of the task to mark as done\"\n    }\n  },\n  \"required\": [\"task_title\"]\n}"
+      },
+      "id": "tool-mark-done",
+      "name": "Tool: Mark Done",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "manage_group",
+        "description": "Add or remove a member from a group",
+        "jsCode": "// Tool: manage_group\nconst params = $input.all()[0].json;\n\nreturn {\n  json: {\n    tool_call: params.action === 'add' ? 'add_member_to_group' : 'remove_member_from_group',\n    params: {\n      user_name: params.user_name,\n      group_name: params.group_name,\n      action: params.action\n    },\n    needs_confirmation: true,\n    summary: `${params.action === 'add' ? 'Add' : 'Remove'} ${params.user_name} ${params.action === 'add' ? 'to' : 'from'} group \"${params.group_name}\"`\n  }\n};",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action\": {\n      \"type\": \"string\",\n      \"enum\": [\"add\", \"remove\"],\n      \"description\": \"Action to perform\"\n    },\n    \"user_name\": {\n      \"type\": \"string\",\n      \"description\": \"Name of the user to add/remove\"\n    },\n    \"group_name\": {\n      \"type\": \"string\",\n      \"description\": \"Name of the target group\"\n    }\n  },\n  \"required\": [\"action\", \"user_name\", \"group_name\"]\n}"
+      },
+      "id": "tool-manage-group",
+      "name": "Tool: Manage Group",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the AI Agent response for backend\nconst agentOutput = $input.first().json;\nconst originalRequest = $('Webhook Trigger').first().json;\n\n// Extract tool calls from agent's intermediate steps\nlet toolCalls = [];\nlet finalAnswer = agentOutput.output || agentOutput.text || '';\n\nif (agentOutput.intermediateSteps) {\n  toolCalls = agentOutput.intermediateSteps.map(step => ({\n    tool: step.action?.tool || 'unknown',\n    input: step.action?.toolInput || {},\n    output: step.observation || ''\n  }));\n}\n\n// Determine if confirmation is needed\nconst needsConfirmation = toolCalls.some(tc => {\n  const output = typeof tc.output === 'string' ? JSON.parse(tc.output || '{}') : tc.output;\n  return output.needs_confirmation === true;\n});\n\n// Build structured response\nconst response = {\n  automation_id: originalRequest.automation_id,\n  user_id: originalRequest.user_id,\n  success: true,\n  needs_confirmation: needsConfirmation,\n  action: toolCalls.length > 0 ? toolCalls[0].tool : 'chat',\n  params: toolCalls.length > 0 ? toolCalls[0].input : {},\n  summary: finalAnswer,\n  tool_calls: toolCalls,\n  confidence: 0.9\n};\n\nreturn [{ json: response }];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Create Task": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Create Reminder": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Create Event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: List Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Mark Done": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Manage Group": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smarty AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "smartboard-v3"
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "AI Agent"
+    },
+    {
+      "name": "SmartBoard"
+    },
+    {
+      "name": "Automation"
+    }
+  ]
+}
