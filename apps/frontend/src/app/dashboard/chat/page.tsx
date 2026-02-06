@@ -183,37 +183,44 @@ export default function ChatPage() {
         socket.emit('join_room', userId);
 
         const handleNewMessageSidebar = (msg: any) => {
-            if (!msg || !msg.group_id) return;
+            if (!msg || (!msg.group_id && !msg.chat_id)) return;
+            const targetGroupId = msg.group_id;
 
             setConversations(prev => {
                 // Find conversation by matching groupId
-                let convIndex = prev.findIndex(c => (c.groupId || c.id) === msg.group_id);
+                // Robust check: match by groupId OR by checking if it's a DM from the sender
+                let convIndex = prev.findIndex(c => {
+                    if (c.groupId && c.groupId === targetGroupId) return true;
+                    // Fallback for DMs where we might not have groupId mapped yet, but we know the sender
+                    if (c.type === 'dm' && c.id === msg.user_id) return true;
+                    return false;
+                });
 
-                // Fallback for DMs: match by sender ID logic if Group ID is not yet linked
-                // This covers the case where User A sends to User B, and User B receives it via user_room
-                // but hasn't "discovered" the dm_group_id yet.
-                if (convIndex === -1 && msg.user_id !== userId) {
-                    convIndex = prev.findIndex(c => c.type === 'dm' && c.id === msg.user_id);
-                }
-
-                // If still not found, it might be a new DM or Group we were just added to.
-                // We should re-fetch to get the new list.
+                // If not found, it might be:
+                // 1. A new DM (we are receiver)
+                // 2. A new Group we were added to
+                // 3. A DM we sent (sender is US), but we don't have groupId mapped yet.
                 if (convIndex === -1) {
-                    fetchData(userId, true); // Pass true to suppress loading state
+                    // Critical: If we sent the message, we want to update the conversation with the recipient.
+                    // But we don't know the recipient ID from the message payload easily if it's a DM.
+                    // So we MUST fetch data from backend to get the latest state (and new groupIds).
+                    console.log('[Sidebar] Conversation not found in local state, refetching...');
+                    fetchData(userId, true);
                     return prev;
                 }
 
                 const updatedConv = { ...prev[convIndex] };
                 updatedConv.lastMessage = msg.content;
                 updatedConv.time = msg.send_time;
+                // Increment message count locally for immediate feedback
                 updatedConv.totalMessages = (updatedConv.totalMessages || 0) + 1;
 
                 // Cache the group_id if it was missing (e.g. first DM)
-                if (!updatedConv.groupId) {
-                    updatedConv.groupId = msg.group_id;
+                if (!updatedConv.groupId && targetGroupId) {
+                    updatedConv.groupId = targetGroupId;
                 }
 
-                // Move to top
+                // Move to top logic
                 const newConvs = [...prev];
                 newConvs.splice(convIndex, 1);
                 newConvs.unshift(updatedConv);
@@ -222,7 +229,9 @@ export default function ChatPage() {
                 // Only if WE are NOT the sender
                 if (msg.user_id !== userId) {
                     // Check if we are currently viewing this chat
-                    const isViewing = selectedIdRef.current === updatedConv.id; // updatedConv.id is friendId for DMs, groupId for Groups
+                    // Check both selectedId (friendId for DMs) and cached groupId
+                    const isViewing = (selectedIdRef.current === updatedConv.id) ||
+                        (selectedIdRef.current === updatedConv.groupId);
 
                     if (isViewing) {
                         // We are viewing it, so update read count immediately
@@ -236,8 +245,9 @@ export default function ChatPage() {
                         // We are NOT viewing it, show badge
                         setUnreadCounts(current => {
                             const lastRead = JSON.parse(localStorage.getItem('chat_read_counts') || '{}')[updatedConv.id] || 0;
-                            const count = (updatedConv.totalMessages || 0) > lastRead ? (updatedConv.totalMessages || 0) - lastRead : 0;
-                            console.log(`[Badge] ID: ${updatedConv.id}, Total: ${updatedConv.totalMessages}, LastRead: ${lastRead}, NewCount: ${count}`);
+                            // Ensure non-negative
+                            const count = Math.max(0, (updatedConv.totalMessages || 0) - lastRead);
+                            console.log(`[Badge] ID: ${updatedConv.id}, Count: ${count}`);
                             return { ...current, [updatedConv.id]: count };
                         });
                     }
@@ -248,7 +258,7 @@ export default function ChatPage() {
                     readCounts[updatedConv.id] = updatedConv.totalMessages;
                     localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
 
-                    // Clear badge if any existed (shouldn't really, but good safety)
+                    // Clear badge
                     setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
                 }
 
