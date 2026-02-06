@@ -7,7 +7,7 @@ import { TaskService } from './task';
 import { CalendarService } from './calendar';
 import { GroupService } from './group';
 
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.h5preact.app/webhook/smarty-agent-v3';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.h5preact.app/webhook/smarty-agent-v4';
 
 interface AutomationResult {
   automation_id: string;
@@ -36,12 +36,13 @@ export class AutomationService {
         user_id: userId,
         rawText,
         timezone: context?.timezone || 'Asia/Kuala_Lumpur'
-      }, { timeout: 60000 }); // 60s timeout for DeepSeek
+      }, { timeout: 60000 });
 
       const result = response.data;
-
-      console.log('[AutomationService] n8n response:', JSON.stringify(result, null, 2));
-      console.log('[AutomationService] needs_confirmation:', result.needs_confirmation);
+      console.log('[DEBUG] Final URL used:', N8N_WEBHOOK_URL);
+      console.log('[DEBUG] Raw result from n8n:', JSON.stringify(result, null, 2));
+      // In v4, if the agent executed a tool directly in n8n, it returns executed: true
+      const needsConfirmation = result.needs_confirmation && !result.executed;
 
       // Store in DB for audit
       await supabase.from('automation_requests').insert({
@@ -50,13 +51,13 @@ export class AutomationService {
         raw_text: rawText,
         summary: result.summary,
         payload: result.params ? { action: result.action, params: result.params } : null,
-        status: result.needs_confirmation ? 'pending' : 'failed'
+        status: result.executed ? 'done' : (needsConfirmation ? 'pending' : 'failed')
       });
 
       return {
         automation_id,
         success: result.success,
-        needs_confirmation: result.needs_confirmation,
+        needs_confirmation: needsConfirmation,
         action: result.action,
         summary: result.summary,
         params: result.params

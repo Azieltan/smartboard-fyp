@@ -1002,7 +1002,7 @@ document.addEventListener("touchend", handleMouseUp);
 ## 6.1 Task 5 (Phase 2 & 3): n8n Orchestration & "Let Smarty Do"
 
 ### Goal
-Implement a robust AI orchestration layer using n8n for parsing natural language, resolving ambiguity, and calling backend APIs. This includes a "confirm-before-execute" flow to ensure safety and transparency.
+Implement a robust AI orchestration layer using n8n for parsing natural language, resolving ambiguity, and DIRECTLY executing actions via Supabase Tool nodes. This removes the need for a "confirm-before-execute" flow for 5 core tools (v4).
 
 ### Key Architectural Rules
 1. **Backend is authoritative**: Authentication, permission checks, and final DB writes must be done by the backend API. n8n orchestrates but does not assume trust.
@@ -1011,23 +1011,20 @@ Implement a robust AI orchestration layer using n8n for parsing natural language
 4. **Traceability & Idempotence**: Every automation interaction produces an `automation_id` (UUID) for auditing.
 5. **Error transparency**: Provide user-friendly reasons and actionable next steps on any error.
 
-### Updated Flow: Natural Language -> Confirm -> Execute -> Report
+### Updated Flow (v4): Natural Language -> Direct Execute -> Report
 
 1. **User (Frontend)**: Sends request `POST /smarty/automate` with `rawText` and context.
 2. **Backend `/smarty/automate`**:
    - Validate JWT, extract `userId`.
-   - Store an `automation_requests` row with `status: pending`.
-   - Forward a structured envelope to n8n.
-3. **n8n Workflow**:
-   - Parse intent + slots (title, datetime, etc.).
-   - Resolve ambiguous slots.
-   - Return structured `intent` + `slots` + `needs_confirmation` + `summary` to backend.
-4. **Backend -> Frontend**: Returns the `summary` and `needs_confirmation` flag.
-5. **Frontend UI**: Shows a confirmation card with buttons (Confirm / Edit / Cancel).
-6. **User Confirms**: Frontend calls `POST /smarty/automate/confirm` with `automation_id`.
-7. **Execution**: n8n (or backend) executes final steps by calling secure backend endpoints.
-8. **Finalization**: Backend updates `automation_requests` row to `done` or `failed`.
-9. **Feedback**: Frontend displays final success/error message with a link to the resource.
+   - Store an `automation_requests` row.
+   - Forward to n8n `v4` webhook.
+3. **n8n Workflow (v4)**:
+   - AI Agent (Groq Llama 3.1) parses intent.
+   - AI Agent DIRECTLY calls Supabase Tool nodes to perform DB operations.
+   - Workflow returns `executed: true` and the final `summary`.
+4. **Backend -> Frontend**: Returns the final `summary` and `needs_confirmation: false`.
+5. **Frontend UI**: Displays the final message from Smarty confirming completion.
+6. **Execution**: Done directly by n8n. No secondary confirmation step required for core tools (Create Task, Create Reminder, Create Event, List Tasks, Mark Done).
 
 ### Backend Contract (APIs to Provide)
 
