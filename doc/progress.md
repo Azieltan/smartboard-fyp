@@ -40,7 +40,15 @@
 ### Fixes & Enhancements
 | Feature | Status | Details |
 |---------|--------|---------|
-| **Group Details** | ✅ Fixed | Resolved a routing collision on the backend where `/groups/detail/:groupId` was unreachable. Also improved the frontend ownership check. |
+
+### Fixes & Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Chat UI** | ✅ Updated | Removed "Create Task" button (+) from chat input area to declutter UI. |
+| **Real-time Updates** | ✅ Fixed | Sidebar now updates immediately for both sender and receiver. Added fallback refetch for new conversations. |
+| **Notification Badges** | ✅ Fixed | Improved unread count calculation and ensured badges clear correctly when viewing the chat. |
+| **Conversation Sort** | ✅ Fixed | "Move to top" logic now works reliably even for new DMs or when sending messages. |
+
 
 ## Previous Updates (2026-01-11)
 
