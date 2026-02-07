@@ -355,3 +355,20 @@ User → SmartyBubble → Backend /automate → n8n (DeepSeek AI) → Backend (e
 - **Branch**: `main` (Synchronized with origin)
 - **Dev Command**: `npm run dev` at root (runs both modules)
 - **Features**: Smarty AI CRUD, Admin Dashboard, Google OAuth.
+---
+
+## Session 20: Automation & UI Sync
+**Date**: 2026-02-07
+
+### Sync & GitHub Management
+| Task | Status | Details |
+|------|--------|---------|
+| **Automation V4/V5** |  Done | Added n8n workflows for Direct Execute (v4), Multi-Intent (v5), and Fixed v5. |
+| **UI Refinement** |  Done | Updated SmartyBubble.tsx for better chat interaction. |
+| **Backend Service** |  Done | Synchronized utomationService.ts with latest fixes. |
+| **Git Push** |  Done | Pushed all local updates to \main\. |
+
+### Status
+- **Main Branch**: Fully synchronized.
+- **n8n Workflows**: Versions v3, v4, and v5 now tracked in repository.
+
