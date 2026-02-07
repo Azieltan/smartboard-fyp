@@ -7,7 +7,7 @@ import { TaskService } from './task';
 import { CalendarService } from './calendar';
 import { GroupService } from './group';
 
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.h5preact.app/webhook/smarty-agent-v4';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.h5preact.app/webhook/smarty-agent-v5';
 
 interface AutomationResult {
   automation_id: string;

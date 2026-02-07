@@ -1,0 +1,448 @@
+{
+  "name": "SmartBoard - Let Smarty Do v5 (Fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smarty-agent-v5",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-v5",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        0
+      ],
+      "webhookId": "smarty-agent-v5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.rawText }}",
+        "options": {
+          "systemMessage": "You are Smarty, a task automation assistant for SmartBoard. Analyze the user's request and perform the appropriate action.\n\nCURRENT CONTEXT:\n- Today: {{ $now.format('yyyy-MM-dd') }}\n- Current time: {{ $now.format('HH:mm') }}\n- User ID: {{ $json.body.user_id }}\n- Timezone: {{ $json.body.timezone || 'Asia/Kuala_Lumpur' }} (+08:00)\n\nDATE RESOLUTION:\n- 'today' = {{ $now.format('yyyy-MM-dd') }}\n- 'tomorrow' = {{ $now.plus(1, 'day').format('yyyy-MM-dd') }}\n- 'next week' = {{ $now.plus(7, 'day').format('yyyy-MM-dd') }}\n\nACTIONS:\n1. CREATE CALENDAR EVENT - meetings/appointments\n2. CREATE TASK - todos/assignments\n3. CREATE REMINDER - specific time reminders\n4. LIST TASKS - show user's tasks\n5. MARK TASK DONE - complete a task\n6. DELETE REMINDER - cancel/remove a reminder\n\nRULES:\n- Always use user_id: {{ $json.body.user_id }}\n- Convert relative dates to ISO-8601 timestamps\n- For delete/mark done, use ILIKE for fuzzy matching names"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "ai-agent-v5",
+      "name": "Smarty AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        220
+      ],
+      "id": "groq-model-v5",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "vusEVQGmYnv0fM5b",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "create_calendar_event",
+        "description": "Create a new calendar event.",
+        "tableId": "calendar_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $fromAI('title', 'Event title') }}"
+            },
+            {
+              "fieldId": "start_time",
+              "fieldValue": "={{ $fromAI('start_time', 'Start time ISO-8601') }}"
+            },
+            {
+              "fieldId": "end_time",
+              "fieldValue": "={{ $fromAI('end_time', 'End time ISO-8601') }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        220
+      ],
+      "id": "tool-create-event",
+      "name": "Create Event Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "create_task",
+        "description": "Create a new task.",
+        "tableId": "tasks",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $fromAI('title', 'Task title') }}"
+            },
+            {
+              "fieldId": "due_date",
+              "fieldValue": "={{ $fromAI('due_date', 'Due date ISO-8601', true) }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "todo"
+            },
+            {
+              "fieldId": "created_by",
+              "fieldValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        220
+      ],
+      "id": "tool-create-task",
+      "name": "Create Task Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "create_reminder",
+        "description": "Create a reminder.",
+        "tableId": "reminders",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $fromAI('message', 'Reminder message/title') }}"
+            },
+            {
+              "fieldId": "remind_time",
+              "fieldValue": "={{ $fromAI('remind_time', 'Time ISO-8601') }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        220
+      ],
+      "id": "tool-create-reminder",
+      "name": "Create Reminder Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "delete_reminder",
+        "description": "Cancel or delete a reminder by message content.",
+        "tableId": "reminders",
+        "operation": "delete",
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "message",
+              "condition": "ilike",
+              "keyValue": "={{ $fromAI('keyword', 'Keyword from reminder message') }}"
+            },
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        220
+      ],
+      "id": "tool-delete-reminder",
+      "name": "Delete Reminder Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "list_tasks",
+        "description": "List my tasks.",
+        "tableId": "tasks",
+        "operation": "getMany",
+        "returnAll": true,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "created_by",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        220
+      ],
+      "id": "tool-list-tasks",
+      "name": "List Tasks Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "mark_task_done",
+        "description": "Mark task as done.",
+        "tableId": "tasks",
+        "operation": "update",
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "title",
+              "condition": "ilike",
+              "keyValue": "={{ $fromAI('task_name', 'Task name') }}"
+            },
+            {
+              "keyName": "created_by",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        100,
+        220
+      ],
+      "id": "tool-mark-done",
+      "name": "Mark Done Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced Response Formatting with Delete Support\nconst agentOutput = $input.first().json;\nconst toolCalls = agentOutput.intermediateSteps || [];\n\nlet summary = agentOutput.output || 'Action processed.';\nlet actionType = 'unknown';\nlet details = {};\n\nif (toolCalls.length > 0) {\n  const lastStep = toolCalls[toolCalls.length - 1];\n  const toolName = lastStep.action?.tool || lastStep.action || '';\n  \n  try { details = typeof lastStep.observation === 'string' ? JSON.parse(lastStep.observation) : lastStep.observation || {}; } catch(e) { details = {}; }\n\n  switch(toolName) {\n    case 'create_calendar_event':\n      summary = `✅ Created event \"${details.title}\"`;\n      actionType = 'event_created';\n      break;\n    case 'create_task':\n      summary = `✅ Created task \"${details.title}\"`;\n      actionType = 'task_created';\n      break;\n    case 'create_reminder':\n      summary = `✅ Set reminder: \"${details.message}\" for ${new Date(details.remind_time).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' })}`;\n      actionType = 'reminder_created';\n      break;\n    case 'delete_reminder':\n      summary = `✅ Cancelled reminder(s) matching keyword.`;\n      actionType = 'reminder_deleted';\n      break;\n    case 'list_tasks':\n      const tasks = Array.isArray(details) ? details : (details.data || []);\n      summary = `📋 Found ${tasks.length} tasks.`;\n      actionType = 'tasks_listed';\n      break;\n    case 'mark_task_done':\n      summary = `✅ Marked task as done.`;\n      actionType = 'task_completed';\n      break;\n  }\n}\n\nreturn [{\n  json: {\n    success: true,\n    executed: true,\n    action_type: actionType,\n    summary: summary,\n    details: details,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-response-fixed",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook-fixed",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smarty AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Task Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Reminder Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Tasks Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Done Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Reminder Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

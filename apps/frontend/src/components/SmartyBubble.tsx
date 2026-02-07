@@ -244,20 +244,21 @@ export function SmartyBubble() {
         setShowMenu(false);
     };
 
-    // Quick questions for Q&A mode
+    // Relevant questions for Q&A mode
     const QNA_QUICK_QUESTIONS = [
-        "What is SmartBoard?",
-        "How do I upload files?",
-        "How do I log out?"
+        "What can Smarty do?",
+        "How do I create a task?",
+        "How to set a reminder?",
+        "What is SmartBoard?"
     ];
 
-    // Quick questions for Automation mode
+    // Relevant actions for Automation mode
     const AUTOMATE_QUICK_QUESTIONS = [
-        'Create reminder for tomorrow 3pm "meeting"',
-        'List my tasks',
-        'Delete task [name]',
-        'Update task [name] to due Friday',
-        'Create task Review Report due Monday'
+        'Create task "Buy milk" due tomorrow',
+        'Remind me to "Call John" at 5pm',
+        'Show my tasks',
+        'Mark "Buy milk" as done',
+        'Cancel reminder "Call John"'
     ];
 
     // Select which questions to show based on mode
