@@ -9,12 +9,6 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    // Phone Auth States
-    const [phone, setPhone] = useState('');
-    const [otp, setOtp] = useState('');
-    const [showOtpInput, setShowOtpInput] = useState(false);
-
-    const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email'); // 'email' | 'phone'
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -101,40 +95,7 @@ export default function LoginPage() {
         }
     };
 
-    const handlePhoneLoginStep1 = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const { error } = await supabase.auth.signInWithOtp({
-                phone: phone,
-            });
-            if (error) throw error;
-            setShowOtpInput(true);
-            alert('OTP sent to your phone!');
-        } catch (error: any) {
-            alert(error.message || 'Failed to send OTP. Ensure SMS provider is configured in Supabase.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
-    const handlePhoneLoginStep2 = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const { error, data } = await supabase.auth.verifyOtp({
-                phone: phone,
-                token: otp,
-                type: 'sms',
-            });
-            if (error) throw error;
-
-            // Success will trigger onAuthStateChange
-        } catch (error: any) {
-            alert(error.message || 'Invalid OTP');
-            setIsLoading(false);
-        }
-    };
 
     return (
         <div className="min-h-screen flex relative overflow-hidden bg-mesh-gradient">
@@ -186,153 +147,71 @@ export default function LoginPage() {
                             <p className="text-slate-400">Sign in to continue your journey</p>
                         </div>
 
-                        {/* Tabs */}
-                        <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-slate-900/50 rounded-xl border border-white/10">
-                            <button
-                                onClick={() => setLoginMethod('email')}
-                                className={`py-2 text-sm font-medium rounded-lg transition-all ${loginMethod === 'email'
-                                    ? 'bg-violet-600 text-white shadow-lg'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                Email
-                            </button>
-                            <button
-                                onClick={() => setLoginMethod('phone')}
-                                className={`py-2 text-sm font-medium rounded-lg transition-all ${loginMethod === 'phone'
-                                    ? 'bg-violet-600 text-white shadow-lg'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                Phone
-                            </button>
-                        </div>
-
-                        {/* Forms */}
-                        {loginMethod === 'email' ? (
-                            <form onSubmit={handleEmailLogin} className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                                            </svg>
-                                        </div>
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
-                                            placeholder="name@example.com"
-                                            required
-                                        />
+                        {/* Form */}
+                        <form onSubmit={handleEmailLogin} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                        </svg>
                                     </div>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
+                                        placeholder="name@example.com"
+                                        required
+                                    />
                                 </div>
+                            </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                        </div>
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full pl-12 pr-12 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
-                                            placeholder="••••••••"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200"
-                                        >
-                                            {showPassword ? (
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8a18.62 18.62 0 012.4-4.3M6.5 6.5L17.5 17.5M9.9 9.9A3 3 0 0014.1 14.1" /></svg>
-                                            ) : (
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                            )}
-                                        </button>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center justify-between text-sm">
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-slate-900/50 text-violet-500 focus:ring-violet-500" />
-                                        <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Remember me</span>
-                                    </label>
-                                    <Link href="/forgot-password" className="text-violet-400 hover:text-violet-300 transition-colors">
-                                        Forgot password?
-                                    </Link>
-                                </div>
-
-                                <button type="submit" disabled={isLoading} className="w-full btn-primary py-4 flex items-center justify-center gap-2 disabled:opacity-50">
-                                    {isLoading ? 'Signing in...' : 'Sign In'}
-                                </button>
-                            </form>
-                        ) : (
-                            <form onSubmit={showOtpInput ? handlePhoneLoginStep2 : handlePhoneLoginStep1} className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Phone Number</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                            </svg>
-                                        </div>
-                                        <input
-                                            type="tel"
-                                            value={phone}
-                                            onChange={(e) => setPhone(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500 disabled:opacity-50"
-                                            placeholder="+1234567890"
-                                            required
-                                            disabled={showOtpInput}
-                                        />
-                                    </div>
-                                    <p className="mt-2 text-xs text-slate-500">Include country code (e.g. +1...)</p>
-                                </div>
-
-                                {showOtpInput && (
-                                    <div className="animate-in slide-in-from-top-2 fade-in">
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">Verify Code</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                value={otp}
-                                                onChange={(e) => setOtp(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
-                                                placeholder="123456"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                <button type="submit" disabled={isLoading} className="w-full btn-primary py-4 flex items-center justify-center gap-2 disabled:opacity-50">
-                                    {isLoading ? (showOtpInput ? 'Verifying...' : 'Sending...') : (showOtpInput ? 'Verify Login' : 'Send Code')}
-                                </button>
-
-                                {showOtpInput && (
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full pl-12 pr-12 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
+                                        placeholder="••••••••"
+                                        required
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setShowOtpInput(false)}
-                                        className="w-full text-sm text-slate-400 hover:text-white mt-2"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200"
                                     >
-                                        Change Phone Number
+                                        {showPassword ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8a18.62 18.62 0 012.4-4.3M6.5 6.5L17.5 17.5M9.9 9.9A3 3 0 0014.1 14.1" /></svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        )}
                                     </button>
-                                )}
-                            </form>
-                        )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-slate-900/50 text-violet-500 focus:ring-violet-500" />
+                                    <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Remember me</span>
+                                </label>
+                                <Link href="/forgot-password" className="text-violet-400 hover:text-violet-300 transition-colors">
+                                    Forgot password?
+                                </Link>
+                            </div>
+
+                            <button type="submit" disabled={isLoading} className="w-full btn-primary py-4 flex items-center justify-center gap-2 disabled:opacity-50">
+                                {isLoading ? 'Signing in...' : 'Sign In'}
+                            </button>
+                        </form>
 
                         {/* Divider */}
                         <div className="relative my-6">

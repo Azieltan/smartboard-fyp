@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import CreateEventModal from '../../../components/CreateEventModal';
 import EventDetailModal from '../../../components/EventDetailModal';
+import EditEventModal from '../../../components/EditEventModal';
 import TaskDetailModal from '../../../components/TaskDetailModal';
 import EditTaskModal from '../../../components/EditTaskModal';
 
@@ -31,6 +32,7 @@ export default function CalendarPage() {
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isEditingTask, setIsEditingTask] = useState(false);
+    const [isEditingEvent, setIsEditingEvent] = useState(false);
 
 
     useEffect(() => {
@@ -170,7 +172,7 @@ export default function CalendarPage() {
                                 <div
                                     key={day}
                                     onClick={() => handleDateClick(day)}
-                                    className={`min-h-[120px] p-2 border-b border-r border-slate-200 dark:border-white/5 hover:bg-blue-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative group ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                    className={`min-h-[120px] p-2 border-b border-r border-slate-200 dark:border-white/5 hover:bg-blue-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative group overflow-hidden ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                                 >
                                     <span className={`text-sm font-medium block mb-2 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-500 dark:text-slate-400'}`}>
                                         {day}
@@ -221,11 +223,31 @@ export default function CalendarPage() {
                 />
             )}
 
+
+
             {/* Event Detail Modal */}
-            {selectedEvent && (
+            {selectedEvent && !isEditingEvent && (
                 <EventDetailModal
                     event={selectedEvent}
                     onClose={() => setSelectedEvent(null)}
+                    onEdit={() => setIsEditingEvent(true)}
+                />
+            )}
+
+            {/* Edit Event Modal */}
+            {selectedEvent && isEditingEvent && (
+                <EditEventModal
+                    event={selectedEvent}
+                    onClose={() => setIsEditingEvent(false)}
+                    onEventUpdated={(updatedEvent) => {
+                        setIsEditingEvent(false);
+                        if (updatedEvent === null) {
+                            setSelectedEvent(null);
+                        } else if (updatedEvent) {
+                            setSelectedEvent(updatedEvent);
+                        }
+                        fetchItems(userId!);
+                    }}
                 />
             )}
 

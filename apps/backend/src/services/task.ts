@@ -4,7 +4,7 @@ import { Task } from '@smartboard/home';
 export class TaskService {
     static async getAllTasks(userId?: string): Promise<Task[]> {
         if (!userId) {
-            const { data, error } = await supabase.from('tasks').select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)');
+            const { data, error } = await supabase.from('tasks').select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_assignee_id_fkey(user_name)');
             if (error) throw new Error(error.message);
             return data as Task[];
         }
@@ -21,7 +21,7 @@ export class TaskService {
         const myGroupIds = (groupMembers || []).map(g => g.group_id);
 
         // 2. Build Query
-        let orCondition = `user_id.eq.${userId},created_by.eq.${userId}`;
+        let orCondition = `assignee_id.eq.${userId},created_by.eq.${userId}`;
         if (myGroupIds.length > 0) {
             const groupsStr = `(${myGroupIds.map(id => `"${id}"`).join(',')})`;
             orCondition += `,group_id.in.${groupsStr}`;
@@ -29,7 +29,7 @@ export class TaskService {
 
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_assignee_id_fkey(user_name)')
             .or(orCondition);
 
         if (error) {
@@ -43,7 +43,7 @@ export class TaskService {
         // Extract subtasks from the typed object first
         const { subtasks, ...taskData } = task;
 
-        // Use DB columns directly. Schema has user_id (Assignee) and created_by.
+        // Use DB columns directly. Schema has assignee_id and created_by.
         const insertPayload: any = { ...taskData };
         delete insertPayload.edited_by;
 
@@ -79,8 +79,8 @@ export class TaskService {
             const { GroupService } = require('./group');
 
             let assigneeName = '';
-            if (insertPayload.user_id && insertPayload.user_id !== insertPayload.created_by) {
-                const { data: user } = await supabase.from('users').select('user_name').eq('user_id', insertPayload.user_id).single();
+            if (insertPayload.assignee_id && insertPayload.assignee_id !== insertPayload.created_by) {
+                const { data: user } = await supabase.from('users').select('user_name').eq('user_id', insertPayload.assignee_id).single();
                 if (user) assigneeName = ` (Assigned to: ${user.user_name})`;
             }
 
@@ -94,8 +94,8 @@ export class TaskService {
                 }
             }
             // 2. Individual Notification (if assigned to someone else)
-            else if (insertPayload.user_id && insertPayload.user_id !== insertPayload.created_by) {
-                const groupId = await GroupService.getOrCreateDirectChat(insertPayload.created_by, insertPayload.user_id);
+            else if (insertPayload.assignee_id && insertPayload.assignee_id !== insertPayload.created_by) {
+                const groupId = await GroupService.getOrCreateDirectChat(insertPayload.created_by, insertPayload.assignee_id);
                 let chat = await ChatService.getChatByGroupId(groupId);
                 if (!chat) chat = await ChatService.createChat(groupId);
 
@@ -109,16 +109,54 @@ export class TaskService {
         return newTask as Task;
     }
 
-    static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+    static async updateTask(taskId: string, updates: Partial<Task>, userId?: string): Promise<Task> {
+        // 1. Fetch existing task to check permissions
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('task_id', taskId)
+            .single();
+
+        if (fetchError || !task) throw new Error(fetchError?.message || 'Task not found');
+
+        // 2. Permission Logic
+        if (userId) {
+            const isCreator = task.created_by === userId;
+            const isAssignee = task.assignee_id === userId;
+
+            // Creator can update everything
+            if (!isCreator) {
+                // Assignee can ONLY update status (e.g. to 'in_progress', 'done' via Mark as Done)
+                // But wait, Mark as Done calls this. Submit calls this.
+                // We should strictly limit what fields non-creators can touch.
+                const allowedFieldsForAssignee = ['status'];
+                const attemptedFields = Object.keys(updates);
+                const hasForbiddenUpdates = attemptedFields.some(f => !allowedFieldsForAssignee.includes(f));
+
+                if (hasForbiddenUpdates) {
+                    // If they are not the creator, and trying to update something else, BLOCK IT.
+                    // Exception: If it's a shared task in a group? logic says "Task Creator or Authorized Roles".
+                    // For now, strict: Only Creator edits details. Assignee updates status.
+                    if (!isAssignee) {
+                        throw new Error('Unauthorized: Only the task creator or assignee can update this task.');
+                    }
+                    if (hasForbiddenUpdates) {
+                        throw new Error('Unauthorized: Assignees can only update task status.');
+                    }
+                }
+            }
+        }
+
         const updatePayload: any = { ...updates };
         delete updatePayload.created_by;
         delete updatePayload.edited_by;
+        // delete updatePayload.user_id; // Allow re-assigning? Only creator can, checked above.
 
         const { data, error } = await supabase
             .from('tasks')
             .update(updatePayload)
             .eq('task_id', taskId)
-            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_assignee_id_fkey(user_name)')
             .single();
 
         if (error) {
@@ -262,7 +300,7 @@ export class TaskService {
         // 2. Update Task Status
         const { data: task } = await supabase.from('tasks').select('*').eq('task_id', submission.task_id).single();
         if (task) {
-            const newStatus = status === 'approved' ? 'done' : 'in_progress';
+            const newStatus = status === 'approved' ? 'done' : 'todo';
             await this.updateTask(task.task_id, { status: newStatus } as any);
 
             // 3. Notify Submitter
@@ -313,7 +351,7 @@ export class TaskService {
     static async getTaskWithSubtasks(taskId: string): Promise<any> {
         const { data: task, error } = await supabase
             .from('tasks')
-            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_user_id_fkey(user_name)')
+            .select('*, subtasks(*), owner:users!tasks_created_by_fkey(user_name), assignee:users!tasks_assignee_id_fkey(user_name)')
             .eq('task_id', taskId)
             .single();
 

@@ -99,12 +99,12 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
             };
 
             if (assignType === 'me') {
-                taskData.user_id = userId;
+                taskData.assignee_id = userId;
             } else if (assignType === 'friend') {
-                taskData.user_id = assigneeId;
+                taskData.assignee_id = assigneeId || null;
             } else if (assignType === 'group') {
                 taskData.group_id = assigneeId;
-                if (specificAssigneeId) taskData.user_id = specificAssigneeId;
+                if (specificAssigneeId) taskData.assignee_id = specificAssigneeId;
             }
 
             await api.post('/tasks', taskData);
@@ -282,7 +282,7 @@ export default function CreateTaskModal({ userId, groupId: presetGroupId, onClos
                                     >
                                         <option value="" className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">Select a friend...</option>
                                         {friends.map(f => (
-                                            <option key={f.friend_id} value={f.friend_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">
+                                            <option key={f.friend_details?.user_id || f.id} value={f.friend_details?.user_id} className="bg-white dark:bg-[#1e293b] text-slate-900 dark:text-white">
                                                 {f.friend_details?.user_name || f.friend_details?.email || 'Unknown User'}
                                             </option>
                                         ))}

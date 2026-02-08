@@ -38,7 +38,7 @@ interface Task {
     status: string;
     priority: string;
     created_by: string;
-    user_id?: string;
+    assignee_id?: string;
     group_id?: string;
 }
 
@@ -589,7 +589,6 @@ export default function GroupDetailView({ groupId, userId, userRole, onBack, ini
                                     >
                                         <option value="all">All Status</option>
                                         <option value="todo">To Do</option>
-                                        <option value="in_progress">In Progress</option>
                                         <option value="in_review">In Review</option>
                                         <option value="done">Done</option>
                                     </select>
@@ -674,18 +673,17 @@ export default function GroupDetailView({ groupId, userId, userRole, onBack, ini
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1">
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
-                                                            task.status === 'in_progress' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' :
-                                                                task.status === 'in_review' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' :
-                                                                    'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400'
+                                                            task.status === 'in_review' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                                                                'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400'
                                                             }`}>
-                                                            {task.status.replace('_', ' ').toUpperCase()}
+                                                            {task.status === 'todo' ? 'TO DO' : task.status.replace('_', ' ').toUpperCase()}
                                                         </span>
                                                         <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                                             Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}
                                                         </span>
-                                                        {task.user_id && (
+                                                        {task.assignee_id && (
                                                             <span className="text-[10px] bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-300">
-                                                                👤 {members.find(m => m.user_id === task.user_id)?.user_name || 'Member'}
+                                                                👤 {members.find(m => m.user_id === task.assignee_id)?.user_name || 'Member'}
                                                             </span>
                                                         )}
                                                     </div>

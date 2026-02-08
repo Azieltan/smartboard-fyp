@@ -1,16 +1,34 @@
-
 'use client';
+import React from 'react';
 
 interface EventDetailModalProps {
     event: any;
     onClose: () => void;
+    onEdit?: () => void;
 }
 
-export default function EventDetailModal({ event, onClose }: EventDetailModalProps) {
+export default function EventDetailModal({ event, onClose, onEdit }: EventDetailModalProps) {
     if (!event) return null;
 
-    const startDate = new Date(event.start || event.start_time);
-    const endDate = new Date(event.end || event.end_time);
+    const startDate = new Date(event.start_time);
+    const endDate = new Date(event.end_time);
+
+    // Get current user ID to check ownership
+    const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                setCurrentUserId(user.user_id || user.id);
+            } catch (e) {
+                console.error('Failed to parse user', e);
+            }
+        }
+    }, []);
+
+    const isOwner = currentUserId && (event.user_id === currentUserId || event.created_by === currentUserId);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -77,10 +95,19 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
                     )}
                 </div>
 
-                <div className="p-6 pt-0">
+                <div className="p-4 border-t border-slate-200 dark:border-white/10 flex justify-between">
+                    {isOwner && onEdit ? (
+                        <button
+                            onClick={onEdit}
+                            className="px-4 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            Edit
+                        </button>
+                    ) : <div></div>}
                     <button
                         onClick={onClose}
-                        className="w-full py-3 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white font-bold rounded-xl transition-colors"
+                        className="px-4 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white rounded-xl font-medium transition-colors"
                     >
                         Close
                     </button>

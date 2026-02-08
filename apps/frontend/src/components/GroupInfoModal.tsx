@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import AddMemberModal from './AddMemberModal';
+import Image from 'next/image';
 
 interface GroupMember {
     user_id: string;
@@ -17,6 +18,7 @@ interface GroupInfo {
     join_code: string;
     created_at: string;
     requires_approval: boolean;
+    user_id: string; // owner
 }
 
 interface GroupInfoModalProps {
@@ -25,15 +27,28 @@ interface GroupInfoModalProps {
     onClose: () => void;
 }
 
+interface Attachment {
+    type: 'image' | 'file';
+    url: string;
+    name: string;
+    date: string;
+    sender: string;
+    messageId: string;
+}
+
 export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoModalProps) {
     const router = useRouter();
     const [group, setGroup] = useState<GroupInfo | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
     const [pendingMembers, setPendingMembers] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'info' | 'members'>('members');
+    const [activeTab, setActiveTab] = useState<'info' | 'members' | 'files'>('members');
     const [isLoading, setIsLoading] = useState(true);
     const [myRole, setMyRole] = useState<'owner' | 'admin' | 'member' | null>(null);
     const [showAddMember, setShowAddMember] = useState(false);
+
+    // File Tab State
+    const [files, setFiles] = useState<Attachment[]>([]);
+    const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
     // Edit States
     const [isEditing, setIsEditing] = useState(false);
@@ -44,6 +59,12 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
     useEffect(() => {
         fetchData();
     }, [groupId]);
+
+    useEffect(() => {
+        if (activeTab === 'files') {
+            fetchFiles();
+        }
+    }, [activeTab, groupId]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -81,6 +102,57 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
             console.error("Failed to fetch group info", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchFiles = async () => {
+        setIsLoadingFiles(true);
+        try {
+            // Re-using the chat messages endpoint to extract files
+            const messages = await api.get(`/chats/${groupId}/messages`);
+            const extractedFiles: Attachment[] = [];
+
+            if (Array.isArray(messages)) {
+                messages.forEach((msg: any) => {
+                    // Extract Images: ![Image](url)
+                    // Updated Regex to be more robust
+                    const imageMatch = msg.content.match(/!\[Image\]\((.*?)\)/);
+                    if (imageMatch) {
+                        extractedFiles.push({
+                            type: 'image',
+                            url: imageMatch[1],
+                            name: 'Image',
+                            date: msg.send_time,
+                            sender: msg.user_name || 'Unknown',
+                            messageId: msg.message_id
+                        });
+                        return; // Prioritize image if both (unlikely but safe)
+                    }
+
+                    // Extract Files: [filename](url)
+                    // Updated Regex to create fewer false positives (needs [text](url))
+                    const fileMatch = msg.content.match(/\[(.*?)\]\((.*?)\)/);
+                    if (fileMatch && !msg.content.startsWith('![')) { // Avoid matching image markdown as file
+                        // Simple check: if it's not an image markdown
+                        extractedFiles.push({
+                            type: 'file',
+                            url: fileMatch[2],
+                            name: fileMatch[1],
+                            date: msg.send_time,
+                            sender: msg.user_name || 'Unknown',
+                            messageId: msg.message_id
+                        });
+                    }
+                });
+            }
+            // Dedup by URL just in case
+            const uniqueFiles = Array.from(new Map(extractedFiles.map(item => [item.url, item])).values());
+
+            setFiles(uniqueFiles.reverse()); // Newest first
+        } catch (error) {
+            console.error("Failed to fetch files", error);
+        } finally {
+            setIsLoadingFiles(false);
         }
     };
 
@@ -132,13 +204,6 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
         }
     };
 
-    // const handleTransfer = async (targetId: string) => {
-    //    if (!confirm("Transfer ownership to this member? You will become an Admin. This cannot be undone.")) return;
-    //    // Implementation depends on backend support for ownership transfer
-    //    // Assuming similar endpoint or specific one
-    //    alert("Transfer ownership not yet implemented in backend demo");
-    // };
-
     const getRoleBadge = (role: string) => {
         switch (role) {
             case 'owner': return <span className="bg-amber-500/20 text-amber-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30">OWNER</span>;
@@ -173,6 +238,12 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                         className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                         Members ({members.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('files')}
+                        className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'files' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                        Files
                     </button>
                     <button
                         onClick={() => setActiveTab('info')}
@@ -437,6 +508,100 @@ export default function GroupInfoModal({ groupId, userId, onClose }: GroupInfoMo
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* FILES TAB */}
+                    {activeTab === 'files' && (
+                        <div>
+                            {isLoadingFiles ? (
+                                <div className="flex items-center justify-center h-40">
+                                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            ) : files.length === 0 ? (
+                                <div className="text-center py-12 text-slate-400">
+                                    <svg className="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <p>No files shared yet</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-8">
+                                    {/* Images Grid */}
+                                    {files.some(f => f.type === 'image') && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Images</h3>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {files.filter(f => f.type === 'image').map((file, i) => (
+                                                    <a
+                                                        key={`${file.messageId}-${i}`}
+                                                        href={file.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
+                                                    >
+                                                        <Image
+                                                            src={file.url}
+                                                            alt={file.name}
+                                                            fill
+                                                            className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <p className="font-bold truncate">{file.sender}</p>
+                                                            <p className="opacity-75">{new Date(file.date).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Files List */}
+                                    {files.some(f => f.type === 'file') && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 delay-100">
+                                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Documents</h3>
+                                            <div className="grid gap-2">
+                                                {files.filter(f => f.type === 'file').map((file, i) => (
+                                                    <a
+                                                        key={`${file.messageId}-${i}`}
+                                                        href={file.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-3 p-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-md transition-all group"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/30 transition-colors">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-sm font-medium text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                                {file.name}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                                                <span className="font-medium text-slate-600 dark:text-slate-400">{file.sender}</span>
+                                                                <span>•</span>
+                                                                <span>{new Date(file.date).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="p-2 text-slate-300 group-hover:text-blue-500 transition-colors">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                            </svg>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

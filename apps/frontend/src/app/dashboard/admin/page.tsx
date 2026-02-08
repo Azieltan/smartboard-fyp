@@ -89,11 +89,11 @@ export default function AdminPage() {
 
     // Prepare Chart Data
     const pieData = {
-        labels: ['Active (Todo/In Progress)', 'In Review', 'Completed'],
+        labels: ['Todo', 'In Review', 'Completed'],
         datasets: [
             {
                 data: [
-                    tasksForCharts.filter(t => ['todo', 'in_progress'].includes(t.status)).length,
+                    tasksForCharts.filter(t => t.status === 'todo').length,
                     tasksForCharts.filter(t => t.status === 'in_review').length,
                     tasksForCharts.filter(t => t.status === 'done').length
                 ],
@@ -439,10 +439,9 @@ function TaskList() {
                             <td className="p-4">
                                 <div className="flex gap-2">
                                     <span className={`px-2 py-0.5 rounded text-xs ${t.status === 'done' ? 'bg-green-100 text-green-700' :
-                                        t.status === 'in_review' ? 'bg-purple-100 text-purple-700' :
-                                            t.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                        t.status === 'in_review' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'
                                         }`}>
-                                        {t.status.replace('_', ' ')}
+                                        {t.status === 'todo' ? 'To Do' : t.status.replace('_', ' ')}
                                     </span>
                                     <span className={`px-2 py-0.5 rounded text-xs ${t.priority === 'high' ? 'bg-red-100 text-red-700' :
                                         t.priority === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
@@ -471,7 +470,7 @@ function TaskList() {
                         { name: 'title', label: 'Title', type: 'text' },
                         { name: 'description', label: 'Description', type: 'textarea' },
                         { name: 'priority', label: 'Priority', type: 'select', options: ['low', 'medium', 'high'] },
-                        { name: 'status', label: 'Status', type: 'select', options: ['todo', 'in_progress', 'in_review', 'done'] }
+                        { name: 'status', label: 'Status', type: 'select', options: ['todo', 'in_review', 'done'] }
                     ]}
                 />
             )}

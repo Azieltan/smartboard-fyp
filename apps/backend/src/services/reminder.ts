@@ -14,7 +14,7 @@ export class ReminderService {
       // Find tasks due within next 24 hours that haven't been reminded yet
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('task_id, title, due_date, user_id, reminder_sent')
+        .select('task_id, title, due_date, assignee_id, reminder_sent')
         .gte('due_date', now.toISOString())
         .lte('due_date', in24Hours.toISOString())
         .or('reminder_sent.is.null,reminder_sent.eq.false')
@@ -35,7 +35,7 @@ export class ReminderService {
           const hoursUntilDue = Math.round((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60));
 
           await NotificationService.createNotification(
-            task.user_id,
+            task.assignee_id,
             'task_reminder',
             {
               title: '⏰ Task Due Soon',

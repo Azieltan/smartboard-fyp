@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { api } from '../lib/api';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -23,29 +24,22 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/admin/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
+      console.log('[CreateUserModal] Submitting form data:', formData);
+      const data = await api.post('/admin/users', formData);
+
+      console.log('[CreateUserModal] User created successfully:', data);
+      toast.success(`User created! Password: ${data.password}`, {
+        duration: 10000, // Show for 10 seconds so admin can copy the password
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create user');
-      }
-
-      const data = await response.json();
-      toast.success(`User created! Password: ${data.password}`);
       onSuccess();
       onClose();
       // Reset form
       setFormData({ name: '', email: '', password: '', role: 'member' });
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('[CreateUserModal] Error creating user:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to create user';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

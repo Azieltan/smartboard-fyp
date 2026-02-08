@@ -1,6 +1,6 @@
 export interface Notification {
   id: string;
-  type: "friend_request" | "group_invite" | "chat_message" | "task_assigned" | "task_submission" | "task_review";
+  type: "friend_request" | "group_invite" | "chat_message" | "task_assigned" | "task_submission" | "task_review" | "join_request";
   title: string;
   message: string;
   sender_id?: string;

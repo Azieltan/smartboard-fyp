@@ -25,7 +25,11 @@ export default function TasksPage() {
         if (typeof window !== 'undefined') return localStorage.getItem('tasks_priority') as any || 'all';
         return 'all';
     });
-    const [sortBy, setSortBy] = useState<'dueDate_asc' | 'dueDate_desc'>(() => {
+    const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'in_review' | 'done'>(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('tasks_status_filter') as any || 'all';
+        return 'all';
+    });
+    const [sortBy, setSortBy] = useState<'dueDate_asc' | 'dueDate_desc' | 'status_asc' | 'status_desc'>(() => {
         if (typeof window !== 'undefined') return localStorage.getItem('tasks_sort') as any || 'dueDate_asc';
         return 'dueDate_asc';
     });
@@ -36,10 +40,16 @@ export default function TasksPage() {
     }, [priorityFilter]);
 
     useEffect(() => {
+        localStorage.setItem('tasks_status_filter', statusFilter);
+    }, [statusFilter]);
+
+    useEffect(() => {
         localStorage.setItem('tasks_sort', sortBy);
     }, [sortBy]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
+    const [showSortMenu, setShowSortMenu] = useState(false);
     const filterMenuRef = useRef<HTMLDivElement>(null);
+    const sortMenuRef = useRef<HTMLDivElement>(null);
 
     const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
@@ -69,7 +79,7 @@ export default function TasksPage() {
     const [stats, setStats] = useState({
         my_all: 0,
         my_todo: 0,
-        my_inprogress: 0,
+        my_in_review: 0,
         my_done: 0,
         assigned_all: 0,
         assigned_review: 0
@@ -87,6 +97,9 @@ export default function TasksPage() {
             if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
                 setShowFilterMenu(false);
             }
+            if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+                setShowSortMenu(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -96,7 +109,7 @@ export default function TasksPage() {
         if (!userId) return;
         filterTasks();
         updateStats();
-    }, [tasks, activeTab, userId, searchQuery, priorityFilter, sortBy]);
+    }, [tasks, activeTab, userId, searchQuery, priorityFilter, sortBy, statusFilter]);
 
     const fetchTasks = async (uid: string) => {
         try {
@@ -112,11 +125,11 @@ export default function TasksPage() {
     const updateStats = () => {
         if (!userId) return;
         setStats({
-            my_all: tasks.filter(t => t.user_id === userId).length,
-            my_todo: tasks.filter(t => t.user_id === userId && t.status === 'todo').length,
-            my_inprogress: tasks.filter(t => t.user_id === userId && t.status === 'in_progress').length,
-            my_done: tasks.filter(t => t.user_id === userId && t.status === 'done').length,
-            assigned_all: tasks.filter(t => t.created_by === userId && t.user_id !== userId).length,
+            my_all: tasks.filter(t => t.assignee_id === userId).length,
+            my_todo: tasks.filter(t => t.assignee_id === userId && t.status === 'todo').length,
+            my_in_review: tasks.filter(t => t.assignee_id === userId && t.status === 'in_review').length,
+            my_done: tasks.filter(t => t.assignee_id === userId && t.status === 'done').length,
+            assigned_all: tasks.filter(t => t.created_by === userId && t.assignee_id !== userId).length,
             assigned_review: tasks.filter(t => t.created_by === userId && t.status === 'in_review').length
         });
     }
@@ -127,19 +140,19 @@ export default function TasksPage() {
 
         switch (activeTab) {
             case 'my_all':
-                result = tasks.filter(t => t.user_id === userId);
+                result = tasks.filter(t => t.assignee_id === userId);
                 break;
             case 'my_todo':
-                result = tasks.filter(t => t.user_id === userId && t.status === 'todo');
+                result = tasks.filter(t => t.assignee_id === userId && t.status === 'todo');
                 break;
-            case 'my_inprogress':
-                result = tasks.filter(t => t.user_id === userId && t.status === 'in_progress');
+            case 'my_in_review':
+                result = tasks.filter(t => t.assignee_id === userId && t.status === 'in_review');
                 break;
             case 'my_done':
-                result = tasks.filter(t => t.user_id === userId && t.status === 'done');
+                result = tasks.filter(t => t.assignee_id === userId && t.status === 'done');
                 break;
             case 'assigned_all':
-                result = tasks.filter(t => t.created_by === userId && t.user_id !== userId);
+                result = tasks.filter(t => t.created_by === userId && t.assignee_id !== userId);
                 break;
             case 'assigned_review':
                 result = tasks.filter(t => t.created_by === userId && t.status === 'in_review');
@@ -160,8 +173,26 @@ export default function TasksPage() {
             result = result.filter(t => t.priority === priorityFilter);
         }
 
+        if (statusFilter !== 'all') {
+            result = result.filter(t => t.status === statusFilter);
+        }
+
         result.sort((a, b) => {
-            if (sortBy === 'dueDate_desc') {
+            if (sortBy === 'status_asc' || sortBy === 'status_desc') {
+                const statusWeight: Record<string, number> = {
+                    'todo': 1,
+                    'in_review': 2,
+                    'done': 3
+                };
+                const weightA = statusWeight[a.status] || 0;
+                const weightB = statusWeight[b.status] || 0;
+
+                if (sortBy === 'status_asc') {
+                    return weightA - weightB;
+                } else {
+                    return weightB - weightA;
+                }
+            } else if (sortBy === 'dueDate_desc') {
                 // Latest first (Newer dates first)
                 if (!a.due_date && b.due_date) return 1;
                 if (!b.due_date && a.due_date) return -1;
@@ -181,10 +212,11 @@ export default function TasksPage() {
 
     const handleTaskClick = async (task: any) => {
         setSelectedTask(task);
-        if (task.status === 'in_progress' && task.user_id === userId) {
-            setActiveModal('submission');
-        } else if (task.status === 'in_review' && task.created_by === userId) {
+        if (task.status === 'in_review' && task.created_by === userId) {
             setActiveModal('review');
+        } else if (task.status !== 'done' && task.status !== 'in_review' && task.assignee_id === userId && task.created_by !== userId) {
+            // Open submission modal directly for tasks that can be submitted (like Dashboard's PendingTasksWidget)
+            setActiveModal('submission');
         } else {
             setActiveModal('detail');
         }
@@ -205,6 +237,18 @@ export default function TasksPage() {
         } catch (error) {
             console.error('Failed to upload attachment', error);
             alert('Failed to upload file');
+        }
+    };
+
+    const handleMarkDone = async (task: any) => {
+        try {
+            await api.put(`/tasks/${task.task_id}`, { status: 'done' });
+            if (userId) fetchTasks(userId);
+            setActiveModal(null);
+            setSelectedTask(null);
+        } catch (error) {
+            console.error('Failed to mark task as done', error);
+            alert('Failed to mark task as done');
         }
     };
 
@@ -242,7 +286,10 @@ export default function TasksPage() {
                 <nav className="flex-1 px-4 space-y-6 overflow-y-auto pb-6">
                     {/* My Workspace Section */}
                     <div>
-                        <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">My Workspace</p>
+                        <p className="px-2 text-xs font-bold text-blue-400 dark:text-blue-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            My Workspace
+                        </p>
                         <ul className="space-y-1">
                             <li>
                                 <button
@@ -269,15 +316,15 @@ export default function TasksPage() {
                             </li>
                             <li>
                                 <button
-                                    onClick={() => setActiveTab('my_inprogress')}
-                                    className={`w-full flex justify-between items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${activeTab === 'my_inprogress' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                                    onClick={() => setActiveTab('my_in_review')}
+                                    className={`w-full flex justify-between items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${activeTab === 'my_in_review' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
                                         }`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                                        <span>In Progress</span>
+                                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                        <span>In Review</span>
                                     </div>
-                                    {stats.my_inprogress > 0 && <span className="text-xs text-slate-400">{stats.my_inprogress}</span>}
+                                    {stats.my_in_review > 0 && <span className="text-xs text-slate-400">{stats.my_in_review}</span>}
                                 </button>
                             </li>
                             <li>
@@ -298,7 +345,10 @@ export default function TasksPage() {
 
                     {/* Management Section */}
                     <div>
-                        <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Management</p>
+                        <p className="px-2 text-xs font-bold text-purple-400 dark:text-purple-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                            Management
+                        </p>
                         <ul className="space-y-1">
                             <li>
                                 <button
@@ -341,7 +391,7 @@ export default function TasksPage() {
             {/* Main Content Area - Table */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50/50 dark:bg-[#0f172a]/50">
                 {/* Header with Filters */}
-                <div className="px-8 py-6 border-b border-slate-200 dark:border-white/5 flex flex-col md:flex-row justify-between items-end gap-4 bg-white/50 dark:bg-[#1e293b]/50 backdrop-blur-sm sticky top-0 z-10">
+                <div className="px-8 py-6 border-b border-slate-200 dark:border-white/5 flex flex-col md:flex-row justify-between items-end gap-4 bg-white/50 dark:bg-[#1e293b]/50 backdrop-blur-sm sticky top-0 z-30">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
                             {activeTab.replace('my_', 'My ').replace('assigned_', 'Assigned ').replace('_', ' ')}
@@ -364,117 +414,212 @@ export default function TasksPage() {
                             <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                         </div>
 
-                        {/* Sort & Filter Dropdown */}
+                        {/* Filter Dropdown */}
                         <div className="relative" ref={filterMenuRef}>
                             <button
-                                onClick={() => setShowFilterMenu(!showFilterMenu)}
-                                className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium transition-all ${showFilterMenu || priorityFilter !== 'all' || sortBy !== 'dueDate_asc'
-                                    ? 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10'
+                                onClick={() => {
+                                    setShowFilterMenu(!showFilterMenu);
+                                    setShowSortMenu(false);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium transition-all ${showFilterMenu || priorityFilter !== 'all' || statusFilter !== 'all'
+                                    ? 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 shadow-sm'
                                     : 'text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'
                                     }`}
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                                <span>Sort</span>
-                                {(priorityFilter !== 'all' || sortBy !== 'dueDate_asc') && (
-                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                )}
+                                <div className="relative">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                    {(priorityFilter !== 'all' || statusFilter !== 'all') && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full border border-white dark:border-slate-900" />
+                                    )}
+                                </div>
+                                <span>Filter</span>
+                                <svg className={`w-4 h-4 transition-transform duration-200 ${showFilterMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </button>
 
-                            {/* Dropdown Menu */}
                             {showFilterMenu && (
                                 <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-slate-200 dark:border-white/10 z-50 p-4 transform origin-top-right animate-in fade-in zoom-in-95 duration-100">
                                     <div className="space-y-4">
-                                        {/* Sort Section */}
+                                        {/* Status Filter */}
                                         <div>
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Sort By Date</label>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Status</label>
+                                                {statusFilter !== 'all' && (
+                                                    <button onClick={() => setStatusFilter('all')} className="text-[10px] text-blue-500 hover:underline">Clear</button>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                {['all', 'todo', 'in_review', 'done'].map((status) => (
+                                                    <button
+                                                        key={status}
+                                                        onClick={() => {
+                                                            setStatusFilter(status as any);
+                                                            setShowFilterMenu(false);
+                                                        }}
+                                                        className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${statusFilter === status
+                                                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${statusFilter === status
+                                                                ? 'bg-white'
+                                                                : status === 'done' ? 'bg-emerald-500'
+                                                                    : status === 'in_review' ? 'bg-indigo-500'
+                                                                        : 'bg-slate-400'
+                                                                }`} />
+                                                            <span className="capitalize">{status === 'all' ? 'All Statuses' : status.replace('_', ' ')}</span>
+                                                        </div>
+                                                        {statusFilter === status && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-slate-100 dark:bg-white/5" />
+
+                                        {/* Priority Filter */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Priority</label>
+                                                {priorityFilter !== 'all' && (
+                                                    <button onClick={() => setPriorityFilter('all')} className="text-[10px] text-blue-500 hover:underline">Clear</button>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                {['all', 'high', 'medium', 'low'].map((prio) => (
+                                                    <button
+                                                        key={prio}
+                                                        onClick={() => {
+                                                            setPriorityFilter(prio as any);
+                                                            setShowFilterMenu(false);
+                                                        }}
+                                                        className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === prio
+                                                            ? (prio === 'high' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' :
+                                                                prio === 'medium' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' :
+                                                                    prio === 'low' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' :
+                                                                        'bg-blue-600 text-white shadow-md shadow-blue-500/20')
+                                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${priorityFilter === prio
+                                                                ? 'bg-white'
+                                                                : prio === 'high' ? 'bg-red-500'
+                                                                    : prio === 'medium' ? 'bg-amber-500'
+                                                                        : prio === 'low' ? 'bg-emerald-500'
+                                                                            : 'bg-slate-400'
+                                                                }`} />
+                                                            <span className="capitalize">{prio === 'all' ? 'All Priorities' : prio}</span>
+                                                        </div>
+                                                        {priorityFilter === prio && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sort Dropdown */}
+                        <div className="relative" ref={sortMenuRef}>
+                            <button
+                                onClick={() => {
+                                    setShowSortMenu(!showSortMenu);
+                                    setShowFilterMenu(false);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium transition-all ${showSortMenu || sortBy !== 'dueDate_asc'
+                                    ? 'text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'
+                                    }`}
+                            >
+                                <div className="relative">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+                                    {sortBy !== 'dueDate_asc' && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full border border-white dark:border-slate-900" />
+                                    )}
+                                </div>
+                                <span>Sort</span>
+                                <svg className={`w-4 h-4 transition-transform duration-200 ${showSortMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+
+                            {showSortMenu && (
+                                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl border border-slate-200 dark:border-white/10 z-50 p-4 transform origin-top-right animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">By Date</label>
                                             <div className="flex flex-col gap-1">
                                                 <button
-                                                    onClick={() => setSortBy('dueDate_asc')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${sortBy === 'dueDate_asc'
+                                                    onClick={() => {
+                                                        setSortBy('dueDate_asc');
+                                                        setShowSortMenu(false);
+                                                    }}
+                                                    className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm transition-all ${sortBy === 'dueDate_asc'
                                                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                                                         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <span>First to Latest</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                        <span>First to Latest</span>
+                                                    </div>
                                                     {sortBy === 'dueDate_asc' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                                 </button>
                                                 <button
-                                                    onClick={() => setSortBy('dueDate_desc')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${sortBy === 'dueDate_desc'
+                                                    onClick={() => {
+                                                        setSortBy('dueDate_desc');
+                                                        setShowSortMenu(false);
+                                                    }}
+                                                    className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm transition-all ${sortBy === 'dueDate_desc'
                                                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                                                         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <span>Latest to First</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                        <span>Latest to First</span>
+                                                    </div>
                                                     {sortBy === 'dueDate_desc' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="h-px bg-slate-100 dark:bg-white/5"></div>
+                                        <div className="h-px bg-slate-100 dark:bg-white/5" />
 
-                                        {/* Priority Filter */}
                                         <div>
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Priority</label>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">By Status</label>
                                             <div className="flex flex-col gap-1">
-                                                {/* All */}
                                                 <button
-                                                    onClick={() => setPriorityFilter('all')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'all'
-                                                        ? 'bg-slate-800 text-white shadow-md shadow-slate-500/20 dark:bg-white dark:text-slate-900'
+                                                    onClick={() => {
+                                                        setSortBy('status_asc');
+                                                        setShowSortMenu(false);
+                                                    }}
+                                                    className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm transition-all ${sortBy === 'status_asc'
+                                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                                                         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${priorityFilter === 'all' ? 'bg-white dark:bg-slate-900' : 'bg-slate-400'}`}></div>
-                                                        <span>All Priorities</span>
+                                                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                                        <span>To Do → Done</span>
                                                     </div>
-                                                    {priorityFilter === 'all' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                    {sortBy === 'status_asc' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                                 </button>
-
-                                                {/* High */}
                                                 <button
-                                                    onClick={() => setPriorityFilter('high')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'high'
-                                                        ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                                    onClick={() => {
+                                                        setSortBy('status_desc');
+                                                        setShowSortMenu(false);
+                                                    }}
+                                                    className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm transition-all ${sortBy === 'status_desc'
+                                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                                                         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${priorityFilter === 'high' ? 'bg-white' : 'bg-red-500'}`}></div>
-                                                        <span>High</span>
+                                                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                                        <span>Done → To Do</span>
                                                     </div>
-                                                    {priorityFilter === 'high' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                                </button>
-
-                                                {/* Medium */}
-                                                <button
-                                                    onClick={() => setPriorityFilter('medium')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'medium'
-                                                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${priorityFilter === 'medium' ? 'bg-white' : 'bg-amber-500'}`}></div>
-                                                        <span>Medium</span>
-                                                    </div>
-                                                    {priorityFilter === 'medium' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                                </button>
-
-                                                {/* Low */}
-                                                <button
-                                                    onClick={() => setPriorityFilter('low')}
-                                                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-all ${priorityFilter === 'low'
-                                                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${priorityFilter === 'low' ? 'bg-white' : 'bg-emerald-500'}`}></div>
-                                                        <span>Low</span>
-                                                    </div>
-                                                    {priorityFilter === 'low' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                                    {sortBy === 'status_desc' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                                 </button>
                                             </div>
                                         </div>
@@ -494,7 +639,7 @@ export default function TasksPage() {
                             </div>
                             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No tasks found</h3>
                             <p className="max-w-xs text-center mt-2 opacity-80">
-                                {searchQuery || priorityFilter !== 'all'
+                                {searchQuery || priorityFilter !== 'all' || statusFilter !== 'all'
                                     ? "Try adjusting your search or filters to find what you're looking for."
                                     : "There are no tasks in this view. Create a new task to get started."}
                             </p>
@@ -503,10 +648,10 @@ export default function TasksPage() {
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-50 dark:bg-white/5 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md">
                                 <tr>
-                                    <th className="px-6 py-4 w-12">Pri</th>
+                                    <th className="px-6 py-4 w-12">Prio</th>
                                     <th className="px-6 py-4 w-1/3">Task Name</th>
                                     <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Assignee</th>
+                                    <th className="px-6 py-4">Assigned To</th>
                                     <th className="px-6 py-4">Assigned By</th>
                                     <th className="px-6 py-4 text-right">Due Date</th>
                                 </tr>
@@ -557,23 +702,22 @@ export default function TasksPage() {
                                             {/* Status */}
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${task.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                                                    task.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                                                        task.status === 'in_review' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
-                                                            'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
+                                                    task.status === 'in_review' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' :
+                                                        'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-white/10'
                                                     }`}>
-                                                    {task.status.replace('_', ' ')}
+                                                    {task.status === 'todo' ? 'To Do' : task.status.replace('_', ' ')}
                                                 </span>
                                             </td>
 
                                             {/* Assignee */}
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-[#1e293b] ${task.user_id === userId ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-[#1e293b] ${task.assignee_id === userId ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                                         }`}>
-                                                        {task.user_id === userId ? 'Me' : getInitials(task.assignee?.user_name)}
+                                                        {task.assignee_id === userId ? 'Me' : getInitials(task.assignee?.user_name)}
                                                     </div>
                                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                        {task.user_id === userId ? 'Me' : (task.assignee?.user_name || 'Unassigned')}
+                                                        {task.assignee_id === userId ? 'Me' : (task.assignee?.user_name || 'Unassigned')}
                                                     </span>
                                                 </div>
                                             </td>
@@ -761,13 +905,13 @@ export default function TasksPage() {
 
                         {/* Action Bar based on Status */}
                         <div className="flex gap-3 mb-6">
-
-                            {(selectedTask.status === 'in_progress' && selectedTask.user_id === userId) && (
+                            {/* Mark as Done - Only for self-assigned tasks (creator === assignee) */}
+                            {(selectedTask.status !== 'done' && selectedTask.status !== 'in_review' && selectedTask.assignee_id === userId && selectedTask.created_by === userId) && (
                                 <button
-                                    onClick={() => { setActiveModal(null); setActiveModal('submission'); }}
+                                    onClick={() => handleMarkDone(selectedTask)}
                                     className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
                                 >
-                                    Submit Work
+                                    Mark as Done
                                 </button>
                             )}
                         </div>
@@ -776,9 +920,9 @@ export default function TasksPage() {
                             <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
                                 <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Status</p>
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${selectedTask.status === 'done' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                                    selectedTask.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400' :
+                                    selectedTask.status === 'in_review' ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400' :
                                         'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
-                                    {selectedTask.status.replace('_', ' ')}
+                                    {selectedTask.status === 'todo' ? 'To Do' : selectedTask.status.replace('_', ' ')}
                                 </span>
                             </div>
                             <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">

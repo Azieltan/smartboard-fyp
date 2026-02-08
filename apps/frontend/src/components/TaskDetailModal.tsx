@@ -17,20 +17,38 @@ interface TaskDetailModalProps {
   onClose: () => void;
   onUpdate: () => void;
   onEdit?: () => void;
+  currentUserId?: string | null;
 }
 
-export default function TaskDetailModal({ task, onClose, onUpdate, onEdit }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, onUpdate, onEdit, currentUserId: propUserId }: TaskDetailModalProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (task) {
       fetchTaskDetails();
     }
-  }, [task]);
+
+    // If prop is provided, use it. Otherwise try local storage.
+    if (propUserId) {
+      setCurrentUserId(propUserId);
+    } else {
+      // Get current user from local storage
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setCurrentUserId(user.id || user.user_id); // Handle both potential formats
+        }
+      } catch (e) {
+        console.error("Failed to parse user", e);
+      }
+    }
+  }, [task, propUserId]);
 
   const fetchTaskDetails = async () => {
     try {
@@ -105,7 +123,59 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onEdit }: Tas
     }
   };
 
+  const handleMarkDone = async () => {
+    try {
+      await api.put(`/tasks/${task.task_id}`, { status: 'done' });
+      onUpdate();
+      onClose();
+    } catch (e) {
+      alert('Failed to mark task as done');
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      // For now, submit just marks it as in_review or done depending on workflow.
+      // Since backend has a specific /submit endpoint, let's use it.
+      // Passing empty content for now as we don't have a submission form in this modal yet, or we can just update status.
+      // Simpler approach for "Submit" button:
+      await api.post(`/tasks/${task.task_id}/submit`, {
+        userId: currentUserId,
+        content: "Task submitted via details modal",
+        attachments: []
+      });
+      alert('Task submitted due for review!');
+      onUpdate();
+      onClose();
+    } catch (e) {
+      // Fallback if submit endpoint is strictly for file submissions
+      try {
+        await api.put(`/tasks/${task.task_id}`, { status: 'in_review' });
+        onUpdate();
+        onClose();
+      } catch (err) {
+        alert('Failed to submit task');
+      }
+    }
+  };
+
   if (!task) return null;
+
+  const isCreator = currentUserId === task.created_by;
+  const isAssignee = currentUserId === task.assignee_id; // tasks table has assignee_id for assignee
+
+  // Logic Refinement:
+  // - Mark as done ONLY if self-assigned (created_by == assignee_id) AND currentUser is the assignee (implied by isAssignee check if task.assignee_id == currentUserId).
+  const isSelfAssigned = task.created_by === task.assignee_id;
+  const canEdit = isCreator; // Only creator can edit payload
+
+  // Button Visibility Logic:
+  // 1. Mark as Done: Only if self-assigned, current user is the owner/assignee, and NOT already done or in review.
+  const canMarkDone = task.status !== 'done' && task.status !== 'in_review' && isAssignee && isSelfAssigned;
+
+  // 2. Submit for Review: Only if assigned to someone else (NOT self-assigned), current user is the assignee, and NOT already done or in review.
+  const canSubmit = task.status !== 'done' && task.status !== 'in_review' && isAssignee && !isSelfAssigned;
+
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -128,7 +198,7 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onEdit }: Tas
           </div>
 
           <div className="flex items-center gap-2">
-            {onEdit && (
+            {onEdit && canEdit && (
               <button
                 onClick={onEdit}
                 className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-lg transition-colors"
@@ -239,23 +309,63 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onEdit }: Tas
             </div>
 
             <form onSubmit={addSubtask} className="flex gap-2">
-              <input
-                type="text"
-                value={newSubtask}
-                onChange={(e) => setNewSubtask(e.target.value)}
-                placeholder="Add a subtask..."
-                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="submit"
-                disabled={!newSubtask.trim()}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold disabled:opacity-50"
-              >
-                Add
-              </button>
+              {task.status === 'in_review' ? (
+                <div className="flex-1 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg text-sm text-amber-800 dark:text-amber-200 italic text-center">
+                  Task is currently in review. Subtasks cannot be added.
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={newSubtask}
+                    onChange={(e) => setNewSubtask(e.target.value)}
+                    placeholder="Add a subtask..."
+                    className="flex-1 px-3 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newSubtask.trim()}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </>
+              )}
             </form>
           </div>
         </div>
+
+        {/* Footer Actions */}
+        {(canMarkDone || canSubmit || (task.status === 'in_review' && isAssignee)) && (
+          <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex gap-3 justify-end items-center">
+            {task.status === 'in_review' && isAssignee && (
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400 mr-auto flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Waiting for review...
+              </span>
+            )}
+
+            {canMarkDone && (
+              <button
+                onClick={handleMarkDone}
+                className="px-4 py-2 bg-emerald-500 text-white text-sm font-bold rounded-xl hover:bg-emerald-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Mark as Done
+              </button>
+            )}
+
+            {canSubmit && (
+              <button
+                onClick={handleSubmit}
+                className="px-4 py-2 bg-indigo-500 text-white text-sm font-bold rounded-xl hover:bg-indigo-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Submit for Review
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

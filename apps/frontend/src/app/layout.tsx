@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 };
 
 import { SmartyBubble } from "@/components/SmartyBubble";
-
 import { ThemeProvider } from '../context/ThemeContext';
+import { Toaster } from 'sonner';
 
 export default function RootLayout({
   children,
@@ -34,6 +34,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <SmartyBubble />
+          <Toaster position="top-right" richColors theme="dark" />
         </ThemeProvider>
       </body>
     </html>

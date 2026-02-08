@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import CreateEventModal from './CreateEventModal';
 import EventDetailModal from './EventDetailModal';
+import EditEventModal from './EditEventModal';
 import TaskDetailModal from './TaskDetailModal';
 import EditTaskModal from './EditTaskModal';
 
@@ -17,7 +18,7 @@ interface CalendarItem {
   isShared?: boolean;
   group_id?: string;
   owner_id?: string;
-  user_id?: string;
+  assignee_id?: string;
   created_by?: string;
   [key: string]: any;
 }
@@ -29,6 +30,13 @@ interface WeeklyCalendarWidgetProps {
 export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetProps) {
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,6 +44,7 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
+  const [isEditingEvent, setIsEditingEvent] = useState(false); // Added isEditingEvent state
 
   useEffect(() => {
     if (userId) fetchItems();
@@ -71,10 +80,36 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
     }
   };
 
-  // Generate next 7 days
-  const days = Array.from({ length: 7 }, (_, i) => {
+  const handleToday = () => {
     const d = new Date();
-    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    const sunday = new Date(new Date().setDate(diff));
+    sunday.setHours(0, 0, 0, 0);
+
+    setCurrentWeekStart(sunday);
+    setSelectedDate(new Date());
+  };
+
+  const goToPreviousWeek = () => {
+    const newStart = new Date(currentWeekStart);
+    newStart.setDate(newStart.getDate() - 7);
+    setCurrentWeekStart(newStart);
+    setSelectedDate(newStart);
+  };
+
+  const goToNextWeek = () => {
+    const newStart = new Date(currentWeekStart);
+    newStart.setDate(newStart.getDate() + 7);
+    setCurrentWeekStart(newStart);
+    setSelectedDate(newStart);
+  };
+
+  // Generate 7 days (Sunday to Saturday)
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(currentWeekStart);
+    d.setDate(currentWeekStart.getDate() + i);
     return d;
   });
 
@@ -91,17 +126,48 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
 
   return (
     <div className="bg-[#1e293b] border border-white/10 rounded-2xl p-6 shadow-xl w-full">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </span>
+              Weekly Schedule
+            </h3>
+            <p className="text-slate-400 text-sm ml-9">
+              {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+
+          <div className="flex items-center bg-white/5 rounded-lg p-1 ml-2">
+            <button
+              onClick={goToPreviousWeek}
+              className="p-1.5 hover:bg-white/10 rounded-md text-slate-400 hover:text-white transition-colors"
+              title="Previous Week"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-            </span>
-            Weekly Schedule
-          </h3>
-          <p className="text-slate-400 text-sm ml-9">Select a day to view details</p>
+            </button>
+            <button
+              onClick={handleToday}
+              className="px-2 py-1 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 rounded-md transition-all"
+            >
+              Today
+            </button>
+            <button
+              onClick={goToNextWeek}
+              className="p-1.5 hover:bg-white/10 rounded-md text-slate-400 hover:text-white transition-colors"
+              title="Next Week"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -207,10 +273,27 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
         />
       )}
 
-      {selectedEvent && (
+      {selectedEvent && !isEditingEvent && (
         <EventDetailModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onEdit={() => setIsEditingEvent(true)}
+        />
+      )}
+
+      {selectedEvent && isEditingEvent && (
+        <EditEventModal
+          event={selectedEvent}
+          onClose={() => setIsEditingEvent(false)}
+          onEventUpdated={(updatedEvent) => {
+            setIsEditingEvent(false);
+            if (updatedEvent === null) {
+              setSelectedEvent(null);
+            } else if (updatedEvent) {
+              setSelectedEvent(updatedEvent);
+            }
+            fetchItems();
+          }}
         />
       )}
 
@@ -219,7 +302,7 @@ export default function WeeklyCalendarWidget({ userId }: WeeklyCalendarWidgetPro
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdate={() => fetchItems()}
-          onEdit={selectedTask.created_by === userId || selectedTask.user_id === userId ? () => setIsEditingTask(true) : undefined}
+          onEdit={selectedTask.created_by === userId || selectedTask.assignee_id === userId ? () => setIsEditingTask(true) : undefined}
         />
       )}
 

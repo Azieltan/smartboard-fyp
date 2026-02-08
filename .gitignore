@@ -33,3 +33,10 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Project specific ignores
+*.log
+changed_files.txt
+skills_list.txt
+git-status.txt
+debug_assignment.ts

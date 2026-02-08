@@ -23,7 +23,7 @@
         "promptType": "define",
         "text": "={{ $json.body.rawText }}",
         "options": {
-          "systemMessage": "You are Smarty, a task automation assistant for SmartBoard. Analyze the user's request and perform the appropriate action.\n\nCURRENT CONTEXT:\n- Today: {{ $now.format('yyyy-MM-dd') }}\n- Current time: {{ $now.format('HH:mm') }}\n- User ID: {{ $json.body.user_id }}\n- Timezone: {{ $json.body.timezone || 'Asia/Kuala_Lumpur' }} (+08:00)\n\nDATE RESOLUTION (use these ACTUAL dates):\n- 'today' = {{ $now.format('yyyy-MM-dd') }}\n- 'tomorrow' = {{ $now.plus(1, 'day').format('yyyy-MM-dd') }}\n- 'next week' = {{ $now.plus(7, 'day').format('yyyy-MM-dd') }}\n\nYou can perform these actions:\n1. CREATE CALENDAR EVENT - for meetings, appointments, scheduled events\n2. CREATE TASK - for todos, tasks, assignments\n3. CREATE REMINDER - for reminders at specific times\n4. LIST TASKS - show user's current tasks\n5. MARK TASK DONE - complete a task by name\n\nRULES:\n- Always use the user_id from context: {{ $json.body.user_id }}\n- Convert relative dates (tomorrow, next week) to actual ISO-8601 timestamps with +08:00 timezone\n- For events without end_time, set end_time to 1 hour after start_time\n- For tasks without priority, default to 'medium'\n- After performing an action, respond with a confirmation message"
+          "systemMessage": "You are Smarty, a task automation assistant for SmartBoard. Analyze the user's request and perform the appropriate action.\n\nCURRENT CONTEXT:\n- Today: {{ $now.format('yyyy-MM-dd') }}\n- Current time: {{ $now.format('HH:mm') }}\n- User ID: {{ $json.body.user_id }}\n- Timezone: {{ $json.body.timezone || 'Asia/Kuala_Lumpur' }} (+08:00)\n\nDATE RESOLUTION (use these ACTUAL dates):\n- 'today' = {{ $now.format('yyyy-MM-dd') }}\n- 'tomorrow' = {{ $now.plus(1, 'day').format('yyyy-MM-dd') }}\n- 'next week' = {{ $now.plus(7, 'day').format('yyyy-MM-dd') }}\n\nYou can perform these actions:\n1. CREATE CALENDAR EVENT - for meetings, appointments, scheduled events\n2. CREATE TASK - for todos, tasks, assignments\n3. CREATE REMINDER - for reminders at specific times\n4. LIST TASKS - show user's current tasks\n5. LIST EVENTS - show user's upcoming calendar events\n6. MARK TASK DONE - complete a task by name\n\nRULES:\n- Always use the user_id from context: {{ $json.body.user_id }}\n- Convert relative dates (tomorrow, next week) to actual ISO-8601 timestamps with +08:00 timezone\n- For events without end_time, set end_time to 1 hour after start_time\n- For tasks without priority, default to 'medium'\n- After performing an action, respond with a confirmation message"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -266,7 +266,40 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format response with action-specific messages\nconst agentOutput = $input.first().json;\nconst output = agentOutput.output || '';\nconst toolCalls = agentOutput.intermediateSteps || [];\n\nlet actionType = 'general';\nlet summary = output;\nlet details = {};\n\n// Parse tool calls to determine action type and build better messages\nif (toolCalls.length > 0) {\n  const lastStep = toolCalls[toolCalls.length - 1];\n  const toolName = lastStep.action?.tool || lastStep.action || '';\n  const observation = lastStep.observation;\n  \n  // Try to parse observation as JSON\n  try {\n    if (typeof observation === 'string') {\n      details = JSON.parse(observation);\n    } else {\n      details = observation || {};\n    }\n  } catch (e) {\n    details = { raw: observation };\n  }\n  \n  // Generate action-specific summary\n  switch(toolName) {\n    case 'create_calendar_event':\n      actionType = 'calendar_event_created';\n      if (details.title) {\n        const startDate = details.start_time ? new Date(details.start_time).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }) : '';\n        summary = `✅ Created event \"${details.title}\"${startDate ? ` scheduled for ${startDate}` : ''}`;\n      }\n      break;\n      \n    case 'create_task':\n      actionType = 'task_created';\n      if (details.title) {\n        const dueInfo = details.due_date ? ` (due ${new Date(details.due_date).toLocaleDateString()})` : '';\n        const priorityInfo = details.priority ? ` [${details.priority} priority]` : '';\n        summary = `✅ Created task \"${details.title}\"${dueInfo}${priorityInfo}`;\n      }\n      break;\n      \n    case 'create_reminder':\n      actionType = 'reminder_created';\n      if (details.remind_time) {\n        const remindDate = new Date(details.remind_time).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });\n        summary = `⏰ Reminder set for ${remindDate}`;\n      }\n      break;\n      \n    case 'list_my_tasks':\n      actionType = 'tasks_listed';\n      const tasks = Array.isArray(details) ? details : (details.data || []);\n      if (tasks.length > 0) {\n        const taskList = tasks.slice(0, 10).map(t => `• ${t.title} (${t.status})`).join('\\n');\n        summary = `📋 You have ${tasks.length} task(s):\\n${taskList}`;\n        if (tasks.length > 10) summary += `\\n... and ${tasks.length - 10} more`;\n      } else {\n        summary = '📋 You have no tasks yet. Create one with \"Create task [name]\"';\n      }\n      details = { count: tasks.length, tasks: tasks.slice(0, 10) };\n      break;\n      \n    case 'mark_task_done':\n      actionType = 'task_completed';\n      if (details.title) {\n        summary = `✅ Marked \"${details.title}\" as done! Great job! 🎉`;\n      } else {\n        summary = output || '✅ Task marked as done!';\n      }\n      break;\n      \n    default:\n      summary = output || 'Action completed successfully.';\n  }\n}\n\nreturn [{\n  json: {\n    success: true,\n    executed: true,\n    action_type: actionType,\n    summary: summary,\n    details: details,\n    tool_calls_count: toolCalls.length,\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "name": "list_calendar_events",
+        "description": "List all calendar events for the current user. Use when user asks to see, show, or list their schedule or events.",
+        "operation": "getMany",
+        "tableId": "calendar_events",
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook Trigger').item.json.body.user_id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolSupabase",
+      "typeVersion": 1,
+      "position": [
+        200,
+        220
+      ],
+      "id": "tool-list-events",
+      "name": "List My Events",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response with action-specific messages\nconst agentOutput = $input.first().json;\nconst output = agentOutput.output || '';\nconst toolCalls = agentOutput.intermediateSteps || [];\n\nlet actionType = 'general';\nlet summary = output;\nlet details = {};\n\n// Parse tool calls to determine action type and build better messages\nif (toolCalls.length > 0) {\n  const lastStep = toolCalls[toolCalls.length - 1];\n  const toolName = lastStep.action?.tool || lastStep.action || '';\n  const observation = lastStep.observation;\n  \n  // Try to parse observation as JSON\n  try {\n    if (typeof observation === 'string') {\n      details = JSON.parse(observation);\n    } else {\n      details = observation || {};\n    }\n  } catch (e) {\n    details = { raw: observation };\n  }\n  \n  // Generate action-specific summary\n  switch(toolName) {\n    case 'create_calendar_event':\n      actionType = 'calendar_event_created';\n      if (details.title) {\n        const startDate = details.start_time ? new Date(details.start_time).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }) : '';\n        summary = `✅ Created event \"${details.title}\"${startDate ? ` scheduled for ${startDate}` : ''}`;\n      }\n      break;\n      \n    case 'create_task':\n      actionType = 'task_created';\n      if (details.title) {\n        const dueInfo = details.due_date ? ` (due ${new Date(details.due_date).toLocaleDateString()})` : '';\n        const priorityInfo = details.priority ? ` [${details.priority} priority]` : '';\n        summary = `✅ Created task \"${details.title}\"${dueInfo}${priorityInfo}`;\n      }\n      break;\n      \n    case 'create_reminder':\n      actionType = 'reminder_created';\n      if (details.remind_time) {\n        const remindDate = new Date(details.remind_time).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });\n        summary = `⏰ Reminder set for ${remindDate}`;\n      }\n      break;\n      \n    case 'list_my_tasks':\n      actionType = 'tasks_listed';\n      const tasks = Array.isArray(details) ? details : (details.data || []);\n      if (tasks.length > 0) {\n        const taskList = tasks.slice(0, 10).map(t => `• ${t.title} (${t.status})`).join('\\n');\n        summary = `📋 You have ${tasks.length} task(s):\\n${taskList}`;\n        if (tasks.length > 10) summary += `\\n... and ${tasks.length - 10} more`;\n      } else {\n        summary = '📋 You have no tasks yet. Create one with \"Create task [name]\"';\n      }\n      details = { count: tasks.length, tasks: tasks.slice(0, 10) };\n      break;\n\n    case 'list_calendar_events':\n      actionType = 'events_listed';\n      const events = Array.isArray(details) ? details : (details.data || []);\n      if (events.length > 0) {\n        const eventList = events.slice(0, 5).map(e => `• ${e.title} (${new Date(e.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})`).join('\\n');\n        summary = `📅 You have ${events.length} upcoming event(s):\\n${eventList}`;\n        if (events.length > 5) summary += `\\n... and ${events.length - 5} more`;\n      } else {\n        summary = '📅 You have no upcoming events. Create one with \"Create event [title]\"';\n      }\n      details = { count: events.length, events: events.slice(0, 5) };\n      break;\n      \n    case 'mark_task_done':\n      actionType = 'task_completed';\n      if (details.title) {\n        summary = `✅ Marked \"${details.title}\" as done! Great job! 🎉`;\n      } else {\n        summary = output || '✅ Task marked as done!';\n      }\n      break;\n      \n    default:\n      summary = output || 'Action completed successfully.';\n  }\n}\n\nreturn [{\n  json: {\n    success: true,\n    executed: true,\n    action_type: actionType,\n    summary: summary,\n    details: details,\n    tool_calls_count: toolCalls.length,\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "format-response-v5",
       "name": "Format Response",
@@ -374,6 +407,17 @@
       ]
     },
     "Mark Task Done": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List My Events": {
       "ai_tool": [
         [
           {

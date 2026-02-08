@@ -2,9 +2,34 @@
 
 ---
 
-<<<<<<< HEAD
-## Previous Updates (Earlier Sessions)
-=======
+## Latest Updates (Session 22: Task Details Enhancement)
+**Date**: 2026-02-08
+
+### Task Page & Dashboard Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Submit for Review** | ✅ Done | Added "Submit for Review" button to `TaskDetailModal` for assigned tasks. |
+| **Mark as Done** | ✅ Done | Added "Mark as Done" button to `TaskDetailModal` for self-assigned or creator tasks. |
+| **Task Detail Modal** | ✅ Enhanced | Improved layout and added action buttons for better task management. |
+| **PendingTasksWidget** | ✅ Enhanced | Added description previews, status badges, and role-based action buttons. |
+
+### Calendar UI Fixes
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Overflow Fix** | ✅ Done | Ensured calendar elements stay within bounds. |
+| **UI Cleanup** | ✅ Done | Removed extraneous text and unnecessary state variables. |
+
+### Admin Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **User Creation** | ✅ Done | Integrated "+ New User" with Supabase Auth and User Profile creation. |
+
+### Files Modified
+- `apps/frontend/src/components/TaskDetailModal.tsx`
+- `apps/frontend/src/components/PendingTasksWidget.tsx`
+- `apps/frontend/src/app/dashboard/admin/page.tsx`
+- `apps/frontend/src/components/UpcomingEventsWidget.tsx`
+- `apps/frontend/src/components/WeeklyCalendarWidget.tsx`
 
 ## Latest Updates (2026-01-18)
 
@@ -68,7 +93,6 @@
 | **Role Security** | ✅ Enhanced | Admin routes strictly protected by Middleware. Sidebar link visible only to 'admin' role. |
 
 ## Previous Updates (2026-01-08)
->>>>>>> login-with-google
 
 ### Fixes & Enhancements
 | Feature | Status | Details |
@@ -372,3 +396,49 @@ User → SmartyBubble → Backend /automate → n8n (DeepSeek AI) → Backend (e
 - **Main Branch**: Fully synchronized.
 - **n8n Workflows**: Versions v3, v4, and v5 now tracked in repository.
 
+
+## Session 21: Notification System & Smarty AI Verification
+**Date**: 2026-02-08
+
+### Smarty AI Features
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Smarty Bubble** | ✅ Verified | Draggable, Auto-hide, Chat & Automation modes fully implemented in `SmartyBubble.tsx`. |
+| **Automation Backend** | ✅ Verified | `AutomationService.ts` handles intent parsing via n8n and executes actions locally. |
+| **Database Schema** | ✅ Updated | Added `automation_requests` table to `schema.sql` and created in live DB. |
+
+### Notification System
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Notifications** | ✅ Verified | `NotificationService` backend and `NotificationManager` frontend component verified. |
+| **Integration** | ✅ Verified | Friend Requests and Group actions trigger notifications. |
+| **UI** | ✅ Verified | Pop-out notifications with auto-dismissal implemented in `NotificationPopup.tsx`. |
+
+### UI Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Chat Background** | ✅ Verified | Fixed via CSS radial gradient in `globals.css`. |
+| **Online Status** | ✅ Removed | Cleaned up Chat UI by removing user online state indicators. |
+
+---
+
+## Session 22: Task Details Enhancement
+**Date**: 2026-02-08
+
+### PendingTasksWidget Enhancements
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Z-Index Fix** | ✅ Done | Sort dropdown now has `z-50` wrapper to prevent UI overlap |
+| **Status Sorting** | ✅ Done | Added "Status" sort option (todo → in_progress → in_review → done) |
+| **Enhanced Task Cards** | ✅ Done | Added description preview (2-line truncation) and status badges |
+| **Role-Based Buttons** | ✅ Done | Edit/Mark Done for creators, Submit for Review for assignees |
+| **TaskSubmissionModal** | ✅ Integrated | Opens from widget for task submission flow |
+
+### Files Modified
+- `apps/frontend/src/components/PendingTasksWidget.tsx` - Complete UI and logic rewrite
+
+### Build Status
+- ✅ TypeScript: `npx tsc --noEmit` - PASSED
+- ⚠️ Full Build: Failed due to pre-existing groups page issue (unrelated)
+
+---

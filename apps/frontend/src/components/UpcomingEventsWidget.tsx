@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import CreateEventModal from './CreateEventModal';
 import EventDetailModal from './EventDetailModal';
+import EditEventModal from './EditEventModal';
 
 interface CalendarEvent {
   event_id: string;
@@ -23,6 +24,7 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [isEditingEvent, setIsEditingEvent] = useState(false); // Added isEditingEvent state
 
   const fetchEvents = async () => {
     if (!userId) {
@@ -97,25 +99,12 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
           </div>
           <h2 className="text-lg font-bold text-white">Upcoming Events</h2>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-          title="Add Event"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-        </button>
       </div>
 
       {events.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
           <p className="text-4xl mb-2 opacity-30">📭</p>
           <p className="text-sm">No upcoming events</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium"
-          >
-            Create one?
-          </button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -166,10 +155,27 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
         />
       )}
 
-      {selectedEvent && (
+      {selectedEvent && !isEditingEvent && (
         <EventDetailModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onEdit={() => setIsEditingEvent(true)} // Added onEdit prop to EventDetailModal
+        />
+      )}
+
+      {selectedEvent && isEditingEvent && ( // Conditionally render EditEventModal
+        <EditEventModal
+          event={selectedEvent}
+          onClose={() => setIsEditingEvent(false)}
+          onEventUpdated={(updatedEvent) => {
+            setIsEditingEvent(false);
+            if (updatedEvent === null) {
+              setSelectedEvent(null); // Event deleted
+            } else if (updatedEvent) {
+              setSelectedEvent(updatedEvent); // Event updated
+            }
+            fetchEvents();
+          }}
         />
       )}
     </div>

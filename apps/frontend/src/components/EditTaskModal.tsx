@@ -43,14 +43,14 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
     // but initially we just show current assignee.
     // If identifying assignee type is hard, we default to "friend" or "group" based on if group_id exists.
     const [assignType, setAssignType] = useState<'me' | 'friend' | 'group'>(
-        task.user_id === userId ? 'me' : (task.group_id ? 'group' : 'friend')
+        task.assignee_id === userId ? 'me' : (task.group_id ? 'group' : 'friend')
     );
     const [assigneeId, setAssigneeId] = useState(
-        task.user_id === userId ? '' : (task.group_id || task.user_id)
-    ); // If group, assigneeId is group_id. If friend, it's user_id.
+        task.assignee_id === userId ? '' : (task.group_id || task.assignee_id)
+    ); // If group, assigneeId is group_id. If friend, it's assignee_id.
 
     const [specificAssigneeId, setSpecificAssigneeId] = useState(
-        (task.group_id && task.user_id && task.user_id !== userId) ? task.user_id : ''
+        (task.group_id && task.assignee_id && task.assignee_id !== userId) ? task.assignee_id : ''
     );
 
     const [friends, setFriends] = useState<any[]>([]);
@@ -131,14 +131,14 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
 
             // Handle Assignment Changes
             if (assignType === 'me') {
-                updates.user_id = userId;
+                updates.assignee_id = userId;
                 updates.group_id = null; // Clear group if moving to self
             } else if (assignType === 'friend') {
-                updates.user_id = assigneeId;
+                updates.assignee_id = assigneeId || null;
                 updates.group_id = null;
             } else if (assignType === 'group') {
                 updates.group_id = assigneeId;
-                updates.user_id = specificAssigneeId || null; // Null means "up for grabs" in group
+                updates.assignee_id = specificAssigneeId || null; // Null means "up for grabs" in group
             }
 
             const updatedTask = await api.put(`/tasks/${task.task_id}`, updates);
@@ -328,7 +328,7 @@ export default function EditTaskModal({ task, userId, onClose, onTaskUpdated }: 
                             >
                                 <option value="">Select friend...</option>
                                 {friends.map(f => (
-                                    <option key={f.friend_id} value={f.friend_id}>{f.friend_details?.user_name || f.friend_details?.email}</option>
+                                    <option key={f.friend_details?.user_id || f.id} value={f.friend_details?.user_id}>{f.friend_details?.user_name || f.friend_details?.email}</option>
                                 ))}
                             </select>
                         )}

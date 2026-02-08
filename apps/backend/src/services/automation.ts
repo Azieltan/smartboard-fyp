@@ -30,7 +30,7 @@ export class AutomationService {
         try {
             // Parse the natural language command
             const parsed = this.parseCommand(prompt);
-            
+
             if (!parsed) {
                 return {
                     success: false,
@@ -42,22 +42,22 @@ export class AutomationService {
             switch (parsed.action) {
                 case 'add_member_to_group':
                     return await this.addMemberToGroup(userId, parsed.entities);
-                
+
                 case 'remove_member_from_group':
                     return await this.removeMemberFromGroup(userId, parsed.entities);
-                
+
                 case 'create_task':
                     return await this.createTask(userId, parsed.entities);
-                
+
                 case 'update_task_status':
                     return await this.updateTaskStatus(userId, parsed.entities);
-                
+
                 case 'create_group':
                     return await this.createGroup(userId, parsed.entities);
-                
+
                 case 'list_group_members':
                     return await this.listGroupMembers(userId, parsed.entities);
-                
+
                 default:
                     return {
                         success: false,
@@ -126,7 +126,7 @@ export class AutomationService {
             let status = statusMatch[2].trim().toLowerCase();
             if (status === 'complete' || status === 'completed') status = 'done';
             if (status === 'in progress') status = 'in_progress';
-            
+
             return {
                 action: 'update_task_status',
                 entities: {
@@ -272,7 +272,7 @@ export class AutomationService {
         // Add the member
         try {
             await GroupService.addMember(group.group_id, user.user_id, 'member');
-            
+
             return {
                 success: true,
                 message: `✅ Successfully added ${user.user_name} to the ${group.name} group!`,
@@ -367,7 +367,7 @@ export class AutomationService {
             if (entities.dueDate) {
                 const dateStr = entities.dueDate.toLowerCase();
                 const today = new Date();
-                
+
                 if (dateStr.includes('tomorrow')) {
                     dueDate = new Date(today);
                     dueDate.setDate(dueDate.getDate() + 1);
@@ -391,7 +391,8 @@ export class AutomationService {
                 due_date: dueDate,
                 priority: (entities.priority as 'low' | 'medium' | 'high') || 'medium',
                 status: 'todo',
-                user_id: userId
+                created_by: userId,
+                assignee_id: userId
             });
 
             return {
@@ -534,7 +535,7 @@ export class AutomationService {
             };
         }
 
-        const memberList = members.map((m: any) => 
+        const memberList = members.map((m: any) =>
             `• ${m.users?.user_name || 'Unknown'} (${m.role})`
         ).join('\n');
 

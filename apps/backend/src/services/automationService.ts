@@ -210,7 +210,8 @@ export class AutomationService {
       due_date: dueDate,
       priority: params.priority || 'medium',
       status: 'todo',
-      user_id: userId,
+      created_by: userId,
+      assignee_id: userId,
       group_id: groupId
     });
 
@@ -233,7 +234,8 @@ export class AutomationService {
       due_date: remindAt,
       priority: 'medium',
       status: 'todo',
-      user_id: userId
+      created_by: userId,
+      assignee_id: userId
     });
 
     // Add reminder record

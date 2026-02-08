@@ -13,7 +13,7 @@ export interface Task {
     due_date?: Date;
     created_by?: string;
     edited_by?: string;
-    user_id?: string;
+    assignee_id?: string;
     group_id?: string;
     status: 'todo' | 'in_progress' | 'done';
     priority: 'low' | 'medium' | 'high';

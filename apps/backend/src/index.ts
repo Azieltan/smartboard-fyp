@@ -667,14 +667,29 @@ app.get('/calendar/all/:userId', async (req, res) => {
     }
 });
 
-// Update calendar event (for drag-and-drop rescheduling)
+// Update calendar event (for drag-and-drop rescheduling AND editing)
 app.put('/calendar/events/:eventId', async (req, res) => {
     try {
-        const { start_time, end_time } = req.body;
-        const event = await CalendarService.updateEvent(req.params.eventId, { start_time, end_time });
+        const { title, description, start_time, end_time } = req.body;
+        const updates: any = {};
+        if (title !== undefined) updates.title = title;
+        if (description !== undefined) updates.description = description;
+        if (start_time !== undefined) updates.start_time = start_time;
+        if (end_time !== undefined) updates.end_time = end_time;
+
+        const event = await CalendarService.updateEvent(req.params.eventId, updates);
         res.json(event);
     } catch (error: any) {
         res.status(500).json({ error: error.message || 'Failed to update event' });
+    }
+});
+
+app.delete('/calendar/events/:eventId', async (req, res) => {
+    try {
+        await CalendarService.deleteEvent(req.params.eventId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Failed to delete event' });
     }
 });
 
@@ -700,9 +715,10 @@ app.post('/tasks', async (req, res) => {
     }
 });
 
-app.put('/tasks/:id', async (req, res) => {
+app.put('/tasks/:id', authMiddleware, async (req: any, res) => {
     try {
-        const task = await TaskService.updateTask(req.params.id, req.body);
+        const userId = req.user?.userId || req.user?.id; // Handle possible JWT payload variations
+        const task = await TaskService.updateTask(req.params.id, req.body, userId);
         res.json(task);
     } catch (e: any) {
         res.status(500).json({ error: e.message });

@@ -190,4 +190,15 @@ export class CalendarService {
 
         return data as CalendarEvent;
     }
+
+    static async deleteEvent(eventId: string): Promise<void> {
+        const { error } = await supabase
+            .from('calendar_events')
+            .delete()
+            .eq('event_id', eventId);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+    }
 }

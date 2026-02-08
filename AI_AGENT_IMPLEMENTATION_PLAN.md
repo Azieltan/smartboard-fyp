@@ -20,7 +20,8 @@
 9. [Task Logic Behind Tasks](#9-task-logic-behind-tasks-ownerassigneeadmin)
 10. [Full Function Double-Check Checklist](#11-full-function-double-check-checklist-before-demo--merge)
 11. [Task 9: Advanced Authentication](#11-task-9-advanced-authentication)
-12. [Optional Add-ons (Post-MVP)](#12-optional-add-ons-post-mvp)
+12. [Task 10: Sort and Filter Separation](#12-task-10-sort-and-filter-separation)
+13. [Optional Add-ons (Post-MVP)](#13-optional-add-ons-post-mvp)
 
 ---
 
@@ -1901,9 +1902,49 @@ Method `syncSession(accessToken: string)`:
 #### Step 9.4: Backend Notification for New Users (Optional)
 - When a new user syncs for the first time, send a welcome notification.
 
+
 ---
 
-## 12. Optional Add-ons (Post-MVP)
+## 12. Task 10: Sort and Filter Separation
+
+### Goal
+Separate the combined "Sort" dropdown into distinct "Filter" and "Sort" menus to improve usability and clarity on the Tasks page.
+
+### Implementation Steps
+
+#### Step 10.1: Separate Filter and Sort States
+**File**: `apps/frontend/src/app/dashboard/tasks/page.tsx`
+- Add `showSortMenu` and `showFilterMenu` states.
+- Update `handleClickOutside` to handle both menus properly.
+
+#### Step 10.2: Implement Distinct Filter Dropdown
+**File**: `apps/frontend/src/app/dashboard/tasks/page.tsx`
+- Create a new "Filter" button with a funnel icon.
+- Move Status Filter and Priority Filter sections into this dropdown.
+- Add active indicators (dots) when filters are applied.
+
+#### Step 10.3: Implement Distinct Sort Dropdown
+**File**: `apps/frontend/src/app/dashboard/tasks/page.tsx`
+- Create a new "Sort" button with arrows icon.
+- Move Sort By Date and Sort By Status sections into this dropdown.
+- Add active indicators (dots) when non-default sort is applied.
+
+#### Step 10.4: Visual Polish
+- Match the layout and styling of both dropdowns to the premium dashboard design.
+- Ensure consistent animations and hover states.
+
+### Testing Checklist
+- [ ] Filter button opens Filter dropdown
+- [ ] Sort button opens Sort dropdown
+- [ ] Opening one closes the other
+- [ ] Filters applied correctly (Status & Priority)
+- [ ] Sorting applied correctly (Date & Status)
+- [ ] Active indicators show/hide correctly
+- [ ] Persistence (localStorage) still works
+
+---
+
+## 13. Optional Add-ons (Post-MVP)
 
 Keep these as **optional** (only do if time allows / after demo stability):
 
