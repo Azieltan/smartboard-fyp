@@ -46,16 +46,23 @@ export default function AddMemberModal({ groupId, userId, onClose, onMemberAdded
         setErrorMsg('');
 
         try {
-            await api.post(`/groups/${groupId}/members`, {
-                userId: selectedFriend.friend_details.user_id,
-                role: 'member'
+            await api.post(`/groups/${groupId}/invite`, {
+                targetUserId: selectedFriend.friend_details.user_id,
+                requesterId: userId
             });
             setStatus('success');
             if (onMemberAdded) onMemberAdded();
             setTimeout(onClose, 1500);
         } catch (error: any) {
             setStatus('error');
-            setErrorMsg(error.response?.data?.error || 'Failed to add member. They might already be in the group.');
+            const msg = error.response?.data?.error || 'Failed to invite member.';
+            if (msg.includes('already been invited')) {
+                setErrorMsg('User has already been invited.');
+            } else if (msg.includes('already a member')) {
+                setErrorMsg('User is already in the group.');
+            } else {
+                setErrorMsg(msg);
+            }
         }
     };
 
@@ -137,7 +144,7 @@ export default function AddMemberModal({ groupId, userId, onClose, onMemberAdded
                         {status === 'success' && (
                             <div className="p-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-medium flex items-center gap-3">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                Member added successfully!
+                                Invitation sent successfully!
                             </div>
                         )}
 
@@ -160,7 +167,7 @@ export default function AddMemberModal({ groupId, userId, onClose, onMemberAdded
                                 disabled={status === 'loading' || status === 'success'}
                                 className="flex-[2] py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg"
                             >
-                                {status === 'loading' ? 'Adding...' : 'Add to Group'}
+                                {status === 'loading' ? 'Sending...' : 'Invite to Group'}
                             </button>
                         </div>
                     </div>

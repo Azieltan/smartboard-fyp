@@ -6,7 +6,10 @@
         "start": "node dist/index.js",
         "dev": "nodemon src/index.ts",
         "build": "tsc",
-        "env:setup": "node ./scripts/setup-env.js"
+        "env:setup": "node ./scripts/setup-env.js",
+        "test-api": "ts-node test-api.ts",
+        "test-all": "ts-node test-comprehensive.ts",
+        "create-admin": "ts-node create-admin.ts"
     },
     "dependencies": {
         "@smartboard/home": "*",

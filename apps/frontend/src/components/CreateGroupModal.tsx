@@ -254,7 +254,7 @@ export default function CreateGroupModal({ userId, onClose, onGroupCreated }: Cr
 
                             <div>
                                 <h3 className="text-2xl font-bold text-white mb-2">{createdGroup.name}</h3>
-                                <p className="text-slate-400">Your group has been created successfully!</p>
+                                <p className="text-slate-400">Group created! Invitations have been sent to selected friends.</p>
                             </div>
 
                             <div className="bg-black/30 rounded-xl p-4 border border-white/10">

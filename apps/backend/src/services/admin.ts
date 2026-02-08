@@ -226,7 +226,7 @@ export class AdminService {
         console.log('[AdminService] Creating profile in DB for user_id:', authUser.id);
         const { data: user, error: dbError } = await supabase
             .from('users')
-            .insert({
+            .upsert({
                 user_id: authUser.id,
                 user_name: name,
                 email: email,

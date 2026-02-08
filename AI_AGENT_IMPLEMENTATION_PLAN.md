@@ -1181,12 +1181,14 @@ Support creating reminders for tasks/events and delivering them as in-app notifi
 - [ ] Create group with `send_invites=true` -> verify notifications are created and pending state for invitees.
 - [ ] Edge cases: non-existent user ids, duplicate user ids, permission denied.
 
-#### 6.1: Add User to Group (Invite by Username/Email)
+#### 6.1: Add User to Group (Invite by Username/Email) ✅ **COMPLETED**
 
 **Currently**: Only join by code
 **Need**: Owner/Admin can invite users directly
 
-##### Step 6.1.1: Add Invite Modal Component
+##### Step 6.1.1: Add Invite Modal Component ✅ **COMPLETED**
+
+**File**: `apps/frontend/src/components/AddMemberModal.tsx` (Adapted from InviteToGroupModal)
 
 **File**: `apps/frontend/src/components/InviteToGroupModal.tsx` (NEW FILE)
 

@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 export class AuthService {
-    static async register(username: string, email: string, password: string): Promise<User> {
+    static async register(username: string, email: string, password: string): Promise<{ user: User; token: string }> {
         // 1) Check if profile exists
         const { data: existingUser } = await supabase
             .from('users')
@@ -54,7 +54,14 @@ export class AuthService {
             throw new Error(profileErr.message);
         }
 
-        return newUser as any as User;
+        // 4) Generate JWT token
+        const token = jwt.sign(
+            { userId: newUser.user_id, email: newUser.email, role: newUser.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        return { user: newUser as any as User, token };
     }
 
     static async login(email: string, password: string): Promise<{ user: User; token: string }> {

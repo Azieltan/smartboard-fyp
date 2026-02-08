@@ -259,6 +259,35 @@ app.post('/groups/:groupId/invite', async (req, res) => {
     }
 });
 
+app.get('/groups/:userId/invitations', async (req, res) => {
+    try {
+        const invitations = await GroupService.getUserInvitations(req.params.userId);
+        res.json(invitations);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/groups/:groupId/invitations/accept', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        await GroupService.acceptInvitation(req.params.groupId, userId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/groups/:groupId/invitations/decline', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        await GroupService.declineInvitation(req.params.groupId, userId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.put('/groups/:groupId', async (req, res) => {
     try {
         // Expecting requesterId in body (or from auth middleware if stricter)

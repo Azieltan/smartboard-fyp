@@ -87,6 +87,7 @@ export function Sidebar({ onSearchClick }: SidebarProps) {
                 setUser(parsedUser);
 
                 // Join user room for notifications and admin actions
+                socket.connect();
                 socket.emit('join_room', parsedUser.user_id);
 
                 socket.on('force_logout', (message: string) => {
@@ -100,6 +101,12 @@ export function Sidebar({ onSearchClick }: SidebarProps) {
 
         return () => {
             socket.off('force_logout');
+            if (userStr) {
+                try {
+                    const parsedUser = JSON.parse(userStr);
+                    socket.emit('leave_room', parsedUser.user_id);
+                } catch (e) { }
+            }
         };
     }, []);
 

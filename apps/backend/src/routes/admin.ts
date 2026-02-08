@@ -75,6 +75,15 @@ router.get('/tasks', async (req, res) => {
   }
 });
 
+router.put('/tasks/:taskId', async (req, res) => {
+  try {
+    const task = await AdminService.updateTask(req.params.taskId, req.body);
+    res.json(task);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.delete('/tasks/:taskId', async (req, res) => {
   try {
     await AdminService.deleteTask(req.params.taskId);
@@ -89,6 +98,15 @@ router.get('/events', async (req, res) => {
   try {
     const events = await AdminService.getAllEvents();
     res.json(events);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/events/:eventId', async (req, res) => {
+  try {
+    const event = await AdminService.updateEvent(req.params.eventId, req.body);
+    res.json(event);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

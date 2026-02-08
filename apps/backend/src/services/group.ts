@@ -15,15 +15,92 @@ export interface GroupMember {
     group_id: string;
     user_id: string;
     role: 'owner' | 'admin' | 'member';
-    status?: 'active' | 'pending';
+    status?: 'active' | 'pending' | 'invited';
     joined_at: string;
     can_manage_members?: boolean;
     // Joined user details
     user_name?: string;
     email?: string;
+    // Group details when joining from member perspective
+    groups?: {
+        name: string;
+        is_dm: boolean;
+    };
 }
 
 export class GroupService {
+    // ... (previous methods)
+
+    static async getUserInvitations(userId: string): Promise<GroupMember[]> {
+        console.log(`[GroupService] Fetching invitations for user ${userId}`);
+        const { data, error } = await supabase
+            .from('group_members')
+            .select('group_id, role, status, joined_at, groups(name, is_dm)')
+            .eq('user_id', userId)
+            .eq('status', 'invited');
+
+        if (error) {
+            console.error('[GroupService] Error fetching invitations:', error);
+            throw new Error(error.message);
+        }
+
+        return (data || []).map((m: any) => ({
+            ...m,
+            groups: m.groups // Supabase returns single object for joining on foreign key
+        })) as GroupMember[];
+    }
+
+    static async acceptInvitation(groupId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('group_members')
+            .update({ status: 'active' })
+            .eq('group_id', groupId)
+            .eq('user_id', userId)
+            .eq('status', 'invited');
+
+        if (error) throw new Error(error.message);
+
+        // Notify owner that user accepted? Optional.
+    }
+
+    static async declineInvitation(groupId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('group_members')
+            .delete()
+            .eq('group_id', groupId)
+            .eq('user_id', userId)
+            .eq('status', 'invited');
+
+        if (error) throw new Error(error.message);
+    }
+    // ... (rest of methods)
+
+    static async inviteUser(groupId: string, targetUserId: string, requesterId: string): Promise<void> {
+        // 1. Check requester permissions
+        const requester = await this.getMemberRole(groupId, requesterId);
+        const canInvite = requester?.role === 'owner' || requester?.role === 'admin' || requester?.can_manage_members;
+
+        if (!canInvite) {
+            throw new Error('You do not have permission to invite members');
+        }
+
+        // 2. Check if target exists
+        const { data: targetUser } = await supabase.from('users').select('user_id').eq('user_id', targetUserId).single();
+        if (!targetUser) {
+            throw new Error('User not found');
+        }
+
+        // 3. Check if already member
+        const existing = await this.getMemberRole(groupId, targetUserId);
+        if (existing) {
+            if (existing.status === 'active') throw new Error('User is already a member of this group');
+            if (existing.status === 'invited') throw new Error('User has already been invited');
+            if (existing.status === 'pending') throw new Error('User has already requested to join');
+        }
+
+        // 4. Add member as invited
+        await this.addMember(groupId, targetUserId, 'member', 'invited');
+    }
     // ==================== DM Functions ====================
     static async getOrCreateDirectChat(user1Id: string, user2Id: string): Promise<string> {
         console.log(`[GroupService] getOrCreateDirectChat: ${user1Id} <-> ${user2Id}`);
@@ -115,7 +192,7 @@ export class GroupService {
                 group_id: groupData.group_id,
                 user_id: friendId,
                 role: friendRoles[friendId] || 'member',
-                status: 'active',
+                status: 'invited',
                 can_manage_members: false
             }));
 
@@ -134,8 +211,8 @@ export class GroupService {
                             member.user_id,
                             'group_invite',
                             {
-                                title: 'Added to Group',
-                                message: `You have been added to the group "${name}"`,
+                                title: 'Group Invitation',
+                                message: `You have been invited to join the group "${name}"`,
                                 groupId: groupData.group_id
                             }
                         );
@@ -204,6 +281,10 @@ export class GroupService {
 
         // Filter out DMs and map
         const groups = (data || []).filter((item: any) => !item.groups.is_dm);
+
+        if (groups.length === 0) {
+            return [];
+        }
 
         // Fetch last message for each group
         const groupIds = groups.map((g: any) => g.groups.group_id);
@@ -283,7 +364,7 @@ export class GroupService {
         groupId: string,
         userId: string,
         role: 'owner' | 'admin' | 'member' = 'member',
-        status: 'active' | 'pending' = 'active',
+        status: 'active' | 'pending' | 'invited' = 'active',
         canManageMembers: boolean = false
     ): Promise<GroupMember> {
         const { data, error } = await supabase
@@ -318,12 +399,23 @@ export class GroupService {
                 const { data: group } = await supabase.from('groups').select('name').eq('group_id', groupId).single();
                 const groupName = group?.name || 'a group';
 
+                let title = 'Added to Group';
+                let message = `You have been added to "${groupName}"`;
+
+                if (status === 'invited') {
+                    title = 'Group Invitation';
+                    message = `You have been invited to join "${groupName}"`;
+                } else if (status === 'pending') {
+                    title = 'Waitlisted';
+                    message = `You are on the waitlist for "${groupName}"`;
+                }
+
                 await NotificationService.createNotification(
                     userId,
                     'group_invite',
                     {
-                        title: status === 'pending' ? 'Group Invitation' : 'Added to Group',
-                        message: status === 'pending' ? `You have been invited to join "${groupName}"` : `You have been added to "${groupName}"`,
+                        title,
+                        message,
                         groupId
                     }
                 );
@@ -627,32 +719,7 @@ export class GroupService {
             }
         }
     }
-    static async inviteUser(groupId: string, targetUserId: string, requesterId: string): Promise<void> {
-        // 1. Check requester permissions
-        const requester = await this.getMemberRole(groupId, requesterId);
-        const canInvite = requester?.role === 'owner' || requester?.role === 'admin' || requester?.can_manage_members;
 
-        if (!canInvite) {
-            // Also allow if it's a DM? No, DMs don't have invites usually.
-            // Check if group allows members to invite? For now restrict to admins/owners
-            throw new Error('You do not have permission to invite members');
-        }
-
-        // 2. Check if target exists
-        const { data: targetUser } = await supabase.from('users').select('user_id').eq('user_id', targetUserId).single();
-        if (!targetUser) {
-            throw new Error('User not found');
-        }
-
-        // 3. Check if already member
-        const existing = await this.getMemberRole(groupId, targetUserId);
-        if (existing) {
-            throw new Error('User is already a member of this group');
-        }
-
-        // 4. Add member (Direct add as active for now)
-        await this.addMember(groupId, targetUserId, 'member', 'active');
-    }
     static async leaveGroup(groupId: string, userId: string): Promise<void> {
         // 1. Check if member
         const member = await this.getMemberRole(groupId, userId);

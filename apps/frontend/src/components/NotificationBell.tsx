@@ -34,13 +34,14 @@ export function NotificationBell({ userId }: { userId: string }) {
             // or if it's a real error.
             // Check if e.response exists in case of network errors
             if (e?.response && e.response.status !== 404) {
-                // If 500 and empty data, it's likely a stale user ID causing backend crash/empty response. Use silent fail.
-                const isStaleError = e.response.status === 500 && (!e.response.data || Object.keys(e.response.data).length === 0);
+                // If 500 and empty data/object, it's likely a stale user ID or unexpected server state.
+                const responseData = e.response.data || {};
+                const isStaleError = e.response.status === 500 && Object.keys(responseData).length === 0;
 
                 if (!isStaleError) {
                     console.error("Failed to fetch notifications", e);
-                    if (e.response.data) {
-                        console.error("Error response data:", e.response.data);
+                    if (responseData && Object.keys(responseData).length > 0) {
+                        console.error("Error response data:", responseData);
                     }
                 }
             }

@@ -33,6 +33,15 @@ interface Friend {
     is_receiver: boolean;
 }
 
+interface GroupInvitation {
+    group_id: string;
+    role: string;
+    groups: {
+        name: string;
+        is_dm: boolean;
+    };
+}
+
 import { NotificationManager } from '../../../components/NotificationManager';
 
 export default function ChatPage() {
@@ -49,6 +58,7 @@ export default function ChatPage() {
     const selectedIdRef = useRef<string | null>(null); // Ref to access current selection in socket callback
     const [selectedType, setSelectedType] = useState<'group' | 'dm' | null>(null);
     const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
+    const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
     // Keep ref in sync
@@ -74,6 +84,9 @@ export default function ChatPage() {
         try {
             const groups = await api.get(`/groups/${uid}`);
             const friends = await api.get(`/friends/${uid}`);
+            const invites = await api.get(`/groups/${uid}/invitations`);
+            console.log('[ChatPage] Fetched invitations:', invites);
+            setGroupInvitations(invites);
 
             const groupConvs: Conversation[] = groups.map((g: any) => ({
                 id: g.group_id,
@@ -164,6 +177,24 @@ export default function ChatPage() {
         }
     };
 
+    const handleAcceptInvitation = async (groupId: string) => {
+        try {
+            await api.put(`/groups/${groupId}/invitations/accept`, { userId });
+            if (userId) fetchData(userId);
+        } catch (error) {
+            console.error('Failed to accept group invitation:', error);
+        }
+    };
+
+    const handleDeclineInvitation = async (groupId: string) => {
+        try {
+            await api.put(`/groups/${groupId}/invitations/decline`, { userId });
+            setGroupInvitations(prev => prev.filter(inv => inv.group_id !== groupId));
+        } catch (error) {
+            console.error('Failed to decline group invitation:', error);
+        }
+    };
+
     // Socket: Join Rooms (Reactive to list changes)
     useEffect(() => {
         if (!userId) return;
@@ -178,7 +209,7 @@ export default function ChatPage() {
     useEffect(() => {
         if (!userId) return;
 
-        console.log('[Sidebar] Initializing socket listener');
+        console.log('[Sidebar] Initializing socket listener for user:', userId);
         socket.connect();
         socket.emit('join_room', userId);
 
@@ -187,79 +218,60 @@ export default function ChatPage() {
             const targetGroupId = msg.group_id;
 
             setConversations(prev => {
-                // Find conversation by matching groupId
-                // Robust check: match by groupId OR by checking if it's a DM from the sender
+                // Find conversation
                 let convIndex = prev.findIndex(c => {
                     if (c.groupId && c.groupId === targetGroupId) return true;
-                    // Fallback for DMs where we might not have groupId mapped yet, but we know the sender
                     if (c.type === 'dm' && c.id === msg.user_id) return true;
                     return false;
                 });
 
-                // If not found, it might be:
-                // 1. A new DM (we are receiver)
-                // 2. A new Group we were added to
-                // 3. A DM we sent (sender is US), but we don't have groupId mapped yet.
                 if (convIndex === -1) {
-                    // Critical: If we sent the message, we want to update the conversation with the recipient.
-                    // But we don't know the recipient ID from the message payload easily if it's a DM.
-                    // So we MUST fetch data from backend to get the latest state (and new groupIds).
                     console.log('[Sidebar] Conversation not found in local state, refetching...');
                     fetchData(userId, true);
+                    return prev;
+                }
+
+                // Deduplication Check
+                if (prev[convIndex].lastMessage === msg.content &&
+                    Math.abs(new Date(prev[convIndex].time || 0).getTime() - new Date(msg.send_time).getTime()) < 1000) {
                     return prev;
                 }
 
                 const updatedConv = { ...prev[convIndex] };
                 updatedConv.lastMessage = msg.content;
                 updatedConv.time = msg.send_time;
-                // Increment message count locally for immediate feedback
                 updatedConv.totalMessages = (updatedConv.totalMessages || 0) + 1;
 
-                // Cache the group_id if it was missing (e.g. first DM)
                 if (!updatedConv.groupId && targetGroupId) {
                     updatedConv.groupId = targetGroupId;
                 }
 
-                // Move to top logic
                 const newConvs = [...prev];
                 newConvs.splice(convIndex, 1);
                 newConvs.unshift(updatedConv);
 
-                // Update Unread Count state derived from this
-                // Only if WE are NOT the sender
+                // Update Unread Counts
                 if (msg.user_id !== userId) {
-                    // Check if we are currently viewing this chat
-                    // Check both selectedId (friendId for DMs) and cached groupId
                     const isViewing = (selectedIdRef.current === updatedConv.id) ||
                         (selectedIdRef.current === updatedConv.groupId);
 
                     if (isViewing) {
-                        // We are viewing it, so update read count immediately
+                        setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
                         const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
                         readCounts[updatedConv.id] = updatedConv.totalMessages;
                         localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
-
-                        // Ensure badge is 0
-                        setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
                     } else {
-                        // We are NOT viewing it, show badge
                         setUnreadCounts(current => {
                             const lastRead = JSON.parse(localStorage.getItem('chat_read_counts') || '{}')[updatedConv.id] || 0;
-                            // Ensure non-negative
                             const count = Math.max(0, (updatedConv.totalMessages || 0) - lastRead);
-                            console.log(`[Badge] ID: ${updatedConv.id}, Count: ${count}`);
                             return { ...current, [updatedConv.id]: count };
                         });
                     }
                 } else {
-                    // If we SENT it, implicitly we read everything up to now (or at least this msg)
-                    // Update local storage to match current total
+                    setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
                     const readCounts = JSON.parse(localStorage.getItem('chat_read_counts') || '{}');
                     readCounts[updatedConv.id] = updatedConv.totalMessages;
                     localStorage.setItem('chat_read_counts', JSON.stringify(readCounts));
-
-                    // Clear badge
-                    setUnreadCounts(current => ({ ...current, [updatedConv.id]: 0 }));
                 }
 
                 return newConvs;
@@ -268,8 +280,27 @@ export default function ChatPage() {
 
         socket.on('new_message', handleNewMessageSidebar);
 
+        socket.on('notification:group_invite', (notification: any) => {
+            console.log('[ChatPage] Received group invite notification:', notification);
+            // Verify if it's for us (security check, though server sends to room)
+            if (notification?.user_id && notification.user_id !== userId) {
+                console.log('[ChatPage] Ignoring invite for another user:', notification.user_id);
+                return;
+            }
+            // Force fetch
+            fetchData(userId, true);
+        });
+
+        socket.on('notification:friend_request', (notification: any) => {
+            console.log('[ChatPage] Received friend request notification:', notification);
+            if (notification?.user_id && notification.user_id !== userId) return;
+            fetchData(userId, true);
+        });
+
         return () => {
             socket.off('new_message', handleNewMessageSidebar);
+            socket.off('notification:group_invite');
+            socket.off('notification:friend_request');
         }
     }, [userId, fetchData]);
 
@@ -367,6 +398,45 @@ export default function ChatPage() {
                         <TabButton label="Friends" active={activeTab === 'friends'} onClick={() => setActiveTab('friends')} />
                     </div>
                 </div>
+
+                {/* Group Invitations */}
+                {groupInvitations.length > 0 && (
+                    <div className="px-5 mb-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                            <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                            <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Group Invitations ({groupInvitations.length})</h2>
+                        </div>
+                        <div className="space-y-2">
+                            {groupInvitations.map(inv => (
+                                <div key={inv.group_id} className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center justify-between group transition-all hover:bg-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-xs uppercase">
+                                            {inv.groups?.name?.[0] || 'G'}
+                                        </div>
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-200 truncate max-w-[120px] block">{inv.groups?.name || 'Unknown Group'}</span>
+                                            <span className="text-[10px] text-slate-500">You've been invited to join</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleDeclineInvitation(inv.group_id)}
+                                            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-bold rounded-lg transition-colors"
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={() => handleAcceptInvitation(inv.group_id)}
+                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg transition-colors shadow-lg shadow-blue-600/20"
+                                        >
+                                            Accept
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Friend Requests */}
                 {pendingRequests.length > 0 && (
