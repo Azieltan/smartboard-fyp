@@ -1,0 +1,458 @@
+{
+  "name": "SmartBoard - Smarty v5 Fixed",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smarty-agent-v5",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f39fc10d-3c93-423e-a9ad-af078662f64c",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        2080
+      ],
+      "webhookId": "smarty-agent-v5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.context.rawText }}",
+        "options": {
+          "systemMessage": "You are Smarty.\n- Context: Today {{ $json.context.today_date }}, User {{ $json.context.user_id }}.\n- Rules: Use ISO-8601 (+08:00). Default time 23:59:00.\n- Formatting: Respond with ONLY \"Done\" after using a tool.\n- Lists: Point form titles only."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2848,
+        2080
+      ],
+      "id": "62383a0e-5eed-405f-839f-87bc4ff40cdd",
+      "name": "Smarty AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        2304
+      ],
+      "id": "dbf8f9ab-170a-4e7c-a6c6-4831c7930dd1",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "vusEVQGmYnv0fM5b",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "calendar_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $fromAI('title', 'Event or reminder title') }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $fromAI('description', 'Optional description or remarks, empty string if not provided') }}"
+            },
+            {
+              "fieldId": "start_time",
+              "fieldValue": "={{ $fromAI('start_time', 'Start time as ISO-8601 timestamp like 2026-02-08T09:00:00+08:00') }}"
+            },
+            {
+              "fieldId": "end_time",
+              "fieldValue": "={{ $fromAI('end_time', 'End time as ISO-8601 timestamp. If not specified by user, default to same day at 23:59:00+08:00') }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Prepare Context1').item.json.context.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        2336
+      ],
+      "id": "5d6b3e76-5b1a-4fc9-a1e7-d7ea3af2dc41",
+      "name": "Create Event Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = $input.first().json;\nconst steps = out.intermediateSteps || [];\nif (steps.length === 0) return [{ json: { success: true, summary: (out.output || 'Done').substring(0, 100) } }];\n\nconst last = steps[steps.length - 1];\nconst tool = (last.action?.tool || last.action || '').toLowerCase();\nlet data = {};\ntry { data = typeof last.observation === 'string' ? JSON.parse(last.observation) : last.observation; } catch { data = last.observation || {}; }\n\nconst item = Array.isArray(data) ? data[0] : (data.data && Array.isArray(data.data) ? data.data[0] : data);\nlet msg = '✅ Done';\n\nif (tool.includes('list')) {\n  const arr = Array.isArray(data) ? data : (data.data || []);\n  msg = arr.length ? arr.map(t => `• ${t.title}`).join('\\n') : 'No items found.';\n} else if (tool.includes('create')) {\n  msg = `✅ Created: ${item.title}${item.description ? ' (' + item.description + ')' : ''}`;\n} else if (tool.includes('mark') || tool.includes('done')) {\n  msg = `✅ Done: ${item.title || 'Task'}`;\n} else if (tool.includes('delete')) {\n  msg = '✅ Deleted successfully.';\n}\n\nreturn [{ json: { success: true, summary: msg } }];"
+      },
+      "id": "2e6ecad3-8e69-42c1-88e5-398ddd26ad6e",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3440,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "05f79814-75c1-430e-a7b1-3ed1ee5404f5",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pre-calculate dates for AI context\nconst now = new Date();\nconst timezone = $json.body.timezone || 'Asia/Kuala_Lumpur';\n\n// Helper to format date as ISO-8601 with timezone\nfunction toISO(date) {\n  return date.toISOString().replace('Z', '+08:00');\n}\n\n// Calculate reference dates\nconst today = new Date(now);\ntoday.setHours(0, 0, 0, 0);\n\nconst tomorrow = new Date(today);\ntomorrow.setDate(tomorrow.getDate() + 1);\n\nconst nextWeek = new Date(today);\nnextWeek.setDate(nextWeek.getDate() + 7);\n\nreturn [{\n  json: {\n    ...($json),\n    context: {\n      today_date: today.toISOString().split('T')[0],\n      tomorrow_date: tomorrow.toISOString().split('T')[0],\n      next_week_date: nextWeek.toISOString().split('T')[0],\n      current_time: now.toTimeString().split(' ')[0].substring(0, 5),\n      timezone: timezone,\n      user_id: $json.body.user_id,\n      rawText: $json.body.rawText\n    }\n  }\n}];"
+      },
+      "id": "dc33b828-115d-45f8-8b03-915c2e85a62b",
+      "name": "Prepare Context1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "tasks",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $fromAI('title', 'Task title') }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $fromAI('description', 'Optional task description or notes, empty string if not provided') }}"
+            },
+            {
+              "fieldId": "due_date",
+              "fieldValue": "={{ $fromAI('due_date', 'Due date as ISO-8601 like 2026-02-08T23:59:00+08:00. If only date given, append T23:59:00+08:00. Empty string if not specified.') }}"
+            },
+            {
+              "fieldId": "priority",
+              "fieldValue": "={{ $fromAI('priority', 'Priority level: low, medium, or high. Default to low if not specified') }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "todo"
+            },
+            {
+              "fieldId": "created_by",
+              "fieldValue": "={{ $('Prepare Context1').item.json.context.user_id }}"
+            },
+            {
+              "fieldId": "assignee_id",
+              "fieldValue": "={{ $('Prepare Context1').item.json.context.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        2352
+      ],
+      "id": "a76eaba9-ac4c-4879-bdc8-b8c2befde823",
+      "name": "Create Task Tool1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tasks",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "assignee_id",
+              "condition": "eq",
+              "keyValue": "={{ $fromAI('user_id', 'User ID to list tasks for: ' + $json.body.user_id) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        3136,
+        2368
+      ],
+      "id": "8700755d-e48d-48cf-941f-4b18e68b052a",
+      "name": "List Tasks Tool",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "tasks",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "title",
+              "condition": "ilike",
+              "keyValue": "={{ '%' + $fromAI('task_name', 'Task name to mark as done') + '%' }}"
+            },
+            {
+              "keyName": "assignee_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Prepare Context1').item.json.context.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        2992,
+        2368
+      ],
+      "id": "5e99b8a4-803c-4470-9c61-f2198b611025",
+      "name": "Mark Done Tool1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "calendar_events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $fromAI('user_id', 'User ID to list events for: ' + $json.context.user_id) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        3296,
+        2336
+      ],
+      "id": "a3946081-4618-4cc2-8ede-0f8de1f95d37",
+      "name": "list all calendar event tools1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "calendar_events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "title",
+              "condition": "ilike",
+              "keyValue": "={{ '%' + $fromAI('event_title', 'Event title to delete') + '%' }}"
+            },
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Prepare Context1').item.json.context.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        3440,
+        2288
+      ],
+      "id": "a52e22a8-48fc-4332-bf14-33dccef4a8e5",
+      "name": "delete calendar event",
+      "credentials": {
+        "supabaseApi": {
+          "id": "t9tZXllBpQmITCOY",
+          "name": "aziel supa"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smarty AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context1": {
+      "main": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Task Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Tasks Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Done Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list all calendar event tools1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete calendar event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Smarty AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "398f23e3acc16d327f5c45cd47b94faa8a99cc1090fbefa83f4ca66ed493efe3"
+  }
+}

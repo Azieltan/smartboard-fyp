@@ -254,11 +254,12 @@ export function SmartyBubble() {
 
     // Relevant actions for Automation mode
     const AUTOMATE_QUICK_QUESTIONS = [
-        'Create task "Buy milk" due tomorrow',
-        'Remind me to "Call John" at 5pm',
-        'Show my tasks',
-        'Mark "Buy milk" as done',
-        'Cancel reminder "Call John"'
+        '-create a event for tommorrow about meeting. from 9am to 11am. description is meeting with vincent.',
+        '-Create a task "go to Sunway Pyramid" due tomorrow, medium priority, description is go shopping and buy luxury.',
+        '-Mark "go to Sunway Pyramid" as done.',
+        '-Delete event "meeting with Vincent".',
+        'list all my tasks',
+        'list all my events'
     ];
 
     // Select which questions to show based on mode
@@ -291,6 +292,11 @@ export function SmartyBubble() {
         const x = e.pageX - scrollContainerRef.current.offsetLeft;
         const walk = (x - scrollStartX) * 2; // Scroll speed multiplier
         scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    };
+
+    const handleWheel = (e: React.WheelEvent) => {
+        if (!scrollContainerRef.current) return;
+        scrollContainerRef.current.scrollLeft += e.deltaY;
     };
 
     return (
@@ -345,7 +351,7 @@ export function SmartyBubble() {
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤖</div>
                             <div>
-                                <h3 className="font-bold text-sm">Smarty {isAutomateMode ? 'Orchestrator' : 'AI'}</h3>
+                                <h3 className="font-bold text-sm">Smarty AI</h3>
                                 <p className="text-[10px] text-blue-100 opacity-80">{isAutomateMode ? 'Ready to automate' : 'Ready to help'}</p>
                             </div>
                         </div>
@@ -463,6 +469,7 @@ export function SmartyBubble() {
                         onMouseLeave={handleScrollMouseLeave}
                         onMouseUp={handleScrollMouseUp}
                         onMouseMove={handleScrollMouseMove}
+                        onWheel={handleWheel}
                     >
                         {QUICK_QUESTIONS.map((q, i) => (
                             <button

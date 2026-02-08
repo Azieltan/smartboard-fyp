@@ -1,22 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { FAQ_DATA } from '@/config/faq';
 
-const FAQS = [
-    {
-        question: "How to create a group?",
-        answer: "Navigate to the Groups section in the right sidebar and click the '+' button to create a new group."
-    },
-    {
-        question: "How to add friends?",
-        answer: "Go to the Friends section and click the '+' button, then search for your friend by username or email."
-    },
-    {
-        question: "Managing tasks?",
-        answer: "You can create personal tasks from the calendar page or assign group tasks within a group's detail view."
-    }
+// Select the most useful FAQs for the widget
+const WIDGET_FAQ_IDS = [
+    'faq-what-is-smartboard',
+    'faq-create-task',
+    'faq-create-group'
 ];
+
+const FAQS = WIDGET_FAQ_IDS.map(id => {
+    const item = FAQ_DATA.find(f => f.id === id);
+    return item ? { question: item.q, answer: item.a } : null;
+}).filter(Boolean) as { question: string; answer: string }[];
 
 export default function FAQWidget() {
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);

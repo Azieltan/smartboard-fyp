@@ -66,8 +66,8 @@ export const FAQ_DATA: FaqItem[] = [
   },
   {
     id: 'faq-automate',
-    q: 'Can I automate repetitive tasks?',
-    a: 'Not yet. “Let Smarty Do” is planned as a future feature; currently, you can use “Ask Smarty” for guidance and help using the platform.',
+    q: 'Can I automate tasks with AI?',
+    a: 'Yes! Use "Let Smarty Do" from the Smarty AI bubble in the bottom-right corner. You can ask Smarty to create tasks, create calendar events, mark tasks as done, delete events, and list your tasks or events.',
   },
   {
     id: 'faq-reset-password',
@@ -96,8 +96,8 @@ export const FAQ_DATA: FaqItem[] = [
   },
   {
     id: 'faq-ask-smarty',
-    q: 'What is the “Ask Smarty” feature?',
-    a: '“Ask Smarty” is an AI assistant that answers your questions about the platform.',
+    q: 'What is the "Ask Smarty" feature?',
+    a: '"Ask Smarty" is an AI assistant that answers questions about SmartBoard. It can help you learn how to use features like the calendar, tasks, groups, and chat.',
   },
   {
     id: 'faq-profile-picture',
