@@ -1,8 +1,6 @@
 # SmartBoard FYP
 
-## Canonical Plan
-
-The canonical, up-to-date implementation plan lives in `AI_AGENT_IMPLEMENTATION_PLAN.md`.
+A modern, AI-powered task management platform featuring real-time collaboration, smart automation, and a comprehensive admin dashboard.
 
 ## Key Features
 
