@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GroupDetailView from '../../../components/GroupDetailView';
 import GroupList from '../../../components/GroupList';
 
-export default function GroupsPage() {
+function GroupsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [userId, setUserId] = useState<string | null>(null);
@@ -79,5 +79,13 @@ export default function GroupsPage() {
 
             <GroupList userId={userId} onSelectGroup={setSelectedGroupId} />
         </div>
+    );
+}
+
+export default function GroupsPage() {
+    return (
+        <Suspense fallback={<div>Loading Groups...</div>}>
+            <GroupsContent />
+        </Suspense>
     );
 }

@@ -1,100 +1,158 @@
-# SmartBoard FYP
+# SmartBoard - Intelligent Task Management Platform
 
-A modern, AI-powered task management platform featuring real-time collaboration, smart automation, and a comprehensive admin dashboard.
+![Project Status](https://img.shields.io/badge/Status-Active-success)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Tech Stack](https://img.shields.io/badge/Stack-MERN%2B-blueviolet)
 
-## Key Features
+> **A modern, AI-powered collaborative workspace designed to streamline team productivity through intelligent automation and real-time interaction.**
 
-- **Smarty AI Automation**: Natural language task and reminder management using n8n and DeepSeek.
-- **Admin Dashboard**: Comprehensive stats, user management, and system monitoring.
-- **Google OAuth Integration**: Seamless social login and profile completion.
-- **Task Management**: Structured tasks with subtasks, labels, and priorities.
-- **Real-time Notifications**: Instant updates for task assignments and system alerts.
-- **Collaborative Workspace**: Friend system and shared group tasks.
+---
 
-## Project Structure
+## 🌟 Overview
 
-- `apps/frontend`: Next.js React application.
-- `apps/backend`: Node.js Express server.
-- `packages/`: Shared logic and types.
-- `scripts/`: Utility scripts for dev and testing.
+SmartBoard is a comprehensive task management solution that bridges the gap between traditional project management tools and modern AI automation. Built as a Final Year Project which integrates advanced features like **Natural Language Processing (NLP)** automation, **Real-time Communication**, and **Role-based Access Control (RBAC)** into a unified, sleek interface.
 
+## 🚀 Key Features
 
-## Getting Started
+- **🤖 Smarty AI Automation**
+  - Execute complex workflows using natural language commands (e.g., "Add John to the Marketing group").
+  - Powered by **n8n** and **DeepSeek AI** for intelligent intent recognition.
+
+- **📊 Comprehensive Admin Dashboard**
+  - Visual analytics for user engagement and task completion rates.
+  - Complete user management system with ban/unban capabilities.
+
+- **💬 Real-Time Collaboration**
+  - Instant messaging within groups and direct messages (DM).
+  - Live notifications for invites, updates, and reminders using **Socket.io**.
+
+- **🔐 Secure Authentication**
+  - Multi-method login support: Email/Password and **Google OAuth**.
+  - Robust session management via **Supabase Auth** and **Firebase**.
+
+- **📅 Interactive Scheduler**
+  - Drag-and-drop calendar interface for task planning.
+  - Smart conflict detection and automated reminders.
+
+- **👥 Social Connectivity**
+  - Friend system with request/accept/block flows.
+  - Shared workspaces for team collaboration.
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Framework**: [Next.js 16](https://nextjs.org/) (React 19)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **State/Real-time**: Socket.io Client, SWR
+- **UI Components**: Lucide React, Sonner (Toasts), Chart.js
+
+### Backend
+- **Runtime**: [Node.js](https://nodejs.org/)
+- **Server**: Express.js
+- **Language**: TypeScript
+- **Real-time Engine**: Socket.io
+
+### Infrastructure & Services
+- **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
+- **Authentication**: Supabase Auth & Firebase Admin
+- **Storage**: Supabase Storage
+- **Automation**: n8n (Workflow Automation)
+
+---
+
+## 🏗️ Project Structure
+
+The project follows a **Monorepo** architecture for better code sharing and management:
+
+```
+smartboard-fyp/
+├── apps/
+│   ├── frontend/         # Next.js Application
+│   └── backend/          # Express.js API Server
+├── packages/             # Shared libraries (types, utilities)
+├── scripts/              # Devops and maintenance scripts
+└── n8n/                  # Automation workflow definitions
+```
+
+---
+
+## ⚡ Getting Started
 
 Follow these steps to set up the project locally.
 
-### 1. Clone the repository
+### Prerequisites
+- Node.js (v18+ recommended)
+- npm or yarn
+- Supabase project credentials
+- n8n instance (optional for AI features)
+
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/Azieltan/smartboard-fyp.git
 cd smartboard-fyp
 ```
 
 ### 2. Install Dependencies
-Install all dependencies for the monorepo (frontend and backend):
+Install dependencies for all workspaces:
 ```bash
 npm install
 ```
 
 ### 3. Environment Setup
-You need to set up environment variables for both the frontend and backend.
 
-#### Backend
-Use the provided `apps/backend/.env.example` as a starting point. Do NOT commit a `.env` file that contains real secrets.
-
-- To create a local `.env` file from the example (cross-platform):
-
+#### Backend Configuration
+Copy the example environment file and configure your secrets:
 ```bash
 cd apps/backend
-npm run env:setup
-# then open .env and fill in the real secret values
+cp .env.example .env
+# Edit .env and add your Supabase/Firebase credentials
 ```
 
-If you need to share secrets with a teammate, use a secure channel (encrypted chat, password manager, or GitHub Secrets for CI/CD), not a public repository.
-
-#### Frontend
-Create a file named `.env.local` in `apps/frontend/` and add the required variables (e.g., Firebase config, API URL). Do not commit real keys to public repos.
-
+#### Frontend Configuration
+Create a local environment file for the Next.js app:
+```bash
+cd apps/frontend
+# Create .env.local with your public API keys and endpoints
+```
 
 ### 4. Running the Application
 
-You can start both the backend and frontend simultaneously from the root directory:
-
+Start both the frontend and backend servers concurrently:
 ```bash
+# From the root directory
 npm run dev
 ```
 
-This will launch:
 - **Frontend**: `http://localhost:3000`
-- **Backend**: `http://localhost:3001`
+- **Backend API**: `http://localhost:3001`
 
+---
 
-## Typecheck / Build
+## 🧪 Testing
 
-Run these before demo to catch TypeScript issues early.
+The project includes scripts to ensure stability.
 
+**Type Checking**
 ```bash
-# Backend build (tsc)
-npm -w apps/backend run build
-
-# Frontend typecheck (no emit)
-npx tsc -p apps/frontend/tsconfig.json --noEmit
+npm run typecheck --workspace=apps/frontend
 ```
 
-## E2E Smoke Test (PowerShell)
-
-There is a small end-to-end smoke test script that validates core flows (auth, friend request, DM, task submission/review, notifications).
-
-Prereqs:
-
-- Backend running on `http://localhost:3001`
-- Demo login exists:
-	- Email: `test_theme@example.com`
-	- Password: `123456`
-
-Run:
-
+**Smoke Test (E2E)**
+Run the automated PowerShell smoke test to verify core flows:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\selftest.ps1
+.\scripts\selftest.ps1
 ```
 
-The script creates a temporary second user automatically and prints a compact JSON summary (no JWTs).
+---
+
+## 📄 License
+
+This project is open-source and available under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by Aziel Tan for Final Year Project</sub>
+</p>

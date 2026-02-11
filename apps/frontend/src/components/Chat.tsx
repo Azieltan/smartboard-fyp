@@ -113,19 +113,19 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
     useEffect(() => {
         if (!effectiveGroupId) return;
 
-        console.log('Connecting socket for chat group:', effectiveGroupId);
+
         socket.connect();
 
         // Ensure we are in the correct room
         socket.emit('join_room', effectiveGroupId);
 
         const handleNewMessage = (msg: Message) => {
-            console.log('Received socket message:', msg);
+
 
             // CRITICAL: Filter messages for this chat only
             // msg.group_id comes from backend. If missing (old msg), fall back to chat_id check if available
             if (msg.group_id && msg.group_id !== effectiveGroupId) {
-                console.log('Ignoring message from another group:', msg.group_id);
+
                 return;
             }
 
@@ -154,7 +154,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         socket.on('new_message', handleNewMessage);
 
         return () => {
-            console.log('Cleaning up socket for group:', effectiveGroupId);
+
             socket.emit('leave_room', effectiveGroupId);
             socket.off('new_message', handleNewMessage);
         };
@@ -209,7 +209,7 @@ export default function Chat({ groupId, userId, title = 'Conversation', type = '
         // Rate limiting: Prevent sending the exact same message twice within 1 second
         const now = Date.now();
         if (content === lastSentRef.current.content && now - lastSentRef.current.time < 1000) {
-            console.log('Preventing double send of same message');
+
             return;
         }
         lastSentRef.current = { content, time: now };

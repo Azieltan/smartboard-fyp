@@ -87,13 +87,13 @@ export default function GroupDetailView({ groupId, userId, userRole, onBack, ini
                 setGroup(groupData);
 
                 // 2. Fetch Members
-                console.log('[Frontend] Fetching members for group:', groupId);
+
                 const membersData = await api.get(`/groups/${groupId}/members`);
 
                 if (Array.isArray(membersData)) {
                     setMembers(membersData);
                     const me = membersData.find((m: GroupMember) => m.user_id === userId);
-                    console.log('[Frontend] My Role Object:', me);
+
                     setMyRole(me || null);
 
                     // 3. Determine Permissions
@@ -105,13 +105,13 @@ export default function GroupDetailView({ groupId, userId, userRole, onBack, ini
 
                     const canViewPending = isGroupOwner || isMemberOwner || isAdminWithPerms || isSysAdmin;
 
-                    console.log('[Frontend] Can View Pending?', canViewPending);
+
 
                     if (canViewPending) {
                         try {
-                            console.log('[Frontend] Fetching pending members...');
+
                             const pending = await api.get(`/groups/${groupId}/pending`);
-                            console.log('[Frontend] Pending members:', pending);
+
                             setPendingMembers(Array.isArray(pending) ? pending : []);
                         } catch (err) {
                             console.error('[Frontend] Error fetching pending:', err);
@@ -158,7 +158,7 @@ export default function GroupDetailView({ groupId, userId, userRole, onBack, ini
                 if (canViewPending) {
                     try {
                         const pending = await api.get(`/groups/${groupId}/pending`);
-                        console.log('[Frontend] Refreshed Pending members:', pending);
+
                         setPendingMembers(Array.isArray(pending) ? pending : []);
                     } catch (err) { console.error(err); }
                 }

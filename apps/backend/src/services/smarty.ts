@@ -6,7 +6,7 @@ export class SmartyService {
      * This sends the command to n8n which connects to Supabase to perform actions
      */
     static async automate(userId: string, prompt: string) {
-        console.log(`[Smarty] Processing automation: "${prompt}" for user ${userId}`);
+
 
         try {
             // Send to n8n webhook for processing

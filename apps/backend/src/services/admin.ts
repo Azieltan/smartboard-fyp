@@ -205,25 +205,25 @@ export class AdminService {
 
     // --- User Management ---
     static async createUser(payload: { email: string; password?: string; name: string; role: string }) {
-        console.log('[AdminService] Creating user with payload:', { ...payload, password: '***' });
+
         const { email, password, name, role } = payload;
         const finalPassword = password || Math.random().toString(36).slice(-8) + 'Aa1!';
 
         // 1. Create auth user (auto confirmed)
-        console.log('[AdminService] Calling supabase.auth.admin.createUser...');
+
         const { data: { user: authUser }, error: authError } = await supabase.auth.admin.createUser({
             email,
             password: finalPassword,
             email_confirm: true,
             user_metadata: { display_name: name }
         });
-        console.log('[AdminService] Auth user creation result:', authUser ? 'SUCCESS' : 'FAILURE', authError?.message || '');
+
 
         if (authError) throw new Error(authError.message);
         if (!authUser) throw new Error('Failed to create auth user');
 
         // 2. Create profile
-        console.log('[AdminService] Creating profile in DB for user_id:', authUser.id);
+
         const { data: user, error: dbError } = await supabase
             .from('users')
             .upsert({
@@ -236,11 +236,9 @@ export class AdminService {
             .select()
             .single();
 
-        console.log('[AdminService] DB profile creation result:', user ? 'SUCCESS' : 'FAILURE', dbError?.message || '');
 
         if (dbError) {
             // Cleanup auth user to prevent orphan
-            console.warn('[AdminService] DB Error, cleaning up auth user:', authUser.id, dbError.message);
             await supabase.auth.admin.deleteUser(authUser.id);
             throw new Error(dbError.message);
         }

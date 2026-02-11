@@ -24,10 +24,10 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
     setIsLoading(true);
 
     try {
-      console.log('[CreateUserModal] Submitting form data:', formData);
+
       const data = await api.post('/admin/users', formData);
 
-      console.log('[CreateUserModal] User created successfully:', data);
+
       toast.success(`User created! Password: ${data.password}`, {
         duration: 10000, // Show for 10 seconds so admin can copy the password
       });

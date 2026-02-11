@@ -32,7 +32,7 @@ export function UpcomingEventsWidget({ userId }: UpcomingEventsWidgetProps) {
       return;
     }
     try {
-      console.log(`Fetching events for user: ${userId}`);
+
       const data = await api.get(`/calendar/${userId}`);
       if (Array.isArray(data)) {
         const now = new Date();

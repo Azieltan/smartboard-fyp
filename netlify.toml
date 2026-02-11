@@ -1,0 +1,6 @@
+[build]
+  command = "npm run build --workspace=apps/frontend"
+  publish = "apps/frontend/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

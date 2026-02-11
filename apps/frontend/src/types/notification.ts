@@ -11,6 +11,7 @@ export interface Notification {
   created_at: string;
   action_url?: string;
   metadata?: Record<string, any>;
+  user_id: string;
 }
 
 export type NotificationType = Notification['type'];

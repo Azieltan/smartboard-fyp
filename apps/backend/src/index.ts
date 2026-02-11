@@ -34,17 +34,19 @@ app.use(cors());
 app.use(express.json());
 
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
+
 });
 
 // Socket.IO Connection Handler
 io.on('connection', (socket: Socket) => {
-    console.log('User connected:', socket.id);
+    // console.log('User connected:', socket.id);
+
 
     socket.on('join_room', (roomId: string) => {
         socket.join(roomId);
-        console.log(`User ${socket.id} joined room ${roomId}`);
+        // console.log(`User ${socket.id} joined room ${roomId}`);
+
     });
 
     socket.on('leave_room', (roomId: string) => {
@@ -52,7 +54,8 @@ io.on('connection', (socket: Socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        // console.log('User disconnected:', socket.id);
+
     });
 });
 
@@ -453,14 +456,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
-        console.log('[Upload] Received upload request');
+
         if (!req.file) {
-            console.error('[Upload] No file received');
+
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
         const file = req.file;
-        console.log(`[Upload] Processing file: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
+
 
         const fileExt = file.originalname.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -471,7 +474,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         const { data: bucketData, error: bucketError } = await supabase.storage.getBucket(BUCKET_NAME);
 
         if (bucketError && bucketError.message.includes('not found')) {
-            console.log(`[Upload] Bucket '${BUCKET_NAME}' not found. Creating...`);
+            // console.log(`[Upload] Bucket '${BUCKET_NAME}' not found. Creating...`);
+
             const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
                 public: true,
                 fileSizeLimit: 10485760, // 10MB
@@ -481,7 +485,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
                 console.error('[Upload] Failed to create bucket:', createError);
                 throw new Error(`Failed to create storage bucket: ${createError.message}`);
             }
-            console.log(`[Upload] Bucket '${BUCKET_NAME}' created.`);
+            // console.log(`[Upload] Bucket '${BUCKET_NAME}' created.`);
+
         } else if (bucketError) {
             // Ignore other errors (like permission denied which shouldn't happen with service key, but just in case)
             console.warn('[Upload] Check bucket warning:', bucketError);
@@ -503,7 +508,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             .from(BUCKET_NAME)
             .getPublicUrl(filePath);
 
-        console.log(`[Upload] Success: ${publicUrl}`);
+
+
         res.json({ url: publicUrl, type: file.mimetype });
     } catch (error: any) {
         console.error('[Upload] Internal server error:', error);
@@ -551,15 +557,14 @@ app.get('/chats/group/:groupId', async (req, res) => {
 
 app.get('/chats/:groupId/messages', async (req, res) => {
     try {
-        console.log(`Fetching messages for group: ${req.params.groupId}`);
+
         const chat = await ChatService.getChatByGroupId(req.params.groupId);
         if (!chat) {
-            console.log('No chat found for group');
             return res.json([]);
+
         }
-        console.log(`Found chat: ${chat.chat_id}`);
         const messages = await ChatService.getMessages(chat.chat_id);
-        console.log(`Found ${messages.length} messages`);
+
         res.json(messages);
     } catch (error) {
         console.error('Error fetching messages:', error);

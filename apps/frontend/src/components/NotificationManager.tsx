@@ -72,7 +72,7 @@ export function NotificationManager({ userId }: NotificationManagerProps) {
 
     // Listen for new notifications
     const handleNewNotification = (notification: Notification) => {
-      console.log('[NotificationManager] Received:', notification);
+
       if (notification.user_id !== userId) {
         console.warn('[NotificationManager] Ignoring notification for different user:', notification.user_id, 'expected:', userId);
         return;

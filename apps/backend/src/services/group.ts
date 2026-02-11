@@ -32,7 +32,7 @@ export class GroupService {
     // ... (previous methods)
 
     static async getUserInvitations(userId: string): Promise<GroupMember[]> {
-        console.log(`[GroupService] Fetching invitations for user ${userId}`);
+
         const { data, error } = await supabase
             .from('group_members')
             .select('group_id, role, status, joined_at, groups(name, is_dm)')
@@ -106,7 +106,7 @@ export class GroupService {
         console.log(`[GroupService] getOrCreateDirectChat: ${user1Id} <-> ${user2Id}`);
         const userIds = [user1Id, user2Id].sort();
         const dmGroupName = `dm-${userIds[0]}-${userIds[1]}`;
-        console.log(`[GroupService] DM group name: ${dmGroupName}`);
+
 
         const { data: existingGroup, error: findError } = await supabase
             .from('groups')
@@ -119,7 +119,7 @@ export class GroupService {
         if (findError) console.error(`[GroupService] Find DM error:`, findError);
 
         if (existingGroup) {
-            console.log(`[GroupService] Found existing DM group: ${existingGroup.group_id}`);
+
             // Ensure members exist (in case of data issues)
             try {
                 await Promise.all([
@@ -132,7 +132,6 @@ export class GroupService {
             return existingGroup.group_id;
         }
 
-        console.log(`[GroupService] Creating new DM group...`);
         const { data: newGroup, error } = await supabase
             .from('groups')
             .insert([{
@@ -145,10 +144,9 @@ export class GroupService {
             .single();
 
         if (error) {
-            console.error(`[GroupService] Create DM error:`, error);
             throw new Error(error.message);
         }
-        console.log(`[GroupService] Created group: ${newGroup.group_id}`);
+
 
         try {
             await Promise.all([
@@ -156,7 +154,6 @@ export class GroupService {
                 this.addMember(newGroup.group_id, user2Id, 'member', 'active')
             ]);
         } catch (memberErr) {
-            console.error("Error adding DM members:", memberErr);
         }
 
         return newGroup.group_id;
@@ -202,7 +199,6 @@ export class GroupService {
                 .insert(members);
 
             if (friendsError) {
-                console.error("Error adding friends:", friendsError);
             } else {
                 // Notify friends
                 members.forEach(async (member) => {
@@ -217,7 +213,6 @@ export class GroupService {
                             }
                         );
                     } catch (e) {
-                        console.error('Failed to notify friend', e);
                     }
                 });
             }
@@ -420,7 +415,6 @@ export class GroupService {
                     }
                 );
             } catch (e) {
-                console.error('Failed to notify member', e);
             }
         }
 
@@ -616,7 +610,6 @@ export class GroupService {
                     }
                 }
             } catch (notifyError) {
-                console.error('Failed to notify admins of join request', notifyError);
             }
         }
 
@@ -648,7 +641,7 @@ export class GroupService {
 
     // ==================== Pending Members ====================
     static async getPendingMembers(groupId: string): Promise<any[]> {
-        console.log(`[GroupService] Fetching pending members for group ${groupId}`);
+
         const { data, error } = await supabase
             .from('group_members')
             .select('*, users(user_name, email)')
@@ -656,11 +649,9 @@ export class GroupService {
             .eq('status', 'pending');
 
         if (error) {
-            console.error('[GroupService] Error fetching pending:', error);
             throw new Error(error.message);
         }
 
-        console.log(`[GroupService] Found ${data?.length || 0} pending members`);
         return data || [];
     }
 
