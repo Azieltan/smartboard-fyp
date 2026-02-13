@@ -1,4 +1,4 @@
-# SmartBoard - Intelligent Task Management Platform
+# AWCS (Automated Workflow Collaborate System) - SmartBoard
 
 ![Project Status](https://img.shields.io/badge/Status-Active-success)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -10,13 +10,13 @@
 
 ## 🌟 Overview
 
-SmartBoard is a comprehensive task management solution that bridges the gap between traditional project management tools and modern AI automation. Built as a Final Year Project which integrates advanced features like **Natural Language Processing (NLP)** automation, **Real-time Communication**, and **Role-based Access Control (RBAC)** into a unified, sleek interface.
+SmartBoard (AWCS) is a comprehensive task management solution that bridges the gap between traditional project management tools and modern AI automation. Built as a Final Year Project for **MMU Diploma in IT**, it integrates advanced features like **Natural Language Processing (NLP)** automation, **Real-time Communication**, and **Role-based Access Control (RBAC)** into a unified, sleek interface.
 
 ## 🚀 Key Features
 
 - **🤖 Smarty AI Automation**
   - Execute complex workflows using natural language commands (e.g., "Add John to the Marketing group").
-  - Powered by **n8n** and **DeepSeek AI** for intelligent intent recognition.
+  - Powered by **n8n** and **Groq AI** for intelligent intent recognition.
 
 - **📊 Comprehensive Admin Dashboard**
   - Visual analytics for user engagement and task completion rates.
@@ -31,11 +31,11 @@ SmartBoard is a comprehensive task management solution that bridges the gap betw
   - Robust session management via **Supabase Auth** and **Firebase**.
 
 - **📅 Interactive Scheduler**
-  - Drag-and-drop calendar interface for task planning.
+  - Sleek calendar interface for seamless task and event planning.
   - Smart conflict detection and automated reminders.
 
 - **👥 Social Connectivity**
-  - Friend system with request/accept/block flows.
+  - Friend system with request, accept, decline, and block flows.
   - Shared workspaces for team collaboration.
 
 ---
@@ -154,5 +154,5 @@ This project is open-source and available under the [MIT License](LICENSE).
 ---
 
 <p align="center">
-  <sub>Built with ❤️ by Aziel Tan for Final Year Project</sub>
+  <sub>Built with ❤️ by Aziel Tan, Wing Kit, and Vincent Lock for MMU Diploma in IT Final Year Project</sub>
 </p>
